@@ -1,8 +1,0 @@
-<Solution>
-  <Folder Name="/src/">
-    <Project Path="src/GameDomain.csproj" />
-  </Folder>
-  <Folder Name="/tests/">
-    <Project Path="tests/GameDomain.Tests.csproj" />
-  </Folder>
-</Solution>
