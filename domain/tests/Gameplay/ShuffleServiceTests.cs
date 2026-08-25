@@ -44,5 +44,31 @@ namespace GameDomain.Tests.Gameplay
             Assert.That(board.Cells[hint.Value.slotIdA].Cleared, Is.True);
             Assert.That(board.Cells[hint.Value.slotIdB].Cleared, Is.True);
         }
+
+        [Test]
+        public void ShuffleThenUndo_PreservesExactlyTwoUnclearedCellsPerValue()
+        {
+            var shape = TestLayoutShapes.SmallShape();
+            var slotsById = shape.ToDictionary(s => s.Id);
+            var level = new LevelDefinition { LevelId = 3, Shape = shape, TileSetId = "test" };
+            var board = BoardGenerator.Generate(level, new Random(5));
+
+            var hint = HintFinder.FindFreePair(board, slotsById);
+            Assert.That(hint, Is.Not.Null);
+            MatchValidator.TryMatch(board, slotsById, hint.Value.slotIdA, hint.Value.slotIdB);
+
+            ShuffleService.Shuffle(board, shape, new Random(3));
+
+            var undone = UndoStack.TryUndo(board);
+            Assert.That(undone, Is.True);
+
+            var unclearedValueCounts = board.Cells
+                .Where(kv => !kv.Value.Cleared)
+                .GroupBy(kv => kv.Value.Value)
+                .ToDictionary(g => g.Key, g => g.Count());
+
+            Assert.That(unclearedValueCounts.Values, Has.All.EqualTo(2),
+                "Every value among uncleared cells must appear on exactly 2 uncleared cells after shuffle+undo.");
+        }
     }
 }

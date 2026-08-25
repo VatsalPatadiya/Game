@@ -39,7 +39,7 @@ namespace GameDomain.Generation
             int pairCount = removalOrder.Count;
             var pool = new List<string>(pairCount);
             for (int i = 0; i < pairCount; i++)
-                pool.Add("tile_" + i);
+                pool.Add(Guid.NewGuid().ToString("N"));
 
             for (int i = pool.Count - 1; i > 0; i--)
             {
