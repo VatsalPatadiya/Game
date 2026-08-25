@@ -8,7 +8,7 @@ namespace GameClient.Presentation.HUD
         [SerializeField] private Button _button;
         [SerializeField] private GameController _gameController;
 
-        private void Awake()
+        private void Start()
         {
             if (_button != null)
                 _button.onClick.AddListener(() => _gameController.OnShuffleRequested());

@@ -9,9 +9,28 @@ namespace GameClient.Presentation.Board
 
         private void Update()
         {
-            if (!Input.GetMouseButtonDown(0)) return;
+            Vector3? pointerPos = null;
 
-            var worldPoint = _targetCamera.ScreenToWorldPoint(Input.mousePosition);
+            if (Input.touchCount > 0)
+            {
+                for (int i = 0; i < Input.touchCount; i++)
+                {
+                    if (Input.GetTouch(i).phase == TouchPhase.Began)
+                    {
+                        pointerPos = Input.GetTouch(i).position;
+                        break;
+                    }
+                }
+            }
+            
+            if (pointerPos == null && Input.GetMouseButtonDown(0))
+            {
+                pointerPos = Input.mousePosition;
+            }
+
+            if (pointerPos == null) return;
+
+            var worldPoint = _targetCamera.ScreenToWorldPoint(pointerPos.Value);
             var hits = Physics2D.OverlapPointAll(new Vector2(worldPoint.x, worldPoint.y));
 
             TileView topmost = null;

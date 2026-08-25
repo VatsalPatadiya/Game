@@ -9,21 +9,25 @@ namespace GameDomain.Generation
         {
             var slots = new List<TileSlot>();
             var byLayerIndex = new Dictionary<(int layer, int index), TileSlot>();
+            int cols = 4;
 
             for (int layer = 0; layer < rowLengthsByLayer.Length; layer++)
             {
                 int length = rowLengthsByLayer[layer];
                 for (int index = 0; index < length; index++)
                 {
+                    int x = index % cols;
+                    int y = index / cols;
+                    
                     var slot = new TileSlot
                     {
                         Id = "L" + layer + "_" + index,
-                        X = index,
-                        Y = 0,
+                        X = x,
+                        Y = -y, // negative y to build downwards
                         Layer = layer,
                         CoveredByIds = new List<string>(),
-                        LeftNeighborId = index > 0 ? "L" + layer + "_" + (index - 1) : null,
-                        RightNeighborId = index < length - 1 ? "L" + layer + "_" + (index + 1) : null
+                        LeftNeighborId = x > 0 ? "L" + layer + "_" + (index - 1) : null,
+                        RightNeighborId = x < cols - 1 && index < length - 1 ? "L" + layer + "_" + (index + 1) : null
                     };
                     slots.Add(slot);
                     byLayerIndex[(layer, index)] = slot;

@@ -18,9 +18,12 @@ public static class GameSceneBuilder
         var cameraGO = new GameObject("Main Camera", typeof(Camera));
         var camera = cameraGO.GetComponent<Camera>();
         camera.orthographic = true;
-        camera.orthographicSize = 6f;
-        camera.transform.position = new Vector3(0f, 0f, -10f);
+        camera.orthographicSize = 4f; // Fit 4x2 grid in portrait
+        camera.transform.position = new Vector3(1.5f, -0.5f, -10f); // Center on 4x2 grid
         cameraGO.tag = "MainCamera";
+
+        // Add EventSystem for UI clicks
+        var eventSystemGO = new GameObject("EventSystem", typeof(UnityEngine.EventSystems.EventSystem), typeof(UnityEngine.EventSystems.StandaloneInputModule));
 
         var boardGO = new GameObject("Board", typeof(BoardView));
         var boardView = boardGO.GetComponent<BoardView>();

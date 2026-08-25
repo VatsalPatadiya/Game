@@ -32,7 +32,7 @@ namespace GameClient.Presentation.Board
                     slot.X * _cellSize,
                     slot.Y * _cellSize,
                     -slot.Layer * 0.1f);
-                view.Initialize(kv.Key, slot.Layer, ColorForValue(kv.Value.Value));
+                view.Initialize(slot.Id, slot.Layer, ColorForValue(kv.Value.Value), kv.Value.Value);
                 _tileViews[kv.Key] = view;
             }
 

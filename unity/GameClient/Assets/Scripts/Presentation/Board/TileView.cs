@@ -8,6 +8,7 @@ namespace GameClient.Presentation.Board
     {
         [SerializeField] private SpriteRenderer _backgroundRenderer;
         [SerializeField] private SpriteRenderer _iconRenderer;
+        [SerializeField] private TextMesh _textMesh;
         [SerializeField] private Color _freeColor = Color.white;
         [SerializeField] private Color _blockedColor = new Color(0.55f, 0.55f, 0.55f, 1f);
         [SerializeField] private Color _highlightColor = new Color(1f, 0.85f, 0.2f, 1f);
@@ -15,12 +16,28 @@ namespace GameClient.Presentation.Board
         public string SlotId { get; private set; }
         public int Layer { get; private set; }
 
-        public void Initialize(string slotId, int layer, Color tileColor)
+        public void Initialize(string slotId, int layer, Color tileColor, string value)
         {
             SlotId = slotId;
             Layer = layer;
             if (_iconRenderer != null)
                 _iconRenderer.color = tileColor;
+            
+            if (_textMesh != null)
+            {
+                // Convert "pair_0" to "A", "pair_1" to "B", etc.
+                if (value != null && value.StartsWith("pair_"))
+                {
+                    if (int.TryParse(value.Substring(5), out int num))
+                        _textMesh.text = ((char)('A' + num)).ToString();
+                    else
+                        _textMesh.text = value.Substring(0, 1);
+                }
+                else
+                {
+                    _textMesh.text = value != null && value.Length > 0 ? value.Substring(0, 1) : "";
+                }
+            }
         }
 
         public void SetFree(bool isFree)
