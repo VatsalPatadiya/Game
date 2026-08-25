@@ -14,13 +14,13 @@ public static class TilePrefabGenerator
         var background = new GameObject("Background");
         background.transform.SetParent(root.transform);
         var backgroundRenderer = background.AddComponent<SpriteRenderer>();
-        backgroundRenderer.sprite = CreateSquareSprite();
+        backgroundRenderer.sprite = GetOrCreateSquareSprite();
         backgroundRenderer.sortingOrder = 0;
 
         var icon = new GameObject("Icon");
         icon.transform.SetParent(root.transform);
         var iconRenderer = icon.AddComponent<SpriteRenderer>();
-        iconRenderer.sprite = CreateSquareSprite();
+        iconRenderer.sprite = GetOrCreateSquareSprite();
         iconRenderer.sortingOrder = 1;
         icon.transform.localScale = new Vector3(0.7f, 0.7f, 1f);
 
@@ -40,13 +40,8 @@ public static class TilePrefabGenerator
         Debug.Log("TILE_PREFAB_GENERATOR_DONE");
     }
 
-    private static Sprite CreateSquareSprite()
+    private static Sprite GetOrCreateSquareSprite()
     {
-        var texture = new Texture2D(4, 4);
-        var pixels = new Color[16];
-        for (int i = 0; i < pixels.Length; i++) pixels[i] = Color.white;
-        texture.SetPixels(pixels);
-        texture.Apply();
-        return Sprite.Create(texture, new Rect(0, 0, 4, 4), new Vector2(0.5f, 0.5f), 4f);
+        return AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
     }
 }

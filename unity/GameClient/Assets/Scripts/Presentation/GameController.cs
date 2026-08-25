@@ -41,7 +41,9 @@ namespace GameClient.Presentation
             };
 
             _board = BoardGenerator.Generate(level, new System.Random());
+            Debug.Log($"GAME_CONTROLLER_DEBUG: Board generated with {_board.Cells.Count} tiles.");
             _boardView.Build(_board, _slotsById);
+            Debug.Log("GAME_CONTROLLER_DEBUG: BoardView Build called.");
             ScoreChanged?.Invoke(_board.Score, _board.ComboCount);
         }
 
