@@ -15,10 +15,24 @@ namespace GameClient.Presentation.Board
         [SerializeField] private Color _blockedCardColor = new Color(0.62f, 0.63f, 0.58f, 1f);
         [SerializeField] private Color _selectionGlowColor = new Color(1f, 0.85f, 0.2f, 1f);
 
+        // Diagonal offset applied per layer so a covering tile visibly
+        // reveals a sliver of whatever it's stacked on (the reference's
+        // cascading-deck look) - was -0.04/0.08, which was under 10% of a
+        // tile and read as flat with a faint shadow, not physically stacked.
+        private const float LayerOffsetX = -0.15f;
+        private const float LayerOffsetY = 0.18f;
+
+        // Pulled well in front of every layer while being dragged (layers
+        // only go up to -maxLayer*0.1 in Z) so the lifted tile always
+        // renders above its neighbors, then restored on snap-back.
+        private const float DragLiftZ = -1f;
+        private const float DragSnapBackDuration = 0.18f;
+
         private Vector3 _originalLocalPos;
         private Coroutine _shakeCoroutine;
         private Coroutine _clearCoroutine;
         private Coroutine _fadeCoroutine;
+        private Coroutine _dragSnapCoroutine;
 
         public string SlotId { get; private set; }
         public int Layer { get; private set; }
@@ -28,7 +42,7 @@ namespace GameClient.Presentation.Board
             SlotId = slotId;
             Layer = layer;
 
-            _originalLocalPos = transform.localPosition + new Vector3(layer * -0.04f, layer * 0.08f, 0f);
+            _originalLocalPos = transform.localPosition + new Vector3(layer * LayerOffsetX, layer * LayerOffsetY, 0f);
             transform.localPosition = _originalLocalPos;
             transform.localScale = Vector3.one;
 
@@ -221,6 +235,47 @@ namespace GameClient.Presentation.Board
 
             transform.localPosition = _originalLocalPos;
             RefreshCardColor(false, Layer);
+        }
+
+        // Drag-to-peek: the player can nudge any tile aside with a finger
+        // drag to see what's stacked underneath it. Purely visual - it only
+        // moves this transform, never touches board/domain state - and
+        // always springs back to _originalLocalPos on release, so the
+        // player's actual slot/layer never changes from a drag.
+        public void BeginDrag()
+        {
+            if (_dragSnapCoroutine != null)
+            {
+                StopCoroutine(_dragSnapCoroutine);
+                _dragSnapCoroutine = null;
+            }
+        }
+
+        public void UpdateDragOffset(Vector3 worldDelta)
+        {
+            transform.localPosition = _originalLocalPos + new Vector3(worldDelta.x, worldDelta.y, DragLiftZ);
+        }
+
+        public void EndDrag()
+        {
+            if (_dragSnapCoroutine != null) StopCoroutine(_dragSnapCoroutine);
+            _dragSnapCoroutine = StartCoroutine(SnapBackRoutine());
+        }
+
+        private IEnumerator SnapBackRoutine()
+        {
+            var start = transform.localPosition;
+            float elapsed = 0f;
+            while (elapsed < DragSnapBackDuration)
+            {
+                elapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(elapsed / DragSnapBackDuration);
+                float eased = 1f - Mathf.Pow(1f - t, 3f);
+                transform.localPosition = Vector3.Lerp(start, _originalLocalPos, eased);
+                yield return null;
+            }
+            transform.localPosition = _originalLocalPos;
+            _dragSnapCoroutine = null;
         }
 
         private ITintable[] BuildRendererArray()

@@ -21,7 +21,11 @@ namespace GameClient.Presentation.Board
         [SerializeField] private TileView _tilePrefab;
         [SerializeField] private TileSetAsset _tileSet;
         [SerializeField] private Camera _camera;
-        [SerializeField] private float _cellSize = 0.95f;
+        // Matches CardStyle.AccentSizeRatio (the widest visible card layer)
+        // so same-layer neighbor tiles sit edge-to-edge with no visible
+        // background gap between them, like the reference's tightly packed
+        // mosaic - was 0.95, which left ~11% of a tile as empty gap.
+        [SerializeField] private float _cellSize = 0.85f;
         [SerializeField] private float _cameraMargin = 0.3f;
 
         private readonly Dictionary<string, TileView> _tileViews = new Dictionary<string, TileView>();
