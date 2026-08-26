@@ -1,3 +1,4 @@
+using System.Collections;
 using GameClient.Presentation.Board;
 using UnityEngine;
 using UnityEngine.UI;
@@ -16,6 +17,7 @@ namespace GameClient.Presentation.HUD
         [SerializeField] private Color _highlightColor = new Color(1f, 0.85f, 0.2f, 1f);
 
         private Coroutine _clearCoroutine;
+        private Coroutine _popInCoroutine;
 
         public RectTransform RectTransform => (RectTransform)transform;
 
@@ -42,6 +44,39 @@ namespace GameClient.Presentation.HUD
                 _iconImage.color = accentColor;
                 _iconImage.enabled = true;
             }
+        }
+
+        // Fills the slot then pops it in (scale 0 -> slight overshoot -> 1),
+        // timed to land at essentially the same moment the tapped board tile
+        // finishes disappearing (see TileView.PlayTapAway) - the two read as
+        // connected by timing rather than by a visible path between them.
+        public void PlayPopIn(Sprite icon, Color accentColor)
+        {
+            SetFilled(icon, accentColor);
+            if (_popInCoroutine != null) StopCoroutine(_popInCoroutine);
+            _popInCoroutine = StartCoroutine(PopInRoutine());
+        }
+
+        private IEnumerator PopInRoutine()
+        {
+            float duration = CardAnimator.TrayPopInDuration;
+            float overshoot = CardAnimator.TrayPopInOvershoot;
+            const float overshootFraction = 0.7f;
+
+            transform.localScale = Vector3.zero;
+            float elapsed = 0f;
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(elapsed / duration);
+                float scale = t < overshootFraction
+                    ? Mathf.Lerp(0f, overshoot, t / overshootFraction)
+                    : Mathf.Lerp(overshoot, 1f, (t - overshootFraction) / (1f - overshootFraction));
+                transform.localScale = Vector3.one * scale;
+                yield return null;
+            }
+
+            transform.localScale = Vector3.one;
         }
 
         // Brief highlight so the player can see which two tiles matched, then

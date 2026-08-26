@@ -110,23 +110,48 @@ namespace GameClient.Presentation.Board
             onComplete?.Invoke();
         }
 
-        // Fast (~100ms) fade of the visible layers only (not the glow), used
-        // when a valid tap sends this tile flying off toward the tray.
-        public void PlayFadeOutOnly(System.Action onComplete)
+        // Tap-confirm flash (~70ms) then a quick scale-down+fade (~100ms) in
+        // place - replaces the old cross-screen flying-proxy: footage showed
+        // no in-transit frame was catchable even at 10fps, so the tile just
+        // needs to disappear fast at its own position while the tray slot
+        // pops in on its own, concurrently (see TraySlotView.PlayPopIn).
+        public void PlayTapAway(System.Action onComplete)
         {
             if (_fadeCoroutine != null) StopCoroutine(_fadeCoroutine);
-            _fadeCoroutine = StartCoroutine(FadeVisibleRenderers(0f, CardAnimator.FastFadeDuration, onComplete));
+            _fadeCoroutine = StartCoroutine(TapAwayRoutine(onComplete));
         }
 
-        // Restores full visibility; only used defensively if a tap's flight
-        // animation completes but the domain call turns out to be invalid.
+        private IEnumerator TapAwayRoutine(System.Action onComplete)
+        {
+            if (_selectionGlowRenderer != null)
+            {
+                var c = _selectionGlowColor;
+                c.a = 1f;
+                _selectionGlowRenderer.color = c;
+            }
+
+            yield return new WaitForSeconds(CardAnimator.TapConfirmFlashDuration);
+
+            if (_selectionGlowRenderer != null)
+            {
+                var c = _selectionGlowColor;
+                c.a = 0f;
+                _selectionGlowRenderer.color = c;
+            }
+
+            yield return CardAnimator.ScaleDownAndFadeOut(
+                transform, BuildRendererArray(), CardAnimator.TapAwayDuration, onComplete);
+        }
+
+        // Restores full scale and visibility; only used defensively if a
+        // tap-away completes but the domain push turns out to be invalid.
         public void PlayFadeInOnly()
         {
             if (_fadeCoroutine != null) StopCoroutine(_fadeCoroutine);
-            _fadeCoroutine = StartCoroutine(FadeVisibleRenderers(1f, CardAnimator.FastFadeDuration, null));
+            _fadeCoroutine = StartCoroutine(RestoreAfterTapAway());
         }
 
-        private IEnumerator FadeVisibleRenderers(float toAlpha, float duration, System.Action onComplete)
+        private IEnumerator RestoreAfterTapAway()
         {
             var renderers = new[] { _shadowRenderer, _accentRenderer, _cardRenderer, _iconRenderer };
             var tints = new ITintable[renderers.Length];
@@ -138,30 +163,32 @@ namespace GameClient.Presentation.Board
                 fromAlphas[i] = renderers[i].color.a;
             }
 
+            float duration = CardAnimator.TapAwayDuration;
             float elapsed = 0f;
+            var startScale = transform.localScale;
             while (elapsed < duration)
             {
                 elapsed += Time.deltaTime;
                 float t = Mathf.Clamp01(elapsed / duration);
+                transform.localScale = Vector3.Lerp(startScale, Vector3.one, t);
                 for (int i = 0; i < tints.Length; i++)
                 {
                     if (tints[i] == null) continue;
                     var c = tints[i].Color;
-                    c.a = Mathf.Lerp(fromAlphas[i], toAlpha, t);
+                    c.a = Mathf.Lerp(fromAlphas[i], 1f, t);
                     tints[i].Color = c;
                 }
                 yield return null;
             }
 
+            transform.localScale = Vector3.one;
             for (int i = 0; i < tints.Length; i++)
             {
                 if (tints[i] == null) continue;
                 var c = tints[i].Color;
-                c.a = toAlpha;
+                c.a = 1f;
                 tints[i].Color = c;
             }
-
-            onComplete?.Invoke();
         }
 
         public void PlayClearAndDestroy()

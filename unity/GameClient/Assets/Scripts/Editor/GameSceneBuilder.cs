@@ -50,7 +50,6 @@ public static class GameSceneBuilder
         var gameControllerGO = new GameObject("GameController", typeof(GameController));
         var gameController = gameControllerGO.GetComponent<GameController>();
         SetField(gameController, "_boardView", boardView);
-        SetField(gameController, "_camera", camera);
 
         SetField(inputController, "_targetCamera", camera);
         SetField(inputController, "_gameController", gameController);

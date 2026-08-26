@@ -17,7 +17,6 @@ namespace GameClient.Presentation
         [SerializeField] private BoardView _boardView;
         [SerializeField] private TrayView _trayView;
         [SerializeField] private GameOverPopup _gameOverPopup;
-        [SerializeField] private Camera _camera;
 
         private BoardState _board;
         private List<TileSlot> _shape;
@@ -27,7 +26,7 @@ namespace GameClient.Presentation
         public event Action<int, int> ScoreChanged;
         public event Action<int, int, int> UsesChanged;
 
-        // True while the deal-in animation or a tap's flight-to-tray sequence
+        // True while the deal-in animation or a tap's tap-to-tray sequence
         // is still playing, so a second tap (or a hint/undo/shuffle press)
         // can't land mid-animation and desync the board from what's visible.
         public bool IsInputLocked { get; private set; }
@@ -87,10 +86,14 @@ namespace GameClient.Presentation
             StartCoroutine(TapToTrayRoutine(slotId));
         }
 
-        // Fades the tapped board tile out, flies a temporary card to its
-        // landing slot, and only *then* runs the actual domain push (and
-        // whatever match it triggers) — TrayManager.TryPushToTray is called
-        // exactly once, unchanged, just later than an instant tap would.
+        // Tap-confirm flash + quick scale-down-fade on the board tile (at its
+        // own position - see TileView.PlayTapAway) while the tray slot pops
+        // in concurrently - replaces the round-2 cross-screen flying-proxy,
+        // which footage showed doesn't match how fast the real transition
+        // reads (well under 150ms, no catchable in-transit frame). The
+        // domain push still only runs *after* that settles, so
+        // TrayManager.TryPushToTray is called exactly once, just later than
+        // an instant tap would.
         private IEnumerator TapToTrayRoutine(string slotId)
         {
             IsInputLocked = true;
@@ -102,21 +105,11 @@ namespace GameClient.Presentation
             var oldTrayIds = new List<string>(_board.TrayTileIds);
             int targetIndex = oldTrayIds.Count;
 
-            Vector3 startScreenPos = _camera != null && tileView != null
-                ? _camera.WorldToScreenPoint(tileView.transform.position)
-                : Vector3.zero;
+            bool tileAwayDone = false;
+            tileView?.PlayTapAway(() => tileAwayDone = true);
+            _trayView.PlayArrivalPopIn(targetIndex, icon, accentColor);
 
-            bool faded = false;
-            tileView?.PlayFadeOutOnly(() => faded = true);
-            yield return new WaitUntil(() => faded || tileView == null);
-
-            var flightCard = _trayView.SpawnFlightCard(icon, accentColor, startScreenPos);
-            var flightRect = (RectTransform)flightCard.transform;
-            Vector3 targetScreenPos = _trayView.GetSlotScreenPosition(targetIndex);
-            yield return CardAnimator.MoveRectTransform(flightRect, startScreenPos, targetScreenPos, CardAnimator.FlightDuration);
-            Destroy(flightCard);
-
-            _trayView.PlayArrival(targetIndex, icon, accentColor);
+            yield return new WaitUntil(() => tileAwayDone || tileView == null);
 
             bool pushed = TrayManager.TryPushToTray(_board, _slotsById, slotId);
             if (!pushed)

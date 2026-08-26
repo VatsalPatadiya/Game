@@ -40,10 +40,10 @@ namespace GameClient.Presentation.HUD
 
         public Vector3 GetSlotScreenPosition(int index) => _slots[index].RectTransform.position;
 
-        public void PlayArrival(int index, Sprite icon, Color accentColor)
+        public void PlayArrivalPopIn(int index, Sprite icon, Color accentColor)
         {
             if (index < 0 || index >= _slots.Count) return;
-            _slots[index].SetFilled(icon, accentColor);
+            _slots[index].PlayPopIn(icon, accentColor);
         }
 
         // Spawns a free-standing copy of the tray card (parented under the
