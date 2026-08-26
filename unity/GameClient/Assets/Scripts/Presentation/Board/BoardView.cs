@@ -11,7 +11,9 @@ namespace GameClient.Presentation.Board
     {
         [SerializeField] private TileView _tilePrefab;
         [SerializeField] private TileSetAsset _tileSet;
-        [SerializeField] private float _cellSize = 0.9f;
+        [SerializeField] private Camera _camera;
+        [SerializeField] private float _cellSize = 0.95f;
+        [SerializeField] private float _cameraMargin = 0.3f;
 
         private readonly Dictionary<string, TileView> _tileViews = new Dictionary<string, TileView>();
         private Dictionary<string, TileSlot> _slotsById;
@@ -24,6 +26,8 @@ namespace GameClient.Presentation.Board
                 if (view != null) Destroy(view.gameObject);
             _tileViews.Clear();
 
+            FitCameraToBoard(slotsById);
+
             foreach (var kv in board.Cells)
             {
                 if (kv.Value.Cleared) continue;
@@ -34,11 +38,40 @@ namespace GameClient.Presentation.Board
                     slot.X * _cellSize,
                     slot.Y * _cellSize,
                     -slot.Layer * 0.1f);
-                view.Initialize(slot.Id, slot.Layer, IconForValue(kv.Value.Value), AccentColorForValue(kv.Value.Value));
+                view.Initialize(slot.Id, slot.Layer, TileVisual.IconFor(_tileSet, kv.Value.Value), TileVisual.AccentColorFor(_tileSet, kv.Value.Value));
                 _tileViews[kv.Key] = view;
             }
 
             RefreshFreeStates(board);
+        }
+
+        // Orthographic size only controls vertical half-height; the visible width
+        // depends on the device's actual aspect ratio. A fixed size tuned for one
+        // aspect ratio crops the board on narrower phones, so this recomputes the
+        // size (and re-centers) every time the board is built, from the board's
+        // real bounds and Screen.width/Screen.height, taking whichever axis is the
+        // tighter constraint (letterboxing the other) instead of guessing a value.
+        private void FitCameraToBoard(Dictionary<string, TileSlot> slotsById)
+        {
+            if (_camera == null || slotsById.Count == 0) return;
+
+            float minX = slotsById.Values.Min(s => s.X);
+            float maxX = slotsById.Values.Max(s => s.X);
+            float minY = slotsById.Values.Min(s => s.Y);
+            float maxY = slotsById.Values.Max(s => s.Y);
+
+            float boardWidth = (maxX - minX) * _cellSize + _cellSize;
+            float boardHeight = (maxY - minY) * _cellSize + _cellSize;
+
+            float aspect = Screen.height > 0 ? (float)Screen.width / Screen.height : 0.5f;
+            float sizeForWidth = (boardWidth / 2f + _cameraMargin) / aspect;
+            float sizeForHeight = boardHeight / 2f + _cameraMargin;
+            _camera.orthographicSize = Mathf.Max(sizeForWidth, sizeForHeight);
+
+            float centerX = (minX + maxX) / 2f * _cellSize;
+            float centerY = (minY + maxY) / 2f * _cellSize;
+            var pos = _camera.transform.position;
+            _camera.transform.position = new Vector3(centerX, centerY, pos.z);
         }
 
         public void RefreshFreeStates(BoardState board)
@@ -65,22 +98,5 @@ namespace GameClient.Presentation.Board
 
         public TileView GetTileView(string slotId) =>
             _tileViews.TryGetValue(slotId, out var view) ? view : null;
-
-        // Icons.Length (7) * AccentColors.Length (4) = 28 unique combinations, which
-        // covers the full 0-25 value range the domain layer can assign (values are
-        // capped at mod 26 by ReverseConstructionSolver), so no two distinct pair
-        // values ever render as the same icon+color combo.
-        private Sprite IconForValue(string value)
-        {
-            int index = int.Parse(value);
-            return _tileSet.Icons[index % _tileSet.Icons.Length];
-        }
-
-        private Color AccentColorForValue(string value)
-        {
-            int index = int.Parse(value);
-            int colorIndex = (index / _tileSet.Icons.Length) % _tileSet.AccentColors.Length;
-            return _tileSet.AccentColors[colorIndex];
-        }
     }
 }

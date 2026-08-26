@@ -41,6 +41,7 @@ public static class GameSceneBuilder
         var tileSet = AssetDatabase.LoadAssetAtPath<TileSetAsset>("Assets/Data/DefaultTileSet.asset");
         RequireNotNull(tileSet, "Assets/Data/DefaultTileSet.asset as TileSetAsset");
         SetField(boardView, "_tileSet", tileSet);
+        SetField(boardView, "_camera", camera);
 
         var inputGO = new GameObject("TileInputController", typeof(TileInputController));
         var inputController = inputGO.GetComponent<TileInputController>();
@@ -112,7 +113,9 @@ public static class GameSceneBuilder
         var trayGO = new GameObject("TrayPanel", typeof(Image), typeof(HorizontalLayoutGroup), typeof(TrayView));
         trayGO.transform.SetParent(canvasGO.transform, false);
         var trayImage = trayGO.GetComponent<Image>();
-        trayImage.color = new Color(0, 0, 0, 0.5f);
+        trayImage.sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
+        trayImage.type = Image.Type.Sliced;
+        trayImage.color = new Color(0.11f, 0.16f, 0.13f, 0.55f);
         var trayRect = trayGO.GetComponent<RectTransform>();
         trayRect.anchorMin = new Vector2(0.5f, 1f);
         trayRect.anchorMax = new Vector2(0.5f, 1f);
@@ -131,48 +134,43 @@ public static class GameSceneBuilder
         var slotRect = traySlotPrefab.GetComponent<RectTransform>();
         slotRect.sizeDelta = new Vector2(80f, 80f);
 
-        var shadowGO = new GameObject("Shadow", typeof(Image));
-        shadowGO.transform.SetParent(traySlotPrefab.transform, false);
-        var shadowImage = shadowGO.GetComponent<Image>();
-        shadowImage.color = new Color(0, 0, 0, 0.4f);
-        var shadowRect = shadowGO.GetComponent<RectTransform>();
-        shadowRect.anchorMin = Vector2.zero;
-        shadowRect.anchorMax = Vector2.one;
-        shadowRect.anchoredPosition = new Vector2(5f, -5f);
+        var slotKnobSprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
 
-        var bgGO = new GameObject("Background", typeof(Image));
-        bgGO.transform.SetParent(traySlotPrefab.transform, false);
-        var bgImage = bgGO.GetComponent<Image>();
-        var bgRect = bgGO.GetComponent<RectTransform>();
-        bgRect.anchorMin = Vector2.zero;
-        bgRect.anchorMax = Vector2.one;
-        bgRect.offsetMin = Vector2.zero;
-        bgRect.offsetMax = Vector2.zero;
+        var slotAccentGO = new GameObject("AccentBorder", typeof(Image));
+        slotAccentGO.transform.SetParent(traySlotPrefab.transform, false);
+        var slotAccentImage = slotAccentGO.GetComponent<Image>();
+        slotAccentImage.sprite = slotKnobSprite;
+        slotAccentImage.type = Image.Type.Sliced;
+        var slotAccentRect = slotAccentGO.GetComponent<RectTransform>();
+        slotAccentRect.anchorMin = Vector2.zero;
+        slotAccentRect.anchorMax = Vector2.one;
+        slotAccentRect.offsetMin = Vector2.zero;
+        slotAccentRect.offsetMax = Vector2.zero;
 
-        var iconGO = new GameObject("Icon", typeof(Image));
-        iconGO.transform.SetParent(traySlotPrefab.transform, false);
-        var iconImage = iconGO.GetComponent<Image>();
-        var iconRect = iconGO.GetComponent<RectTransform>();
-        iconRect.anchorMin = new Vector2(0.1f, 0.1f);
-        iconRect.anchorMax = new Vector2(0.9f, 0.9f);
-        iconRect.offsetMin = Vector2.zero;
-        iconRect.offsetMax = Vector2.zero;
+        var slotCardGO = new GameObject("Card", typeof(Image));
+        slotCardGO.transform.SetParent(traySlotPrefab.transform, false);
+        var slotCardImage = slotCardGO.GetComponent<Image>();
+        slotCardImage.sprite = slotKnobSprite;
+        slotCardImage.type = Image.Type.Sliced;
+        var slotCardRect = slotCardGO.GetComponent<RectTransform>();
+        slotCardRect.anchorMin = new Vector2(0.08f, 0.08f);
+        slotCardRect.anchorMax = new Vector2(0.92f, 0.92f);
+        slotCardRect.offsetMin = Vector2.zero;
+        slotCardRect.offsetMax = Vector2.zero;
 
-        var slotTextGO = new GameObject("Text", typeof(Text));
-        slotTextGO.transform.SetParent(traySlotPrefab.transform, false);
-        var slotText = slotTextGO.GetComponent<Text>();
-        slotText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        slotText.fontSize = 40;
-        slotText.color = Color.black;
-        slotText.alignment = TextAnchor.MiddleCenter;
-        var slotTextRect = slotTextGO.GetComponent<RectTransform>();
-        slotTextRect.anchorMin = Vector2.zero;
-        slotTextRect.anchorMax = Vector2.one;
-        slotTextRect.offsetMin = Vector2.zero;
-        slotTextRect.offsetMax = Vector2.zero;
+        var slotIconGO = new GameObject("Icon", typeof(Image));
+        slotIconGO.transform.SetParent(traySlotPrefab.transform, false);
+        var slotIconImage = slotIconGO.GetComponent<Image>();
+        slotIconImage.type = Image.Type.Simple;
+        var slotIconRect = slotIconGO.GetComponent<RectTransform>();
+        slotIconRect.anchorMin = new Vector2(0.22f, 0.22f);
+        slotIconRect.anchorMax = new Vector2(0.78f, 0.78f);
+        slotIconRect.offsetMin = Vector2.zero;
+        slotIconRect.offsetMax = Vector2.zero;
 
         SetField(trayView, "layoutGroup", trayLayout);
         SetField(trayView, "traySlotPrefab", traySlotPrefab);
+        SetField(trayView, "tileSet", tileSet);
         SetField(gameController, "_trayView", trayView);
 
         // ------------------
