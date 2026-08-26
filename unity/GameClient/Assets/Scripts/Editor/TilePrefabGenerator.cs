@@ -11,22 +11,26 @@ public static class TilePrefabGenerator
 
         var root = new GameObject("Tile");
 
-        var shadow = CreateSlicedChild(root.transform, "Shadow", new Vector2(0.82f, 0.82f), -2,
-            new Vector3(0.05f, -0.05f, 0.06f), new Color(0f, 0f, 0f, 0.3f));
+        var shadow = CreateSlicedChild(root.transform, "Shadow",
+            new Vector2(CardStyle.ShadowSizeRatio, CardStyle.ShadowSizeRatio), -2,
+            new Vector3(0.05f, -0.05f, 0.06f), CardStyle.ShadowColor);
 
-        var selectionGlow = CreateSlicedChild(root.transform, "SelectionGlow", new Vector2(1f, 1f), -1,
-            Vector3.zero, new Color(1f, 0.85f, 0.2f, 0f));
+        var selectionGlow = CreateSlicedChild(root.transform, "SelectionGlow",
+            new Vector2(CardStyle.GlowSizeRatio, CardStyle.GlowSizeRatio), -1,
+            Vector3.zero, CardStyle.GlowColor);
 
-        var accent = CreateSlicedChild(root.transform, "AccentBorder", new Vector2(0.86f, 0.86f), 0,
-            Vector3.zero, new Color(0.69f, 0.26f, 0.16f, 1f));
+        var accent = CreateSlicedChild(root.transform, "AccentBorder",
+            new Vector2(CardStyle.AccentSizeRatio, CardStyle.AccentSizeRatio), 0,
+            Vector3.zero, CardStyle.AccentDefaultColor);
 
-        var card = CreateSlicedChild(root.transform, "Card", new Vector2(0.78f, 0.78f), 1,
-            Vector3.zero, new Color(0.969f, 0.957f, 0.922f, 1f));
+        var card = CreateSlicedChild(root.transform, "Card",
+            new Vector2(CardStyle.CardSizeRatio, CardStyle.CardSizeRatio), 1,
+            Vector3.zero, CardStyle.CardColor);
 
         var iconGO = new GameObject("Icon");
         iconGO.transform.SetParent(root.transform, false);
         iconGO.transform.localPosition = new Vector3(0f, 0f, -0.05f);
-        iconGO.transform.localScale = new Vector3(0.5f, 0.5f, 1f);
+        iconGO.transform.localScale = new Vector3(CardStyle.IconSizeRatio, CardStyle.IconSizeRatio, 1f);
         var iconRenderer = iconGO.AddComponent<SpriteRenderer>();
         iconRenderer.drawMode = SpriteDrawMode.Simple;
         iconRenderer.sortingOrder = 2;
