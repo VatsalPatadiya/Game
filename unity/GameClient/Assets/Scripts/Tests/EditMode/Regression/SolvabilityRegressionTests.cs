@@ -32,6 +32,15 @@ namespace GameDomain.Tests.Regression
             AssertAllGeneratedBoardsAreSolvable(TestLayoutShapes.LargeShape(), seedOffset: 3000);
         }
 
+        // Explicit ~50-tile bucket, not just implicitly covered by LargeShape
+        // (40 tiles) — a permanent regression guard that boards at this size
+        // stay solvable as the game scales up.
+        [Test]
+        public void GeneratedBoards_AreAlwaysSolvable_ForExtraLargeShape()
+        {
+            AssertAllGeneratedBoardsAreSolvable(TestLayoutShapes.ExtraLargeShape(), seedOffset: 4000);
+        }
+
         private static void AssertAllGeneratedBoardsAreSolvable(List<TileSlot> shape, int seedOffset)
         {
             for (int i = 0; i < IterationsPerShape; i++)
