@@ -22,6 +22,7 @@ namespace GameClient.Presentation
         private readonly ComboScorer _comboScorer = new ComboScorer();
 
         public event Action<int, int> ScoreChanged;
+        public event Action<int, int, int> UsesChanged;
 
         private void Start()
         {
@@ -55,6 +56,7 @@ namespace GameClient.Presentation
                 _trayView.Initialize(4); // 4 slots
                 
             ScoreChanged?.Invoke(_board.Score, _board.ComboCount);
+            NotifyUsesChanged();
         }
 
         public void OnTileTapped(string slotId)
@@ -93,14 +95,19 @@ namespace GameClient.Presentation
 
         public void OnHintRequested()
         {
+            if (_board.HintsRemaining <= 0) return;
+
             var hint = HintFinder.FindFreePair(_board, _slotsById);
             if (!hint.HasValue) return;
+
+            _board.HintsRemaining -= 1;
 
             // Hint shouldn't use highlight anymore if tiles move to tray directly,
             // or maybe it highlights a free tile on the board that matches something in the tray?
             // For now, let's just highlight a free pair on the board.
             _boardView.GetTileView(hint.Value.slotIdA)?.Highlight();
             _boardView.GetTileView(hint.Value.slotIdB)?.Highlight();
+            NotifyUsesChanged();
         }
 
         public void OnUndoRequested()
@@ -109,6 +116,7 @@ namespace GameClient.Presentation
             {
                 _boardView.Build(_board, _slotsById);
                 ScoreChanged?.Invoke(_board.Score, _board.ComboCount);
+                NotifyUsesChanged();
             }
         }
 
@@ -116,13 +124,21 @@ namespace GameClient.Presentation
         {
             try
             {
-                ShuffleService.Shuffle(_board, _shape, new System.Random());
-                _boardView.Build(_board, _slotsById);
+                if (ShuffleService.Shuffle(_board, _shape, new System.Random()))
+                {
+                    _boardView.Build(_board, _slotsById);
+                    NotifyUsesChanged();
+                }
             }
             catch (BoardGenerationException ex)
             {
                 Debug.LogWarning("Shuffle could not find a solvable arrangement, board left unchanged: " + ex.Message);
             }
+        }
+
+        private void NotifyUsesChanged()
+        {
+            UsesChanged?.Invoke(_board.HintsRemaining, _board.UndosRemaining, _board.ShufflesRemaining);
         }
     }
 }
