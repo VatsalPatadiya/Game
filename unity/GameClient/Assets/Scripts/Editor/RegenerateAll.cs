@@ -6,6 +6,7 @@ public static class RegenerateAll
     {
         TileIconGenerator.Generate();
         HudIconGenerator.Generate();
+        CardSpriteGenerator.Generate();
         DataAssetGenerator.Generate();
         TilePrefabGenerator.Generate();
         GameSceneBuilder.Build();
