@@ -12,19 +12,19 @@ public static class TilePrefabGenerator
         var root = new GameObject("Tile");
 
         var shadow = CreateSlicedChild(root.transform, "Shadow",
-            new Vector2(CardStyle.ShadowSizeRatio, CardStyle.ShadowSizeRatio), -2,
+            new Vector2(CardStyle.ShadowSizeRatio * CardStyle.CardAspectRatio, CardStyle.ShadowSizeRatio), -2,
             new Vector3(0.05f, -0.05f, 0.06f), CardStyle.ShadowColor);
 
         var selectionGlow = CreateSlicedChild(root.transform, "SelectionGlow",
-            new Vector2(CardStyle.GlowSizeRatio, CardStyle.GlowSizeRatio), -1,
+            new Vector2(CardStyle.GlowSizeRatio * CardStyle.CardAspectRatio, CardStyle.GlowSizeRatio), -1,
             Vector3.zero, CardStyle.GlowColor);
 
         var accent = CreateSlicedChild(root.transform, "AccentBorder",
-            new Vector2(CardStyle.AccentSizeRatio, CardStyle.AccentSizeRatio), 0,
+            new Vector2(CardStyle.AccentSizeRatio * CardStyle.CardAspectRatio, CardStyle.AccentSizeRatio), 0,
             Vector3.zero, CardStyle.AccentDefaultColor);
 
         var card = CreateSlicedChild(root.transform, "Card",
-            new Vector2(CardStyle.CardSizeRatio, CardStyle.CardSizeRatio), 1,
+            new Vector2(CardStyle.CardSizeRatio * CardStyle.CardAspectRatio, CardStyle.CardSizeRatio), 1,
             Vector3.zero, CardStyle.CardColor);
 
         var iconGO = new GameObject("Icon");
@@ -36,7 +36,7 @@ public static class TilePrefabGenerator
         iconRenderer.sortingOrder = 2;
 
         var collider = root.AddComponent<BoxCollider2D>();
-        collider.size = Vector2.one;
+        collider.size = new Vector2(CardStyle.CardAspectRatio, 1f);
 
         var tileView = root.AddComponent<TileView>();
         var serialized = new SerializedObject(tileView);

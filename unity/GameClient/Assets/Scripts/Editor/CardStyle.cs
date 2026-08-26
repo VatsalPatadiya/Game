@@ -18,6 +18,13 @@ public static class CardStyle
     public const float CardSizeRatio = 0.76f;
     public const float IconSizeRatio = 0.5f;
 
+    // Width:height of the board tile card - a portrait rectangle like the
+    // classic mahjong tile silhouette (and the reference screenshot),
+    // instead of the square card used through round 5. Every *SizeRatio
+    // above still scales the tile's HEIGHT axis; width is that value times
+    // this ratio (see TilePrefabGenerator).
+    public const float CardAspectRatio = 0.8f;
+
     public static readonly Color ShadowColor = new Color(0f, 0f, 0f, 0.3f);
     public static readonly Color GlowColor = new Color(1f, 0.85f, 0.2f, 0f);
     public static readonly Color AccentDefaultColor = new Color(0.69f, 0.26f, 0.16f, 1f);

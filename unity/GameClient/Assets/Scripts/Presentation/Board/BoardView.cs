@@ -21,11 +21,13 @@ namespace GameClient.Presentation.Board
         [SerializeField] private TileView _tilePrefab;
         [SerializeField] private TileSetAsset _tileSet;
         [SerializeField] private Camera _camera;
-        // Matches CardStyle.AccentSizeRatio (the widest visible card layer)
-        // so same-layer neighbor tiles sit edge-to-edge with no visible
-        // background gap between them, like the reference's tightly packed
-        // mosaic - was 0.95, which left ~11% of a tile as empty gap.
-        [SerializeField] private float _cellSize = 0.85f;
+        // Matches CardStyle.AccentSizeRatio (the widest visible card layer,
+        // and its width = AccentSizeRatio * CardAspectRatio for the portrait
+        // tile shape) so same-layer neighbor tiles sit edge-to-edge with no
+        // visible background gap between them, like the reference's tightly
+        // packed mosaic.
+        [SerializeField] private float _cellWidth = 0.68f;
+        [SerializeField] private float _cellHeight = 0.85f;
         [SerializeField] private float _cameraMargin = 0.3f;
 
         private readonly Dictionary<string, TileView> _tileViews = new Dictionary<string, TileView>();
@@ -92,8 +94,8 @@ namespace GameClient.Presentation.Board
                 var slot = slotsById[kv.Key];
                 var view = Instantiate(_tilePrefab, transform);
                 view.transform.localPosition = new Vector3(
-                    slot.X * _cellSize,
-                    slot.Y * _cellSize,
+                    slot.X * _cellWidth,
+                    slot.Y * _cellHeight,
                     -slot.Layer * 0.1f);
                 view.Initialize(slot.Id, slot.Layer, TileVisual.IconFor(_tileSet, kv.Value.Value), TileVisual.AccentColorFor(_tileSet, kv.Value.Value));
                 _tileViews[kv.Key] = view;
@@ -131,16 +133,16 @@ namespace GameClient.Presentation.Board
             float minY = slotsById.Values.Min(s => s.Y);
             float maxY = slotsById.Values.Max(s => s.Y);
 
-            float boardWidth = (maxX - minX) * _cellSize + _cellSize;
-            float boardHeight = (maxY - minY) * _cellSize + _cellSize;
+            float boardWidth = (maxX - minX) * _cellWidth + _cellWidth;
+            float boardHeight = (maxY - minY) * _cellHeight + _cellHeight;
 
             float aspect = Screen.height > 0 ? (float)Screen.width / Screen.height : 0.5f;
             float sizeForWidth = (boardWidth / 2f + _cameraMargin) / aspect;
             float sizeForHeight = boardHeight / 2f + _cameraMargin;
             _camera.orthographicSize = Mathf.Max(sizeForWidth, sizeForHeight);
 
-            float centerX = (minX + maxX) / 2f * _cellSize;
-            float centerY = (minY + maxY) / 2f * _cellSize;
+            float centerX = (minX + maxX) / 2f * _cellWidth;
+            float centerY = (minY + maxY) / 2f * _cellHeight;
             var pos = _camera.transform.position;
             _camera.transform.position = new Vector3(centerX, centerY, pos.z);
         }
