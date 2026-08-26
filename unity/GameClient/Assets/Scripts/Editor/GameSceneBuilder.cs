@@ -115,43 +115,64 @@ public static class GameSceneBuilder
             typeof(UndoButton), undoIcon);
 
         // ------------------
-        // Build Tray UI
+        // Build Tray UI - one continuous divided bar (reference footage
+        // showed a single bar with thin internal dividers, not four
+        // separately-carded, gapped slots)
         // ------------------
+        const float traySlotSize = 120f; // >=85% of the board tile's ~130-140px on-screen card size
+        const float trayHeight = traySlotSize + 20f;
+
         var trayGO = new GameObject("TrayPanel", typeof(Image), typeof(HorizontalLayoutGroup), typeof(TrayView));
         trayGO.transform.SetParent(canvasGO.transform, false);
         var trayImage = trayGO.GetComponent<Image>();
-        trayImage.sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
+        trayImage.sprite = LoadCardSprite();
         trayImage.type = Image.Type.Sliced;
+        trayImage.pixelsPerUnitMultiplier = CardStyle.CardSpriteSourceBorderPx / (trayHeight * CardStyle.CornerRadiusRatio);
         trayImage.color = new Color(0.11f, 0.16f, 0.13f, 0.55f);
-        const float traySlotSize = 120f; // >=85% of the board tile's ~130-140px on-screen card size
 
         var trayRect = trayGO.GetComponent<RectTransform>();
         trayRect.anchorMin = new Vector2(0.5f, 1f);
         trayRect.anchorMax = new Vector2(0.5f, 1f);
         trayRect.pivot = new Vector2(0.5f, 1f);
         trayRect.anchoredPosition = new Vector2(0, -80f);
-        trayRect.sizeDelta = new Vector2(580f, 160f); // wide/tall enough for 4 slots at traySlotSize without crowding
+        trayRect.sizeDelta = new Vector2(traySlotSize * 4f + 20f, trayHeight); // snug around 4 contiguous slots
 
         var trayLayout = trayGO.GetComponent<HorizontalLayoutGroup>();
         trayLayout.childAlignment = TextAnchor.MiddleCenter;
         trayLayout.childControlWidth = false;
         trayLayout.childControlHeight = false;
-        trayLayout.spacing = 14f;
+        trayLayout.spacing = 0f; // contiguous, so it reads as one bar, not separate cards
 
         var trayView = trayGO.GetComponent<TrayView>();
         var traySlotPrefab = new GameObject("TraySlot", typeof(RectTransform));
         var slotRect = traySlotPrefab.GetComponent<RectTransform>();
         slotRect.sizeDelta = new Vector2(traySlotSize, traySlotSize);
 
-        var shadowLayer = CreateCardLayer(traySlotPrefab.transform, "Shadow", CardStyle.ShadowSizeRatio, CardStyle.ShadowColor, traySlotSize);
-        shadowLayer.rectTransform.anchoredPosition = new Vector2(6f, -6f);
+        // Thin static divider on the slot's left edge - stays put even while
+        // the slot's own content (glow+icon) animates in/out.
+        var dividerGO = new GameObject("Divider", typeof(Image));
+        dividerGO.transform.SetParent(traySlotPrefab.transform, false);
+        var dividerImage = dividerGO.GetComponent<Image>();
+        dividerImage.color = new Color(1f, 1f, 1f, 0.15f);
+        var dividerRect = dividerGO.GetComponent<RectTransform>();
+        dividerRect.anchorMin = new Vector2(0f, 0.1f);
+        dividerRect.anchorMax = new Vector2(0f, 0.9f);
+        dividerRect.pivot = new Vector2(0.5f, 0.5f);
+        dividerRect.anchoredPosition = Vector2.zero;
+        dividerRect.sizeDelta = new Vector2(2f, 0f);
 
-        var glowLayer = CreateCardLayer(traySlotPrefab.transform, "SelectionGlow", CardStyle.GlowSizeRatio, CardStyle.GlowColor, traySlotSize);
-        var accentLayer = CreateCardLayer(traySlotPrefab.transform, "AccentBorder", CardStyle.AccentSizeRatio, CardStyle.AccentDefaultColor, traySlotSize);
-        var cardLayer = CreateCardLayer(traySlotPrefab.transform, "Card", CardStyle.CardSizeRatio, CardStyle.CardColor, traySlotSize);
+        var contentGO = new GameObject("Content", typeof(RectTransform));
+        contentGO.transform.SetParent(traySlotPrefab.transform, false);
+        var contentRect = contentGO.GetComponent<RectTransform>();
+        contentRect.anchorMin = Vector2.zero;
+        contentRect.anchorMax = Vector2.one;
+        contentRect.offsetMin = Vector2.zero;
+        contentRect.offsetMax = Vector2.zero;
+
+        var glowLayer = CreateCardLayer(contentGO.transform, "SelectionGlow", CardStyle.GlowSizeRatio, CardStyle.GlowColor, traySlotSize);
 
         var slotIconGO = new GameObject("Icon", typeof(Image));
-        slotIconGO.transform.SetParent(traySlotPrefab.transform, false);
+        slotIconGO.transform.SetParent(contentGO.transform, false);
         var slotIconImage = slotIconGO.GetComponent<Image>();
         slotIconImage.type = Image.Type.Simple;
         var iconInset = (1f - CardStyle.IconSizeRatio) / 2f;
@@ -162,10 +183,8 @@ public static class GameSceneBuilder
         slotIconRect.offsetMax = Vector2.zero;
 
         var traySlotView = traySlotPrefab.AddComponent<TraySlotView>();
-        SetField(traySlotView, "_shadowImage", shadowLayer);
+        SetField(traySlotView, "_content", contentRect);
         SetField(traySlotView, "_glowImage", glowLayer);
-        SetField(traySlotView, "_accentImage", accentLayer);
-        SetField(traySlotView, "_cardImage", cardLayer);
         SetField(traySlotView, "_iconImage", slotIconImage);
 
         SetField(trayView, "layoutGroup", trayLayout);
