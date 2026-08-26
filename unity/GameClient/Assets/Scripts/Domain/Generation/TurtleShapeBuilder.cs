@@ -5,12 +5,13 @@ namespace GameDomain.Generation
 {
     // A classic mahjong-solitaire "turtle" silhouette: wide at the top,
     // narrowing into two separate pillars with a hollow gap through the
-    // middle rows, widening again toward the bottom, with two smaller
-    // layers stacked centered on top (bridging the hollow, matching how
-    // reference boards in the genre stack their upper layers). This is an
-    // original layout inspired by the standard genre convention, not a
-    // trace of any specific reference game's board - only the geometry
-    // differs from PyramidShapeBuilder; it produces the same TileSlot data
+    // middle rows, widening again toward the bottom, with a small raised
+    // deck+peak on the wide row just above the gap - never over the gap
+    // itself, since a layer sitting there would visually fill the hollow
+    // (see the comment at the layer-1/2 rows below). This is an original
+    // layout inspired by the standard genre convention, not a trace of any
+    // specific reference game's board; only the geometry differs from
+    // PyramidShapeBuilder - it produces the same TileSlot data
     // (CoveredByIds/LeftNeighborId/RightNeighborId), so none of the
     // matching/freedom-rule domain logic needed to change.
     public static class TurtleShapeBuilder
@@ -30,12 +31,16 @@ namespace GameDomain.Generation
             AddRow(slots, byPos, 0, 0, 9, 4); // y=4: x 0..9  (10 tiles)
             AddRow(slots, byPos, 0, 1, 8, 5); // y=5: x 1..8  (8 tiles)
 
-            // Layer 1: centered block bridging the layer-0 hollow.
-            for (int y = 1; y <= 3; y++)
-                AddRow(slots, byPos, 1, 3, 6, y);
-
-            // Layer 2: small centered cap.
-            AddRow(slots, byPos, 2, 4, 5, 2);
+            // Layer 1/2: raised deck + peak sit on the wide y=1 transition
+            // row, deliberately clear of the hollow's x=3..6 columns at
+            // y=2/y=3. The per-layer render offset (TileView) is only a
+            // few % of a tile - nowhere near enough to visually reveal a
+            // gap underneath a tile that's actually there, so for the
+            // hollow to read as hollow in this flat top-down view, no
+            // layer can have a tile in that x/y range at all. See
+            // docs/superpowers/specs/2026-08-26-pyramid-shape-and-tray-correction.md.
+            AddRow(slots, byPos, 1, 3, 6, 1); // y=1 x 3..6 (4 tiles)
+            AddRow(slots, byPos, 2, 4, 5, 1); // y=1 x 4..5 (2 tiles, peak)
 
             ComputeNeighborsAndCovering(slots, byPos);
 
