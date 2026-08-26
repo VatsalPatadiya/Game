@@ -169,41 +169,74 @@ public static class GameSceneBuilder
         // ------------------
         var gameOverGO = new GameObject("GameOverPanel", typeof(Image), typeof(GameOverPopup));
         gameOverGO.transform.SetParent(canvasGO.transform, false);
-        var goImage = gameOverGO.GetComponent<Image>();
-        goImage.color = new Color(0, 0, 0, 0.8f);
+        var goScrimImage = gameOverGO.GetComponent<Image>();
+        goScrimImage.color = new Color(0.05f, 0.08f, 0.06f, 0.55f);
         var goRect = gameOverGO.GetComponent<RectTransform>();
         goRect.anchorMin = Vector2.zero;
         goRect.anchorMax = Vector2.one;
         goRect.offsetMin = Vector2.zero;
         goRect.offsetMax = Vector2.zero;
 
-        var goTextGO = new GameObject("Text", typeof(Text));
-        goTextGO.transform.SetParent(gameOverGO.transform, false);
-        var goText = goTextGO.GetComponent<Text>();
-        goText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        goText.fontSize = 60;
-        goText.text = "GAME OVER";
-        goText.alignment = TextAnchor.MiddleCenter;
-        var goTextRect = goTextGO.GetComponent<RectTransform>();
-        goTextRect.anchorMin = new Vector2(0.5f, 0.5f);
-        goTextRect.anchorMax = new Vector2(0.5f, 0.5f);
-        goTextRect.anchoredPosition = new Vector2(0, 100f);
-        goTextRect.sizeDelta = new Vector2(400, 100);
+        var popupCardGO = new GameObject("PopupCard", typeof(RectTransform));
+        popupCardGO.transform.SetParent(gameOverGO.transform, false);
+        var popupCardRect = popupCardGO.GetComponent<RectTransform>();
+        popupCardRect.anchorMin = new Vector2(0.5f, 0.5f);
+        popupCardRect.anchorMax = new Vector2(0.5f, 0.5f);
+        popupCardRect.pivot = new Vector2(0.5f, 0.5f);
+        popupCardRect.anchoredPosition = Vector2.zero;
+        popupCardRect.sizeDelta = new Vector2(320f, 280f);
+
+        CreateCardLayer(popupCardGO.transform, "Shadow", CardStyle.ShadowSizeRatio, CardStyle.ShadowColor)
+            .rectTransform.anchoredPosition = new Vector2(6f, -6f);
+        CreateCardLayer(popupCardGO.transform, "AccentBorder", CardStyle.AccentSizeRatio, CardStyle.AccentDefaultColor);
+        CreateCardLayer(popupCardGO.transform, "Card", CardStyle.CardSizeRatio, CardStyle.CardColor);
+
+        var goTitleGO = new GameObject("Title", typeof(Text));
+        goTitleGO.transform.SetParent(popupCardGO.transform, false);
+        var goTitleText = goTitleGO.GetComponent<Text>();
+        goTitleText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        goTitleText.fontSize = 30;
+        goTitleText.fontStyle = FontStyle.Bold;
+        goTitleText.color = DarkHudText;
+        goTitleText.alignment = TextAnchor.MiddleCenter;
+        var goTitleRect = goTitleGO.GetComponent<RectTransform>();
+        goTitleRect.anchorMin = new Vector2(0.1f, 0.62f);
+        goTitleRect.anchorMax = new Vector2(0.9f, 0.85f);
+        goTitleRect.offsetMin = Vector2.zero;
+        goTitleRect.offsetMax = Vector2.zero;
+
+        var goMessageGO = new GameObject("Message", typeof(Text));
+        goMessageGO.transform.SetParent(popupCardGO.transform, false);
+        var goMessageText = goMessageGO.GetComponent<Text>();
+        goMessageText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        goMessageText.fontSize = 20;
+        goMessageText.color = DarkHudText;
+        goMessageText.alignment = TextAnchor.MiddleCenter;
+        var goMessageRect = goMessageGO.GetComponent<RectTransform>();
+        goMessageRect.anchorMin = new Vector2(0.08f, 0.38f);
+        goMessageRect.anchorMax = new Vector2(0.92f, 0.6f);
+        goMessageRect.offsetMin = Vector2.zero;
+        goMessageRect.offsetMax = Vector2.zero;
 
         var restartBtnGO = new GameObject("RestartButton", typeof(Image), typeof(Button));
-        restartBtnGO.transform.SetParent(gameOverGO.transform, false);
+        restartBtnGO.transform.SetParent(popupCardGO.transform, false);
+        var restartBtnImage = restartBtnGO.GetComponent<Image>();
+        restartBtnImage.sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
+        restartBtnImage.type = Image.Type.Sliced;
+        restartBtnImage.color = BadgeTerracotta;
         var restartBtnRect = restartBtnGO.GetComponent<RectTransform>();
-        restartBtnRect.anchorMin = new Vector2(0.5f, 0.5f);
-        restartBtnRect.anchorMax = new Vector2(0.5f, 0.5f);
-        restartBtnRect.anchoredPosition = new Vector2(0, -50f);
-        restartBtnRect.sizeDelta = new Vector2(200, 60);
+        restartBtnRect.anchorMin = new Vector2(0.5f, 0.12f);
+        restartBtnRect.anchorMax = new Vector2(0.5f, 0.12f);
+        restartBtnRect.pivot = new Vector2(0.5f, 0.5f);
+        restartBtnRect.anchoredPosition = Vector2.zero;
+        restartBtnRect.sizeDelta = new Vector2(200f, 76f); // >=72dp per the tap-target constraint
 
         var restartTextGO = new GameObject("Text", typeof(Text));
         restartTextGO.transform.SetParent(restartBtnGO.transform, false);
         var restartText = restartTextGO.GetComponent<Text>();
         restartText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        restartText.fontSize = 30;
-        restartText.color = Color.black;
+        restartText.fontSize = 26;
+        restartText.color = Color.white;
         restartText.text = "Restart";
         restartText.alignment = TextAnchor.MiddleCenter;
         var restartTextRect = restartTextGO.GetComponent<RectTransform>();
@@ -214,6 +247,8 @@ public static class GameSceneBuilder
 
         var gameOverPopup = gameOverGO.GetComponent<GameOverPopup>();
         SetField(gameOverPopup, "restartButton", restartBtnGO.GetComponent<Button>());
+        SetField(gameOverPopup, "titleText", goTitleText);
+        SetField(gameOverPopup, "messageText", goMessageText);
         SetField(gameController, "_gameOverPopup", gameOverPopup);
         gameOverGO.SetActive(false); // Hidden by default
 
