@@ -43,5 +43,19 @@ namespace GameDomain.Tests.Generation
             var distinctValues = values.Values.Distinct().Count();
             Assert.That(distinctValues, Is.EqualTo(order.Count));
         }
+
+        [Test]
+        public void AssignValuesFromRemovalOrder_NeverAssignsAnExcludedValue()
+        {
+            var shape = TestLayoutShapes.SmallShape();
+            var slotsById = shape.ToDictionary(s => s.Id);
+            var allIds = new HashSet<string>(slotsById.Keys);
+            var order = ReverseConstructionSolver.TryBuildRemovalOrder(slotsById, allIds, new Random(2));
+            var excluded = new HashSet<string> { "0", "1" };
+
+            var values = ReverseConstructionSolver.AssignValuesFromRemovalOrder(order, new Random(3), excluded);
+
+            Assert.That(values.Values, Has.None.Matches<string>(v => excluded.Contains(v)));
+        }
     }
 }

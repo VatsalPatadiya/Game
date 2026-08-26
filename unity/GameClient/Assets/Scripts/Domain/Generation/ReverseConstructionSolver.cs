@@ -34,12 +34,30 @@ namespace GameDomain.Generation
         }
 
         public static Dictionary<string, string> AssignValuesFromRemovalOrder(
-            List<(string a, string b)> removalOrder, Random random)
+            List<(string a, string b)> removalOrder, Random random, HashSet<string> excludedValues = null)
         {
             int pairCount = removalOrder.Count;
             var pool = new List<string>(pairCount);
-            for (int i = 0; i < pairCount; i++)
-                pool.Add((i % 26).ToString()); // Modulo 26 to keep it within A-Z if we have many pairs
+
+            // Skip any value already reserved by a cleared-but-undoable cell (see
+            // ShuffleService.Shuffle) so a fresh shuffle can never collide with a
+            // value an in-flight Undo could restore back onto the board.
+            int candidate = 0;
+            int attempts = 0;
+            while (pool.Count < pairCount && attempts < 1000)
+            {
+                string value = (candidate % 26).ToString(); // Modulo 26 to keep it within A-Z if we have many pairs
+                candidate++;
+                attempts++;
+                if (excludedValues != null && excludedValues.Contains(value))
+                    continue;
+                pool.Add(value);
+            }
+
+            if (pool.Count < pairCount)
+                throw new BoardGenerationException(
+                    "Could not find " + pairCount + " distinct values while avoiding " +
+                    (excludedValues?.Count ?? 0) + " reserved values.");
 
             for (int i = pool.Count - 1; i > 0; i--)
             {

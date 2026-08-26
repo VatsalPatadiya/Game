@@ -17,13 +17,18 @@ namespace GameDomain.Gameplay
             var remainingIds = new HashSet<string>(
                 board.Cells.Where(kv => !kv.Value.Cleared).Select(kv => kv.Key));
 
+            // Values on cleared cells still sitting in MoveHistory can come back onto
+            // the board via Undo, so the reshuffle must never reuse one of them.
+            var reservedValues = new HashSet<string>(
+                board.MoveHistory.SelectMany(m => new[] { m.ValueA, m.ValueB }));
+
             for (int attempt = 0; attempt < maxRestarts; attempt++)
             {
                 var removalOrder = ReverseConstructionSolver.TryBuildRemovalOrder(slotsById, remainingIds, random);
                 if (removalOrder == null)
                     continue;
 
-                var values = ReverseConstructionSolver.AssignValuesFromRemovalOrder(removalOrder, random);
+                var values = ReverseConstructionSolver.AssignValuesFromRemovalOrder(removalOrder, random, reservedValues);
 
                 foreach (var id in remainingIds)
                 {
