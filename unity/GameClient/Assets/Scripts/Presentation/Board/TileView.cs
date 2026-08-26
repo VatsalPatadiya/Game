@@ -18,6 +18,7 @@ namespace GameClient.Presentation.Board
         private Vector3 _originalLocalPos;
         private Coroutine _shakeCoroutine;
         private Coroutine _clearCoroutine;
+        private Coroutine _fadeCoroutine;
 
         public string SlotId { get; private set; }
         public int Layer { get; private set; }
@@ -27,7 +28,6 @@ namespace GameClient.Presentation.Board
             SlotId = slotId;
             Layer = layer;
 
-            // Apply a slight isometric offset based on layer to give a 3D stacked feel
             _originalLocalPos = transform.localPosition + new Vector3(layer * -0.04f, layer * 0.08f, 0f);
             transform.localPosition = _originalLocalPos;
             transform.localScale = Vector3.one;
@@ -64,10 +64,7 @@ namespace GameClient.Presentation.Board
             RefreshCardColor(true, layer);
         }
 
-        public void SetFree(bool isFree)
-        {
-            RefreshCardColor(isFree, Layer);
-        }
+        public void SetFree(bool isFree) => RefreshCardColor(isFree, Layer);
 
         private void RefreshCardColor(bool isFree, int layer)
         {
@@ -90,42 +87,88 @@ namespace GameClient.Presentation.Board
             _selectionGlowRenderer.color = c;
         }
 
-        public void PlayClearAndDestroy()
+        // Call after Initialize(). Scales/fades the tile in from nothing up to
+        // whatever colors Initialize() already set, starting after delaySeconds.
+        public void PlayDealIn(float delaySeconds, System.Action onComplete)
         {
-            if (_clearCoroutine != null) StopCoroutine(_clearCoroutine);
-            _clearCoroutine = StartCoroutine(ClearRoutine());
+            var renderers = BuildRendererArray();
+            var targetColors = new[]
+            {
+                _shadowRenderer != null ? _shadowRenderer.color : default,
+                _selectionGlowRenderer != null ? _selectionGlowRenderer.color : default,
+                _accentRenderer != null ? _accentRenderer.color : default,
+                _cardRenderer != null ? _cardRenderer.color : default,
+                _iconRenderer != null ? _iconRenderer.color : default,
+            };
+            StartCoroutine(DealInRoutine(renderers, targetColors, delaySeconds, onComplete));
         }
 
-        private IEnumerator ClearRoutine()
+        private IEnumerator DealInRoutine(
+            ITintable[] renderers, Color[] targetColors, float delay, System.Action onComplete)
         {
-            const float duration = 0.2f;
-            float elapsed = 0f;
-            var startScale = transform.localScale;
-            var endScale = startScale * 1.15f;
+            yield return CardAnimator.ScaleAndFadeIn(transform, renderers, targetColors, delay, CardAnimator.DealInDuration);
+            onComplete?.Invoke();
+        }
 
-            var renderers = new[] { _shadowRenderer, _selectionGlowRenderer, _accentRenderer, _cardRenderer, _iconRenderer };
-            var startAlphas = new float[renderers.Length];
+        // Fast (~100ms) fade of the visible layers only (not the glow), used
+        // when a valid tap sends this tile flying off toward the tray.
+        public void PlayFadeOutOnly(System.Action onComplete)
+        {
+            if (_fadeCoroutine != null) StopCoroutine(_fadeCoroutine);
+            _fadeCoroutine = StartCoroutine(FadeVisibleRenderers(0f, CardAnimator.FastFadeDuration, onComplete));
+        }
+
+        // Restores full visibility; only used defensively if a tap's flight
+        // animation completes but the domain call turns out to be invalid.
+        public void PlayFadeInOnly()
+        {
+            if (_fadeCoroutine != null) StopCoroutine(_fadeCoroutine);
+            _fadeCoroutine = StartCoroutine(FadeVisibleRenderers(1f, CardAnimator.FastFadeDuration, null));
+        }
+
+        private IEnumerator FadeVisibleRenderers(float toAlpha, float duration, System.Action onComplete)
+        {
+            var renderers = new[] { _shadowRenderer, _accentRenderer, _cardRenderer, _iconRenderer };
+            var tints = new ITintable[renderers.Length];
+            var fromAlphas = new float[renderers.Length];
             for (int i = 0; i < renderers.Length; i++)
-                startAlphas[i] = renderers[i] != null ? renderers[i].color.a : 0f;
+            {
+                if (renderers[i] == null) continue;
+                tints[i] = new SpriteRendererTint(renderers[i]);
+                fromAlphas[i] = renderers[i].color.a;
+            }
 
+            float elapsed = 0f;
             while (elapsed < duration)
             {
                 elapsed += Time.deltaTime;
                 float t = Mathf.Clamp01(elapsed / duration);
-                transform.localScale = Vector3.Lerp(startScale, endScale, t);
-
-                for (int i = 0; i < renderers.Length; i++)
+                for (int i = 0; i < tints.Length; i++)
                 {
-                    if (renderers[i] == null) continue;
-                    var c = renderers[i].color;
-                    c.a = startAlphas[i] * (1f - t);
-                    renderers[i].color = c;
+                    if (tints[i] == null) continue;
+                    var c = tints[i].Color;
+                    c.a = Mathf.Lerp(fromAlphas[i], toAlpha, t);
+                    tints[i].Color = c;
                 }
-
                 yield return null;
             }
 
-            Destroy(gameObject);
+            for (int i = 0; i < tints.Length; i++)
+            {
+                if (tints[i] == null) continue;
+                var c = tints[i].Color;
+                c.a = toAlpha;
+                tints[i].Color = c;
+            }
+
+            onComplete?.Invoke();
+        }
+
+        public void PlayClearAndDestroy()
+        {
+            if (_clearCoroutine != null) StopCoroutine(_clearCoroutine);
+            _clearCoroutine = StartCoroutine(
+                CardAnimator.ScaleUpAndFadeOut(transform, BuildRendererArray(), () => Destroy(gameObject)));
         }
 
         public void PlayShake()
@@ -151,6 +194,18 @@ namespace GameClient.Presentation.Board
 
             transform.localPosition = _originalLocalPos;
             RefreshCardColor(false, Layer);
+        }
+
+        private ITintable[] BuildRendererArray()
+        {
+            return new ITintable[]
+            {
+                _shadowRenderer != null ? new SpriteRendererTint(_shadowRenderer) : null,
+                _selectionGlowRenderer != null ? new SpriteRendererTint(_selectionGlowRenderer) : null,
+                _accentRenderer != null ? new SpriteRendererTint(_accentRenderer) : null,
+                _cardRenderer != null ? new SpriteRendererTint(_cardRenderer) : null,
+                _iconRenderer != null ? new SpriteRendererTint(_iconRenderer) : null,
+            };
         }
     }
 }
