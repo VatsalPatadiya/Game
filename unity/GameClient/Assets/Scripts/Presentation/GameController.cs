@@ -1,8 +1,10 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using GameClient.Data;
 using GameClient.Presentation.Board;
+using GameClient.Presentation.HUD;
 using GameDomain.Gameplay;
 using GameDomain.Generation;
 using GameDomain.Model;
@@ -15,6 +17,7 @@ namespace GameClient.Presentation
         [SerializeField] private BoardView _boardView;
         [SerializeField] private TrayView _trayView;
         [SerializeField] private GameOverPopup _gameOverPopup;
+        [SerializeField] private Camera _camera;
 
         private BoardState _board;
         private List<TileSlot> _shape;
@@ -23,6 +26,11 @@ namespace GameClient.Presentation
 
         public event Action<int, int> ScoreChanged;
         public event Action<int, int, int> UsesChanged;
+
+        // True while the deal-in animation or a tap's flight-to-tray sequence
+        // is still playing, so a second tap (or a hint/undo/shuffle press)
+        // can't land mid-animation and desync the board from what's visible.
+        public bool IsInputLocked { get; private set; }
 
         private void Start()
         {
@@ -50,11 +58,13 @@ namespace GameClient.Presentation
             };
 
             _board = BoardGenerator.Generate(level, new System.Random());
-            
-            _boardView.Build(_board, _slotsById);
+
             if (_trayView != null)
                 _trayView.Initialize(4); // 4 slots
-                
+
+            IsInputLocked = true;
+            _boardView.Build(_board, _slotsById, animateDealIn: true, onDealInComplete: () => IsInputLocked = false);
+
             ScoreChanged?.Invoke(_board.Score, _board.ComboCount);
             NotifyUsesChanged();
         }
@@ -62,6 +72,7 @@ namespace GameClient.Presentation
         public void OnTileTapped(string slotId)
         {
             if (_board.IsGameOver) return;
+            if (IsInputLocked) return;
 
             // Compute remaining tiles (not cleared and not in tray)
             var remaining = new HashSet<string>(
@@ -73,28 +84,80 @@ namespace GameClient.Presentation
                 return;
             }
 
-            if (TrayManager.TryPushToTray(_board, _slotsById, slotId))
-            {
-                // Remove tile from BoardView entirely, or just hide it
-                // We'll update BoardView to hide it, and update TrayView to show it
-                _boardView.GetTileView(slotId)?.gameObject.SetActive(false);
-                
-                if (_trayView != null)
-                    _trayView.UpdateTray(_board, _slotsById);
-                    
-                _boardView.RefreshFreeStates(_board);
-                ScoreChanged?.Invoke(_board.Score, _board.ComboCount);
+            StartCoroutine(TapToTrayRoutine(slotId));
+        }
 
-                if (_board.IsGameOver)
-                {
-                    if (_gameOverPopup != null)
-                        _gameOverPopup.Show(this);
-                }
+        // Fades the tapped board tile out, flies a temporary card to its
+        // landing slot, and only *then* runs the actual domain push (and
+        // whatever match it triggers) — TrayManager.TryPushToTray is called
+        // exactly once, unchanged, just later than an instant tap would.
+        private IEnumerator TapToTrayRoutine(string slotId)
+        {
+            IsInputLocked = true;
+
+            var tileView = _boardView.GetTileView(slotId);
+            string value = _board.Cells[slotId].Value;
+            var icon = TileVisual.IconFor(_boardView.TileSet, value);
+            var accentColor = TileVisual.AccentColorFor(_boardView.TileSet, value);
+            var oldTrayIds = new List<string>(_board.TrayTileIds);
+            int targetIndex = oldTrayIds.Count;
+
+            Vector3 startScreenPos = _camera != null && tileView != null
+                ? _camera.WorldToScreenPoint(tileView.transform.position)
+                : Vector3.zero;
+
+            bool faded = false;
+            tileView?.PlayFadeOutOnly(() => faded = true);
+            yield return new WaitUntil(() => faded || tileView == null);
+
+            var flightCard = _trayView.SpawnFlightCard(icon, accentColor, startScreenPos);
+            var flightRect = (RectTransform)flightCard.transform;
+            Vector3 targetScreenPos = _trayView.GetSlotScreenPosition(targetIndex);
+            yield return CardAnimator.MoveRectTransform(flightRect, startScreenPos, targetScreenPos, CardAnimator.FlightDuration);
+            Destroy(flightCard);
+
+            _trayView.PlayArrival(targetIndex, icon, accentColor);
+
+            bool pushed = TrayManager.TryPushToTray(_board, _slotsById, slotId);
+            if (!pushed)
+            {
+                // Shouldn't happen given the pre-check and the input lock
+                // (nothing else can mutate the board mid-flight), but recover
+                // gracefully rather than leaving the tile permanently invisible.
+                tileView?.PlayFadeInOnly();
+                IsInputLocked = false;
+                yield break;
+            }
+
+            _boardView.RemoveTileInstant(slotId);
+
+            yield return _trayView.ResolveAfterPush(oldTrayIds, slotId, _board.TrayTileIds, _board);
+
+            _boardView.RefreshFreeStates(_board);
+            ScoreChanged?.Invoke(_board.Score, _board.ComboCount);
+
+            CheckEndOfLevel();
+
+            IsInputLocked = false;
+        }
+
+        private void CheckEndOfLevel()
+        {
+            if (_board.Cells.Values.All(c => c.Cleared))
+            {
+                if (_gameOverPopup != null)
+                    _gameOverPopup.ShowWin(this, _board.Score);
+            }
+            else if (_board.IsGameOver)
+            {
+                if (_gameOverPopup != null)
+                    _gameOverPopup.ShowStuck(this);
             }
         }
 
         public void OnHintRequested()
         {
+            if (IsInputLocked) return;
             if (_board.HintsRemaining <= 0) return;
 
             var hint = HintFinder.FindFreePair(_board, _slotsById);
@@ -112,9 +175,11 @@ namespace GameClient.Presentation
 
         public void OnUndoRequested()
         {
+            if (IsInputLocked) return;
+
             if (UndoStack.TryUndo(_board))
             {
-                _boardView.Build(_board, _slotsById);
+                _boardView.Build(_board, _slotsById, animateDealIn: false);
                 ScoreChanged?.Invoke(_board.Score, _board.ComboCount);
                 NotifyUsesChanged();
             }
@@ -122,11 +187,13 @@ namespace GameClient.Presentation
 
         public void OnShuffleRequested()
         {
+            if (IsInputLocked) return;
+
             try
             {
                 if (ShuffleService.Shuffle(_board, _shape, new System.Random()))
                 {
-                    _boardView.Build(_board, _slotsById);
+                    _boardView.Build(_board, _slotsById, animateDealIn: false);
                     NotifyUsesChanged();
                 }
             }
