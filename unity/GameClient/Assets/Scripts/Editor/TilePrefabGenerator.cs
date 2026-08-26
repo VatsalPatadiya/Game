@@ -11,54 +11,36 @@ public static class TilePrefabGenerator
 
         var root = new GameObject("Tile");
 
-        var shadow = new GameObject("Shadow");
-        shadow.transform.SetParent(root.transform);
-        var shadowRenderer = shadow.AddComponent<SpriteRenderer>();
-        shadowRenderer.sprite = GetOrCreateSquareSprite();
-        shadowRenderer.drawMode = SpriteDrawMode.Sliced;
-        shadowRenderer.size = new Vector2(0.9f, 0.9f);
-        shadowRenderer.color = new Color(0, 0, 0, 0.4f); // Semi-transparent black
-        shadowRenderer.sortingOrder = -1;
-        // Offset shadow slightly to the bottom-right
-        shadow.transform.localPosition = new Vector3(0.08f, -0.08f, 0.05f);
+        var shadow = CreateSlicedChild(root.transform, "Shadow", new Vector2(0.82f, 0.82f), -2,
+            new Vector3(0.05f, -0.05f, 0.06f), new Color(0f, 0f, 0f, 0.3f));
 
-        var background = new GameObject("Background");
-        background.transform.SetParent(root.transform);
-        var backgroundRenderer = background.AddComponent<SpriteRenderer>();
-        backgroundRenderer.sprite = GetOrCreateSquareSprite();
-        backgroundRenderer.drawMode = SpriteDrawMode.Sliced;
-        backgroundRenderer.size = new Vector2(0.9f, 0.9f);
-        backgroundRenderer.sortingOrder = 0;
+        var selectionGlow = CreateSlicedChild(root.transform, "SelectionGlow", new Vector2(1f, 1f), -1,
+            Vector3.zero, new Color(1f, 0.85f, 0.2f, 0f));
 
-        var icon = new GameObject("Icon");
-        icon.transform.SetParent(root.transform);
-        var iconRenderer = icon.AddComponent<SpriteRenderer>();
-        iconRenderer.sprite = GetOrCreateSquareSprite();
-        iconRenderer.drawMode = SpriteDrawMode.Sliced;
-        iconRenderer.size = new Vector2(0.7f, 0.7f);
-        iconRenderer.sortingOrder = 1;
+        var accent = CreateSlicedChild(root.transform, "AccentBorder", new Vector2(0.86f, 0.86f), 0,
+            Vector3.zero, new Color(0.69f, 0.26f, 0.16f, 1f));
 
-        var textGO = new GameObject("Text");
-        textGO.transform.SetParent(root.transform);
-        var textMesh = textGO.AddComponent<TextMesh>();
-        textMesh.characterSize = 0.2f;
-        textMesh.anchor = TextAnchor.MiddleCenter;
-        textMesh.alignment = TextAlignment.Center;
-        textMesh.color = Color.black;
-        var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        textMesh.font = font;
-        textGO.GetComponent<MeshRenderer>().sharedMaterial = font.material;
-        // Move it slightly forward in Z so it renders above sprites (or use sorting order if using TMP, but TextMesh uses Z)
-        textGO.transform.localPosition = new Vector3(0f, 0f, -0.1f);
+        var card = CreateSlicedChild(root.transform, "Card", new Vector2(0.78f, 0.78f), 1,
+            Vector3.zero, new Color(0.969f, 0.957f, 0.922f, 1f));
+
+        var iconGO = new GameObject("Icon");
+        iconGO.transform.SetParent(root.transform, false);
+        iconGO.transform.localPosition = new Vector3(0f, 0f, -0.05f);
+        iconGO.transform.localScale = new Vector3(0.5f, 0.5f, 1f);
+        var iconRenderer = iconGO.AddComponent<SpriteRenderer>();
+        iconRenderer.drawMode = SpriteDrawMode.Simple;
+        iconRenderer.sortingOrder = 2;
 
         var collider = root.AddComponent<BoxCollider2D>();
         collider.size = Vector2.one;
 
         var tileView = root.AddComponent<TileView>();
         var serialized = new SerializedObject(tileView);
-        serialized.FindProperty("_backgroundRenderer").objectReferenceValue = backgroundRenderer;
+        serialized.FindProperty("_shadowRenderer").objectReferenceValue = shadow;
+        serialized.FindProperty("_selectionGlowRenderer").objectReferenceValue = selectionGlow;
+        serialized.FindProperty("_accentRenderer").objectReferenceValue = accent;
+        serialized.FindProperty("_cardRenderer").objectReferenceValue = card;
         serialized.FindProperty("_iconRenderer").objectReferenceValue = iconRenderer;
-        serialized.FindProperty("_textMesh").objectReferenceValue = textMesh;
         serialized.ApplyModifiedPropertiesWithoutUndo();
 
         PrefabUtility.SaveAsPrefabAsset(root, "Assets/Prefabs/Tile.prefab");
@@ -66,6 +48,21 @@ public static class TilePrefabGenerator
 
         AssetDatabase.SaveAssets();
         Debug.Log("TILE_PREFAB_GENERATOR_DONE");
+    }
+
+    private static SpriteRenderer CreateSlicedChild(
+        Transform parent, string name, Vector2 size, int sortingOrder, Vector3 localPos, Color color)
+    {
+        var go = new GameObject(name);
+        go.transform.SetParent(parent, false);
+        go.transform.localPosition = localPos;
+        var renderer = go.AddComponent<SpriteRenderer>();
+        renderer.sprite = GetOrCreateSquareSprite();
+        renderer.drawMode = SpriteDrawMode.Sliced;
+        renderer.size = size;
+        renderer.sortingOrder = sortingOrder;
+        renderer.color = color;
+        return renderer;
     }
 
     private static Sprite GetOrCreateSquareSprite()
