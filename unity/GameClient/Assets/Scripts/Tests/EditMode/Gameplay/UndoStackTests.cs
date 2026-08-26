@@ -40,5 +40,50 @@ namespace GameDomain.Tests.Gameplay
 
             Assert.That(result, Is.False);
         }
+
+        [Test]
+        public void TryUndo_NoUndosRemaining_ReturnsFalseAndDoesNotRestore()
+        {
+            var board = new BoardState
+            {
+                UndosRemaining = 0,
+                Cells = new Dictionary<string, TileCell>
+                {
+                    ["L0_0"] = new TileCell { Value = "a", Cleared = true },
+                    ["L0_3"] = new TileCell { Value = "a", Cleared = true }
+                },
+                MoveHistory = new List<Move>
+                {
+                    new Move { SlotIdA = "L0_0", SlotIdB = "L0_3", ValueA = "a", ValueB = "a" }
+                }
+            };
+
+            bool result = UndoStack.TryUndo(board);
+
+            Assert.That(result, Is.False);
+            Assert.That(board.Cells["L0_0"].Cleared, Is.True);
+            Assert.That(board.MoveHistory.Count, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void TryUndo_WithPriorMove_DecrementsUndosRemaining()
+        {
+            var board = new BoardState
+            {
+                Cells = new Dictionary<string, TileCell>
+                {
+                    ["L0_0"] = new TileCell { Value = "a", Cleared = true },
+                    ["L0_3"] = new TileCell { Value = "a", Cleared = true }
+                },
+                MoveHistory = new List<Move>
+                {
+                    new Move { SlotIdA = "L0_0", SlotIdB = "L0_3", ValueA = "a", ValueB = "a" }
+                }
+            };
+
+            UndoStack.TryUndo(board);
+
+            Assert.That(board.UndosRemaining, Is.EqualTo(2));
+        }
     }
 }

@@ -17,6 +17,16 @@ namespace GameDomain.Tests.Model
         }
 
         [Test]
+        public void NewBoardState_DefaultsToThreeUsesOfEachControl()
+        {
+            var board = new BoardState();
+
+            Assert.That(board.HintsRemaining, Is.EqualTo(3));
+            Assert.That(board.UndosRemaining, Is.EqualTo(3));
+            Assert.That(board.ShufflesRemaining, Is.EqualTo(3));
+        }
+
+        [Test]
         public void TileSlot_DefaultsToEmptyCoveredByList()
         {
             var slot = new TileSlot();

@@ -8,8 +8,11 @@ namespace GameDomain.Gameplay
 {
     public static class ShuffleService
     {
-        public static void Shuffle(BoardState board, List<TileSlot> shape, Random random, int maxRestarts = 50)
+        public static bool Shuffle(BoardState board, List<TileSlot> shape, Random random, int maxRestarts = 50)
         {
+            if (board.ShufflesRemaining <= 0)
+                return false;
+
             var slotsById = shape.ToDictionary(s => s.Id);
             var remainingIds = new HashSet<string>(
                 board.Cells.Where(kv => !kv.Value.Cleared).Select(kv => kv.Key));
@@ -27,7 +30,8 @@ namespace GameDomain.Gameplay
                     board.Cells[id].Value = values[id];
                 }
 
-                return;
+                board.ShufflesRemaining -= 1;
+                return true;
             }
 
             throw new BoardGenerationException(

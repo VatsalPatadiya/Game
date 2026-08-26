@@ -6,6 +6,9 @@ namespace GameDomain.Gameplay
     {
         public static bool TryUndo(BoardState board)
         {
+            if (board.UndosRemaining <= 0)
+                return false;
+
             if (board.MoveHistory.Count == 0)
                 return false;
 
@@ -14,6 +17,8 @@ namespace GameDomain.Gameplay
 
             board.Cells[lastMove.SlotIdA].Cleared = false;
             board.Cells[lastMove.SlotIdB].Cleared = false;
+
+            board.UndosRemaining -= 1;
 
             return true;
         }

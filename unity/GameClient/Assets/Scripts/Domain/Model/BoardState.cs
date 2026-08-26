@@ -14,5 +14,9 @@ namespace GameDomain.Model
 
         public int Score;
         public int ComboCount;
+
+        public int HintsRemaining = 3;
+        public int UndosRemaining = 3;
+        public int ShufflesRemaining = 3;
     }
 }

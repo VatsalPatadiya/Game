@@ -71,5 +71,34 @@ namespace GameDomain.Tests.Gameplay
             Assert.That(unclearedValueCounts.Values, Has.All.EqualTo(2),
                 "Every value among uncleared cells must appear on exactly 2 uncleared cells after shuffle+undo.");
         }
+
+        [Test]
+        public void Shuffle_Succeeds_DecrementsShufflesRemaining()
+        {
+            var shape = TestLayoutShapes.MediumShape();
+            var level = new LevelDefinition { LevelId = 1, Shape = shape, TileSetId = "test" };
+            var board = BoardGenerator.Generate(level, new Random(11));
+
+            bool result = ShuffleService.Shuffle(board, shape, new Random(99));
+
+            Assert.That(result, Is.True);
+            Assert.That(board.ShufflesRemaining, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void Shuffle_NoShufflesRemaining_ReturnsFalseAndLeavesValuesUnchanged()
+        {
+            var shape = TestLayoutShapes.MediumShape();
+            var level = new LevelDefinition { LevelId = 1, Shape = shape, TileSetId = "test" };
+            var board = BoardGenerator.Generate(level, new Random(11));
+            board.ShufflesRemaining = 0;
+            var valuesBefore = board.Cells.ToDictionary(kv => kv.Key, kv => kv.Value.Value);
+
+            bool result = ShuffleService.Shuffle(board, shape, new Random(99));
+
+            Assert.That(result, Is.False);
+            var valuesAfter = board.Cells.ToDictionary(kv => kv.Key, kv => kv.Value.Value);
+            Assert.That(valuesAfter, Is.EqualTo(valuesBefore));
+        }
     }
 }
