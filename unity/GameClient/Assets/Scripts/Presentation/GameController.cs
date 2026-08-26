@@ -17,6 +17,16 @@ namespace GameClient.Presentation
         [SerializeField] private BoardView _boardView;
         [SerializeField] private TrayView _trayView;
         [SerializeField] private GameOverPopup _gameOverPopup;
+        [SerializeField] private MatchCelebrationController _matchCelebration;
+
+        // Presentation-only streak timer for picking which praise-text tier
+        // to show (see MatchCelebrationController) - deliberately separate
+        // from the domain-layer ComboScorer/BoardState.ComboCount, since
+        // TrayManager already scores each match with its own flat award and
+        // wiring ComboScorer in here too would double-count points. This
+        // timer never touches _board.Score.
+        private const double ComboWindowSeconds = 3.0;
+        private DateTime? _lastMatchTime;
 
         private BoardState _board;
         private List<TileSlot> _shape;
@@ -57,6 +67,7 @@ namespace GameClient.Presentation
             };
 
             _board = BoardGenerator.Generate(level, new System.Random());
+            _lastMatchTime = null;
 
             if (_trayView != null)
                 _trayView.Initialize(4); // 4 slots
@@ -123,6 +134,15 @@ namespace GameClient.Presentation
             }
 
             _boardView.RemoveTileInstant(slotId);
+
+            bool matched = _board.TrayTileIds.Count < oldTrayIds.Count + 1;
+            if (matched && _matchCelebration != null)
+            {
+                var now = DateTime.UtcNow;
+                bool isCombo = _lastMatchTime.HasValue && (now - _lastMatchTime.Value).TotalSeconds <= ComboWindowSeconds;
+                _lastMatchTime = now;
+                _matchCelebration.PlayMatchCelebration(_trayView.GetSlotScreenPosition(targetIndex), isCombo);
+            }
 
             yield return _trayView.ResolveAfterPush(oldTrayIds, slotId, _board.TrayTileIds, _board);
 

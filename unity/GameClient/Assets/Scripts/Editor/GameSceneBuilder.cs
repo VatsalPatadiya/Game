@@ -58,6 +58,12 @@ public static class GameSceneBuilder
         var canvas = canvasGO.GetComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
 
+        var matchCelebrationGO = new GameObject("MatchCelebrationController", typeof(MatchCelebrationController));
+        var matchCelebration = matchCelebrationGO.GetComponent<MatchCelebrationController>();
+        SetField(matchCelebration, "_camera", camera);
+        SetField(matchCelebration, "_canvasRoot", canvasGO.transform);
+        SetField(gameController, "_matchCelebration", matchCelebration);
+
         // ------------------
         // Score pill
         // ------------------
