@@ -7,12 +7,14 @@ using UnityEngine;
 // (world units for the board tile, normalized 0-1 anchors for the tray slot).
 public static class CardStyle
 {
-    // Accent border width = (AccentSizeRatio - CardSizeRatio) / 2 = 8% of tile
-    // width, within the 6-10% spec target. Card area share of (accent+card)
-    // combined area is ~68% — the dominant, clearly-majority color.
+    // Accent border width = (AccentSizeRatio - CardSizeRatio) / 2 = 4% of tile
+    // width, matching the thin uniform border seen in reference footage
+    // (docs/superpowers/specs/2026-08-26-pyramid-shape-and-tray-correction.md)
+    // more closely than the earlier 8%. Card area share of (accent+card)
+    // combined area is ~82% — the dominant, clearly-majority color.
     public const float ShadowSizeRatio = 0.82f;
     public const float GlowSizeRatio = 1.0f;
-    public const float AccentSizeRatio = 0.92f;
+    public const float AccentSizeRatio = 0.84f;
     public const float CardSizeRatio = 0.76f;
     public const float IconSizeRatio = 0.5f;
 
