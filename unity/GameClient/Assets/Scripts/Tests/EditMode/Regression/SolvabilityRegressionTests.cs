@@ -41,11 +41,10 @@ namespace GameDomain.Tests.Regression
             AssertAllGeneratedBoardsAreSolvable(TestLayoutShapes.ExtraLargeShape(), seedOffset: 4000);
         }
 
-        // The new turtle silhouette (hollow twin-pillar middle, upper layers
-        // bridging the gap) is a meaningfully different topology from the
-        // simple rectangular-layered shapes above, so solvability isn't
-        // assumed just because those passed - it gets its own explicit,
-        // independently-verified bucket.
+        // The deep tapered pyramid (4 layers, 62 tiles) is a meaningfully
+        // different topology from the simple rectangular-layered shapes
+        // above, so solvability isn't assumed just because those passed -
+        // it gets its own explicit, independently-verified bucket.
         [Test]
         public void GeneratedBoards_AreAlwaysSolvable_ForTurtleShape()
         {

@@ -17,10 +17,19 @@ namespace GameClient.Presentation.Board
 
         // Diagonal offset applied per layer so a covering tile visibly
         // reveals a sliver of whatever it's stacked on (the reference's
-        // cascading-deck look) - was -0.04/0.08, which was under 10% of a
-        // tile and read as flat with a faint shadow, not physically stacked.
-        private const float LayerOffsetX = -0.15f;
-        private const float LayerOffsetY = 0.18f;
+        // cascading-deck look). Increased from -0.15/0.18 once the shape
+        // grew to 5 layers deep (TurtleShapeBuilder) - the earlier value
+        // was tuned for a 3-layer board and read as too subtle per step.
+        private const float LayerOffsetX = -0.22f;
+        private const float LayerOffsetY = 0.26f;
+
+        // Small per-tile position/rotation jitter, deterministic per slot
+        // (seeded from its id) so it's stable across rebuilds rather than
+        // different every load. Reference tiles aren't perfectly grid-
+        // aligned - this breaks up the rigid-grid look without touching
+        // gameplay (tap hit-testing still uses the same jittered collider).
+        private const float JitterPositionRange = 0.035f;
+        private const float JitterRotationDegrees = 6f;
 
         // Pulled well in front of every layer while being dragged (layers
         // only go up to -maxLayer*0.1 in Z) so the lifted tile always
@@ -42,8 +51,12 @@ namespace GameClient.Presentation.Board
             SlotId = slotId;
             Layer = layer;
 
-            _originalLocalPos = transform.localPosition + new Vector3(layer * LayerOffsetX, layer * LayerOffsetY, 0f);
+            ComputeJitter(slotId, out float jitterX, out float jitterY, out float jitterRotation);
+            _originalLocalPos = transform.localPosition
+                + new Vector3(layer * LayerOffsetX, layer * LayerOffsetY, 0f)
+                + new Vector3(jitterX, jitterY, 0f);
             transform.localPosition = _originalLocalPos;
+            transform.localRotation = Quaternion.Euler(0f, 0f, jitterRotation);
             transform.localScale = Vector3.one;
 
             if (_accentRenderer != null)
@@ -276,6 +289,14 @@ namespace GameClient.Presentation.Board
             }
             transform.localPosition = _originalLocalPos;
             _dragSnapCoroutine = null;
+        }
+
+        private static void ComputeJitter(string slotId, out float jitterX, out float jitterY, out float jitterRotation)
+        {
+            var rng = new System.Random(slotId.GetHashCode());
+            jitterX = ((float)rng.NextDouble() * 2f - 1f) * JitterPositionRange;
+            jitterY = ((float)rng.NextDouble() * 2f - 1f) * JitterPositionRange;
+            jitterRotation = ((float)rng.NextDouble() * 2f - 1f) * JitterRotationDegrees;
         }
 
         private ITintable[] BuildRendererArray()

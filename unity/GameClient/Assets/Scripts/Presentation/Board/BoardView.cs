@@ -26,7 +26,7 @@ namespace GameClient.Presentation.Board
         // tile shape) so same-layer neighbor tiles sit edge-to-edge with no
         // visible background gap between them, like the reference's tightly
         // packed mosaic.
-        [SerializeField] private float _cellWidth = 0.68f;
+        [SerializeField] private float _cellWidth = 0.57f;
         [SerializeField] private float _cellHeight = 0.85f;
         [SerializeField] private float _cameraMargin = 0.3f;
 
