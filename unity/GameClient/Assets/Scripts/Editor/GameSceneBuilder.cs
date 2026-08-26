@@ -134,39 +134,30 @@ public static class GameSceneBuilder
         var slotRect = traySlotPrefab.GetComponent<RectTransform>();
         slotRect.sizeDelta = new Vector2(80f, 80f);
 
-        var slotKnobSprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
+        var shadowLayer = CreateCardLayer(traySlotPrefab.transform, "Shadow", CardStyle.ShadowSizeRatio, CardStyle.ShadowColor);
+        shadowLayer.rectTransform.anchoredPosition = new Vector2(4f, -4f);
 
-        var slotAccentGO = new GameObject("AccentBorder", typeof(Image));
-        slotAccentGO.transform.SetParent(traySlotPrefab.transform, false);
-        var slotAccentImage = slotAccentGO.GetComponent<Image>();
-        slotAccentImage.sprite = slotKnobSprite;
-        slotAccentImage.type = Image.Type.Sliced;
-        var slotAccentRect = slotAccentGO.GetComponent<RectTransform>();
-        slotAccentRect.anchorMin = Vector2.zero;
-        slotAccentRect.anchorMax = Vector2.one;
-        slotAccentRect.offsetMin = Vector2.zero;
-        slotAccentRect.offsetMax = Vector2.zero;
-
-        var slotCardGO = new GameObject("Card", typeof(Image));
-        slotCardGO.transform.SetParent(traySlotPrefab.transform, false);
-        var slotCardImage = slotCardGO.GetComponent<Image>();
-        slotCardImage.sprite = slotKnobSprite;
-        slotCardImage.type = Image.Type.Sliced;
-        var slotCardRect = slotCardGO.GetComponent<RectTransform>();
-        slotCardRect.anchorMin = new Vector2(0.08f, 0.08f);
-        slotCardRect.anchorMax = new Vector2(0.92f, 0.92f);
-        slotCardRect.offsetMin = Vector2.zero;
-        slotCardRect.offsetMax = Vector2.zero;
+        var glowLayer = CreateCardLayer(traySlotPrefab.transform, "SelectionGlow", CardStyle.GlowSizeRatio, CardStyle.GlowColor);
+        var accentLayer = CreateCardLayer(traySlotPrefab.transform, "AccentBorder", CardStyle.AccentSizeRatio, CardStyle.AccentDefaultColor);
+        var cardLayer = CreateCardLayer(traySlotPrefab.transform, "Card", CardStyle.CardSizeRatio, CardStyle.CardColor);
 
         var slotIconGO = new GameObject("Icon", typeof(Image));
         slotIconGO.transform.SetParent(traySlotPrefab.transform, false);
         var slotIconImage = slotIconGO.GetComponent<Image>();
         slotIconImage.type = Image.Type.Simple;
+        var iconInset = (1f - CardStyle.IconSizeRatio) / 2f;
         var slotIconRect = slotIconGO.GetComponent<RectTransform>();
-        slotIconRect.anchorMin = new Vector2(0.22f, 0.22f);
-        slotIconRect.anchorMax = new Vector2(0.78f, 0.78f);
+        slotIconRect.anchorMin = new Vector2(iconInset, iconInset);
+        slotIconRect.anchorMax = new Vector2(1f - iconInset, 1f - iconInset);
         slotIconRect.offsetMin = Vector2.zero;
         slotIconRect.offsetMax = Vector2.zero;
+
+        var traySlotView = traySlotPrefab.AddComponent<TraySlotView>();
+        SetField(traySlotView, "_shadowImage", shadowLayer);
+        SetField(traySlotView, "_glowImage", glowLayer);
+        SetField(traySlotView, "_accentImage", accentLayer);
+        SetField(traySlotView, "_cardImage", cardLayer);
+        SetField(traySlotView, "_iconImage", slotIconImage);
 
         SetField(trayView, "layoutGroup", trayLayout);
         SetField(trayView, "traySlotPrefab", traySlotPrefab);
@@ -304,6 +295,23 @@ public static class GameSceneBuilder
         SetField(hudComponent, "_button", button);
         SetField(hudComponent, "_usesDisplay", usesDisplay);
         SetField(hudComponent, "_gameController", gameController);
+    }
+
+    private static Image CreateCardLayer(Transform parent, string name, float sizeRatio, Color color)
+    {
+        var go = new GameObject(name, typeof(Image));
+        go.transform.SetParent(parent, false);
+        var image = go.GetComponent<Image>();
+        image.sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
+        image.type = Image.Type.Sliced;
+        image.color = color;
+        var inset = (1f - sizeRatio) / 2f;
+        var rect = go.GetComponent<RectTransform>();
+        rect.anchorMin = new Vector2(inset, inset);
+        rect.anchorMax = new Vector2(1f - inset, 1f - inset);
+        rect.offsetMin = Vector2.zero;
+        rect.offsetMax = Vector2.zero;
+        return image;
     }
 
     private static void SetField(Object target, string fieldName, Object value)
