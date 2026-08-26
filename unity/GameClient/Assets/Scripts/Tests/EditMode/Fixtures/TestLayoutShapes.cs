@@ -14,5 +14,6 @@ namespace GameDomain.Tests.Fixtures
         public static List<TileSlot> MediumShape() => BuildLayeredRowShape(new[] { 12, 6 });
         public static List<TileSlot> LargeShape() => BuildLayeredRowShape(new[] { 20, 12, 6, 2 });
         public static List<TileSlot> ExtraLargeShape() => BuildLayeredRowShape(new[] { 24, 16, 8, 2 });
+        public static List<TileSlot> TurtleShape() => TurtleShapeBuilder.Build();
     }
 }
