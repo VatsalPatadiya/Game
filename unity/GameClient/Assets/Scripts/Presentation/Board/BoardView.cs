@@ -10,9 +10,13 @@ namespace GameClient.Presentation.Board
 {
     public sealed class BoardView : MonoBehaviour
     {
-        private const float TargetDealInSeconds = 1.0f;
-        private const float MinStaggerSeconds = 0.008f;
-        private const float MaxStaggerSeconds = 0.03f;
+        // Measured from actual gameplay footage: board population (after any
+        // level-transition effect) completes in ~450ms as fast, overlapping
+        // waves rather than a slow single-file reveal, so tiles are staggered
+        // per row-batch, not per tile.
+        private const float TargetDealInSeconds = 0.45f;
+        private const float MinBatchStaggerSeconds = 0.004f;
+        private const float MaxBatchStaggerSeconds = 0.018f;
 
         [SerializeField] private TileView _tilePrefab;
         [SerializeField] private TileSetAsset _tileSet;
@@ -52,8 +56,29 @@ namespace GameClient.Presentation.Board
                 .ToList();
 
             int tileCount = orderedCells.Count;
-            float stagger = tileCount > 0
-                ? Mathf.Clamp(TargetDealInSeconds / tileCount, MinStaggerSeconds, MaxStaggerSeconds)
+
+            // Tiles sharing a layer+row deal in together as one batch (a
+            // "wave"), rather than every tile getting its own stagger slot -
+            // that's what keeps a 100+-tile board's cascade to ~450ms instead
+            // of stretching out linearly with tile count.
+            var batchIndexByPosition = new int[orderedCells.Count];
+            int batchCount = 0;
+            int? lastLayer = null;
+            int? lastY = null;
+            for (int i = 0; i < orderedCells.Count; i++)
+            {
+                var slot = slotsById[orderedCells[i].Key];
+                if (lastLayer != slot.Layer || lastY != slot.Y)
+                {
+                    batchCount++;
+                    lastLayer = slot.Layer;
+                    lastY = slot.Y;
+                }
+                batchIndexByPosition[i] = batchCount - 1;
+            }
+
+            float stagger = batchCount > 0
+                ? Mathf.Clamp(TargetDealInSeconds / batchCount, MinBatchStaggerSeconds, MaxBatchStaggerSeconds)
                 : 0f;
             int pendingDealIns = animateDealIn ? tileCount : 0;
 
@@ -71,7 +96,7 @@ namespace GameClient.Presentation.Board
 
                 if (animateDealIn)
                 {
-                    float delay = i * stagger;
+                    float delay = batchIndexByPosition[i] * stagger;
                     view.PlayDealIn(delay, () =>
                     {
                         pendingDealIns--;

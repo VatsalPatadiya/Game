@@ -11,10 +11,19 @@ namespace GameClient.Presentation.Board
     public static class CardAnimator
     {
         public const float ClearDuration = 0.2f;
-        public const float DealInDuration = 0.2f;
-        public const float FlightDuration = 0.28f;
+        // 120-150ms per spec (measured from actual gameplay footage); 130ms picked as the midpoint.
+        public const float DealInDuration = 0.13f;
         public const float FastFadeDuration = 0.1f;
         public const float HighlightHoldDuration = 0.13f;
+
+        // Tap-to-tray timings, measured from footage: no in-transit frame was
+        // catchable even at 10fps sampling, so the whole thing (flash + away)
+        // must resolve in well under 150ms; the tray's own pop-in runs
+        // concurrently on a separate, slightly longer/overshooting curve.
+        public const float TapConfirmFlashDuration = 0.07f;
+        public const float TapAwayDuration = 0.1f;
+        public const float TrayPopInDuration = 0.11f;
+        public const float TrayPopInOvershoot = 1.08f;
 
         public static float EaseOut(float t) => 1f - (1f - t) * (1f - t);
 
@@ -70,6 +79,37 @@ namespace GameClient.Presentation.Board
                 elapsed += Time.deltaTime;
                 float t = Mathf.Clamp01(elapsed / ClearDuration);
                 target.localScale = Vector3.Lerp(startScale, endScale, t);
+                for (int i = 0; i < renderers.Length; i++)
+                {
+                    if (renderers[i] == null) continue;
+                    var c = renderers[i].Color;
+                    c.a = startAlphas[i] * (1f - t);
+                    renderers[i].Color = c;
+                }
+                yield return null;
+            }
+
+            onComplete?.Invoke();
+        }
+
+        // Shrinks to nothing while fading, in place - distinct from
+        // ScaleUpAndFadeOut (which grows slightly, used for the more
+        // deliberate "these two matched" clear) - this is the quick "tapped
+        // away" exit for a single tile heading to the tray.
+        public static IEnumerator ScaleDownAndFadeOut(
+            Transform target, ITintable[] renderers, float duration, Action onComplete)
+        {
+            float elapsed = 0f;
+            var startScale = target.localScale;
+            var startAlphas = new float[renderers.Length];
+            for (int i = 0; i < renderers.Length; i++)
+                startAlphas[i] = renderers[i] != null ? renderers[i].Color.a : 0f;
+
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(elapsed / duration);
+                target.localScale = Vector3.Lerp(startScale, Vector3.zero, t);
                 for (int i = 0; i < renderers.Length; i++)
                 {
                     if (renderers[i] == null) continue;
