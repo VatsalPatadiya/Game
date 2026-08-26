@@ -1,84 +1,121 @@
+using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using GameClient.Data;
 using GameClient.Presentation.Board;
 using GameDomain.Model;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace GameClient.Presentation
+namespace GameClient.Presentation.HUD
 {
     public class TrayView : MonoBehaviour
     {
+        private const float ReflowDuration = 0.15f;
+
         public HorizontalLayoutGroup layoutGroup;
         public GameObject traySlotPrefab;
         public TileSetAsset tileSet;
 
-        private static readonly Color EmptySlotColor = new Color(1f, 1f, 1f, 0.12f);
-        private static readonly Color FilledCardColor = new Color(0.969f, 0.957f, 0.922f, 1f);
+        private List<TraySlotView> _slots = new List<TraySlotView>();
 
-        private List<GameObject> _slots = new List<GameObject>();
+        public int SlotCount => _slots.Count;
 
         public void Initialize(int maxTraySize)
         {
             foreach (var slot in _slots)
             {
-                if (slot != null) Destroy(slot);
+                if (slot != null) Destroy(slot.gameObject);
             }
             _slots.Clear();
 
             for (int i = 0; i < maxTraySize; i++)
             {
-                var slot = Instantiate(traySlotPrefab, layoutGroup.transform);
-                _slots.Add(slot);
-                SetSlotEmpty(slot);
+                var slotGO = Instantiate(traySlotPrefab, layoutGroup.transform);
+                var slotView = slotGO.GetComponent<TraySlotView>();
+                _slots.Add(slotView);
+                slotView.SetEmpty();
             }
         }
 
-        public void UpdateTray(BoardState board, Dictionary<string, TileSlot> slotsById)
+        public Vector3 GetSlotScreenPosition(int index) => _slots[index].RectTransform.position;
+
+        public void PlayArrival(int index, Sprite icon, Color accentColor)
         {
-            for (int i = 0; i < _slots.Count; i++)
+            if (index < 0 || index >= _slots.Count) return;
+            _slots[index].SetFilled(icon, accentColor);
+        }
+
+        // Spawns a free-standing copy of the tray card (parented under the
+        // Canvas root, not the layout group, so it can be positioned/animated
+        // independently) — shared by GameController's tap-to-tray flight and
+        // this class's own reflow.
+        public GameObject SpawnFlightCard(Sprite icon, Color accentColor, Vector3 startScreenPosition)
+        {
+            var flightCard = Instantiate(traySlotPrefab, transform.root, false);
+            var flightSlotView = flightCard.GetComponent<TraySlotView>();
+            flightSlotView.SetFilled(icon, accentColor);
+            var rect = (RectTransform)flightCard.transform;
+            rect.position = startScreenPosition;
+            return flightCard;
+        }
+
+        // Compares the tray immediately before this push (plus the tile that
+        // just landed) against the tray after TrayManager's match-check to
+        // find which two slots to highlight+clear, then reflows whatever
+        // remains into its new slot positions. Slot *indices* are what
+        // matters here, since the tray's persistent slots are fixed by
+        // index, not by tile identity.
+        public IEnumerator ResolveAfterPush(
+            List<string> oldTrayIds, string newTileId, List<string> newTrayIds, BoardState board)
+        {
+            var beforePush = new List<string>(oldTrayIds) { newTileId };
+
+            if (newTrayIds.Count == beforePush.Count)
+                yield break; // landed, no match — nothing further to animate
+
+            var matchedIds = beforePush.Except(newTrayIds).ToList();
+            int firstIndex = beforePush.IndexOf(matchedIds[0]);
+            int secondIndex = beforePush.IndexOf(matchedIds[1]);
+
+            bool clearedFirst = false, clearedSecond = false;
+            _slots[firstIndex].PlayHighlightThenClear(() => clearedFirst = true);
+            _slots[secondIndex].PlayHighlightThenClear(() => clearedSecond = true);
+
+            yield return new WaitUntil(() => clearedFirst && clearedSecond);
+
+            var reflowRoutines = new List<Coroutine>();
+            for (int newIndex = 0; newIndex < newTrayIds.Count; newIndex++)
             {
-                if (i < board.TrayTileIds.Count)
-                {
-                    string slotId = board.TrayTileIds[i];
-                    var cell = board.Cells[slotId];
-                    SetSlotFilled(_slots[i], cell.Value);
-                }
-                else
-                {
-                    SetSlotEmpty(_slots[i]);
-                }
+                string id = newTrayIds[newIndex];
+                int oldIndex = beforePush.IndexOf(id);
+                if (oldIndex == newIndex) continue;
+
+                reflowRoutines.Add(StartCoroutine(ReflowSlot(oldIndex, newIndex, board.Cells[id].Value)));
             }
+
+            foreach (var routine in reflowRoutines)
+                yield return routine;
+
+            for (int i = newTrayIds.Count; i < _slots.Count; i++)
+                _slots[i].SetEmpty();
         }
 
-        private void SetSlotFilled(GameObject slot, string value)
+        private IEnumerator ReflowSlot(int fromIndex, int toIndex, string value)
         {
-            var accentImage = slot.transform.Find("AccentBorder")?.GetComponent<Image>();
-            var cardImage = slot.transform.Find("Card")?.GetComponent<Image>();
-            var iconImage = slot.transform.Find("Icon")?.GetComponent<Image>();
+            var icon = TileVisual.IconFor(tileSet, value);
+            var accent = TileVisual.AccentColorFor(tileSet, value);
+            var fromPos = _slots[fromIndex].RectTransform.position;
+            var toPos = _slots[toIndex].RectTransform.position;
 
-            var accentColor = TileVisual.AccentColorFor(tileSet, value);
-            accentColor.a = 1f;
-            if (accentImage != null) accentImage.color = accentColor;
-            if (cardImage != null) cardImage.color = FilledCardColor;
+            _slots[fromIndex].SetEmpty();
 
-            if (iconImage != null)
-            {
-                iconImage.sprite = TileVisual.IconFor(tileSet, value);
-                iconImage.color = accentColor;
-                iconImage.enabled = true;
-            }
-        }
+            var flightCard = SpawnFlightCard(icon, accent, fromPos);
+            var rect = (RectTransform)flightCard.transform;
+            yield return CardAnimator.MoveRectTransform(rect, fromPos, toPos, ReflowDuration);
+            Destroy(flightCard);
 
-        private void SetSlotEmpty(GameObject slot)
-        {
-            var accentImage = slot.transform.Find("AccentBorder")?.GetComponent<Image>();
-            var cardImage = slot.transform.Find("Card")?.GetComponent<Image>();
-            var iconImage = slot.transform.Find("Icon")?.GetComponent<Image>();
-
-            if (accentImage != null) accentImage.color = EmptySlotColor;
-            if (cardImage != null) cardImage.color = new Color(0f, 0f, 0f, 0f);
-            if (iconImage != null) iconImage.enabled = false;
+            _slots[toIndex].SetFilled(icon, accent);
         }
     }
 }
