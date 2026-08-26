@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using GameClient.Data;
@@ -9,6 +10,10 @@ namespace GameClient.Presentation.Board
 {
     public sealed class BoardView : MonoBehaviour
     {
+        private const float TargetDealInSeconds = 1.0f;
+        private const float MinStaggerSeconds = 0.008f;
+        private const float MaxStaggerSeconds = 0.03f;
+
         [SerializeField] private TileView _tilePrefab;
         [SerializeField] private TileSetAsset _tileSet;
         [SerializeField] private Camera _camera;
@@ -18,7 +23,15 @@ namespace GameClient.Presentation.Board
         private readonly Dictionary<string, TileView> _tileViews = new Dictionary<string, TileView>();
         private Dictionary<string, TileSlot> _slotsById;
 
-        public void Build(BoardState board, Dictionary<string, TileSlot> slotsById)
+        public TileSetAsset TileSet => _tileSet;
+
+        // animateDealIn should only be true for a fresh level load. Undo and
+        // Shuffle rebuild the whole board too, but replaying the deal-in
+        // flourish on every one of those would be repetitive rather than
+        // polished, so they pass false and tiles simply appear at full
+        // opacity as before.
+        public void Build(
+            BoardState board, Dictionary<string, TileSlot> slotsById, bool animateDealIn, Action onDealInComplete = null)
         {
             _slotsById = slotsById;
 
@@ -28,10 +41,25 @@ namespace GameClient.Presentation.Board
 
             FitCameraToBoard(slotsById);
 
-            foreach (var kv in board.Cells)
-            {
-                if (kv.Value.Cleared) continue;
+            // Layer ascending, then top-to-bottom, then left-to-right within a
+            // layer, so the deal-in reads as the board building up from the
+            // bottom layer to the top, matching the shadow-depth-per-layer cue.
+            var orderedCells = board.Cells
+                .Where(kv => !kv.Value.Cleared)
+                .OrderBy(kv => slotsById[kv.Key].Layer)
+                .ThenBy(kv => -slotsById[kv.Key].Y)
+                .ThenBy(kv => slotsById[kv.Key].X)
+                .ToList();
 
+            int tileCount = orderedCells.Count;
+            float stagger = tileCount > 0
+                ? Mathf.Clamp(TargetDealInSeconds / tileCount, MinStaggerSeconds, MaxStaggerSeconds)
+                : 0f;
+            int pendingDealIns = animateDealIn ? tileCount : 0;
+
+            for (int i = 0; i < orderedCells.Count; i++)
+            {
+                var kv = orderedCells[i];
                 var slot = slotsById[kv.Key];
                 var view = Instantiate(_tilePrefab, transform);
                 view.transform.localPosition = new Vector3(
@@ -40,7 +68,21 @@ namespace GameClient.Presentation.Board
                     -slot.Layer * 0.1f);
                 view.Initialize(slot.Id, slot.Layer, TileVisual.IconFor(_tileSet, kv.Value.Value), TileVisual.AccentColorFor(_tileSet, kv.Value.Value));
                 _tileViews[kv.Key] = view;
+
+                if (animateDealIn)
+                {
+                    float delay = i * stagger;
+                    view.PlayDealIn(delay, () =>
+                    {
+                        pendingDealIns--;
+                        if (pendingDealIns == 0)
+                            onDealInComplete?.Invoke();
+                    });
+                }
             }
+
+            if (animateDealIn && tileCount == 0)
+                onDealInComplete?.Invoke();
 
             RefreshFreeStates(board);
         }
@@ -94,6 +136,15 @@ namespace GameClient.Presentation.Board
                 view.PlayClearAndDestroy();
                 _tileViews.Remove(id);
             }
+        }
+
+        // Used after a tile has already been faded out by the tap-to-tray
+        // flight (see GameController) — no further animation needed here.
+        public void RemoveTileInstant(string slotId)
+        {
+            if (!_tileViews.TryGetValue(slotId, out var view)) return;
+            _tileViews.Remove(slotId);
+            if (view != null) Destroy(view.gameObject);
         }
 
         public TileView GetTileView(string slotId) =>
