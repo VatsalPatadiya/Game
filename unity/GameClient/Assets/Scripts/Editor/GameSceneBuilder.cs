@@ -18,8 +18,8 @@ public static class GameSceneBuilder
         var cameraGO = new GameObject("Main Camera", typeof(Camera));
         var camera = cameraGO.GetComponent<Camera>();
         camera.orthographic = true;
-        camera.orthographicSize = 4f; // Fit 4x2 grid in portrait
-        camera.transform.position = new Vector3(1.5f, -0.5f, -10f); // Center on 4x2 grid
+        camera.orthographicSize = 5f; // Fit 6x4 pyramid
+        camera.transform.position = new Vector3(2.5f, -1.5f, -10f); // Center on 6x4 grid
         cameraGO.tag = "MainCamera";
 
         // Add EventSystem for UI clicks
@@ -36,10 +36,7 @@ public static class GameSceneBuilder
 
         var gameControllerGO = new GameObject("GameController", typeof(GameController));
         var gameController = gameControllerGO.GetComponent<GameController>();
-        var levelAsset = AssetDatabase.LoadAssetAtPath<LevelShapeAsset>("Assets/Data/SmallTestLevel.asset");
-        RequireNotNull(levelAsset, "Assets/Data/SmallTestLevel.asset");
         SetField(gameController, "_boardView", boardView);
-        SetField(gameController, "_levelShape", levelAsset);
 
         SetField(inputController, "_targetCamera", camera);
         SetField(inputController, "_gameController", gameController);
@@ -64,12 +61,134 @@ public static class GameSceneBuilder
         SetField(scoreDisplay, "_scoreText", scoreText);
         SetField(scoreDisplay, "_gameController", gameController);
 
-        CreateHudButton(canvasGO.transform, "HintButton", new Vector2(20f, 20f), gameController,
-            typeof(HintButton), "_button", "Hint");
-        CreateHudButton(canvasGO.transform, "UndoButton", new Vector2(140f, 20f), gameController,
-            typeof(UndoButton), "_button", "Undo");
-        CreateHudButton(canvasGO.transform, "ShuffleButton", new Vector2(260f, 20f), gameController,
-            typeof(ShuffleButton), "_button", "Shuffle");
+        CreateHudButton(canvasGO.transform, "ShuffleButton", new Vector2(-120f, 60f), gameController,
+            typeof(ShuffleButton), "_button", "🔀");
+        CreateHudButton(canvasGO.transform, "HintButton", new Vector2(0f, 60f), gameController,
+            typeof(HintButton), "_button", "💡");
+        CreateHudButton(canvasGO.transform, "UndoButton", new Vector2(120f, 60f), gameController,
+            typeof(UndoButton), "_button", "↩");
+
+        // ------------------
+        // Build Tray UI
+        // ------------------
+        var trayGO = new GameObject("TrayPanel", typeof(Image), typeof(HorizontalLayoutGroup), typeof(TrayView));
+        trayGO.transform.SetParent(canvasGO.transform, false);
+        var trayImage = trayGO.GetComponent<Image>();
+        trayImage.color = new Color(0, 0, 0, 0.5f);
+        var trayRect = trayGO.GetComponent<RectTransform>();
+        trayRect.anchorMin = new Vector2(0.5f, 1f);
+        trayRect.anchorMax = new Vector2(0.5f, 1f);
+        trayRect.pivot = new Vector2(0.5f, 1f);
+        trayRect.anchoredPosition = new Vector2(0, -80f);
+        trayRect.sizeDelta = new Vector2(400f, 100f);
+
+        var trayLayout = trayGO.GetComponent<HorizontalLayoutGroup>();
+        trayLayout.childAlignment = TextAnchor.MiddleCenter;
+        trayLayout.childControlWidth = false;
+        trayLayout.childControlHeight = false;
+        trayLayout.spacing = 10f;
+
+        var trayView = trayGO.GetComponent<TrayView>();
+        var traySlotPrefab = new GameObject("TraySlot", typeof(RectTransform));
+        var slotRect = traySlotPrefab.GetComponent<RectTransform>();
+        slotRect.sizeDelta = new Vector2(80f, 80f);
+
+        var shadowGO = new GameObject("Shadow", typeof(Image));
+        shadowGO.transform.SetParent(traySlotPrefab.transform, false);
+        var shadowImage = shadowGO.GetComponent<Image>();
+        shadowImage.color = new Color(0, 0, 0, 0.4f);
+        var shadowRect = shadowGO.GetComponent<RectTransform>();
+        shadowRect.anchorMin = Vector2.zero;
+        shadowRect.anchorMax = Vector2.one;
+        shadowRect.anchoredPosition = new Vector2(5f, -5f);
+
+        var bgGO = new GameObject("Background", typeof(Image));
+        bgGO.transform.SetParent(traySlotPrefab.transform, false);
+        var bgImage = bgGO.GetComponent<Image>();
+        var bgRect = bgGO.GetComponent<RectTransform>();
+        bgRect.anchorMin = Vector2.zero;
+        bgRect.anchorMax = Vector2.one;
+        bgRect.offsetMin = Vector2.zero;
+        bgRect.offsetMax = Vector2.zero;
+
+        var iconGO = new GameObject("Icon", typeof(Image));
+        iconGO.transform.SetParent(traySlotPrefab.transform, false);
+        var iconImage = iconGO.GetComponent<Image>();
+        var iconRect = iconGO.GetComponent<RectTransform>();
+        iconRect.anchorMin = new Vector2(0.1f, 0.1f);
+        iconRect.anchorMax = new Vector2(0.9f, 0.9f);
+        iconRect.offsetMin = Vector2.zero;
+        iconRect.offsetMax = Vector2.zero;
+
+        var slotTextGO = new GameObject("Text", typeof(Text));
+        slotTextGO.transform.SetParent(traySlotPrefab.transform, false);
+        var slotText = slotTextGO.GetComponent<Text>();
+        slotText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        slotText.fontSize = 40;
+        slotText.color = Color.black;
+        slotText.alignment = TextAnchor.MiddleCenter;
+        var slotTextRect = slotTextGO.GetComponent<RectTransform>();
+        slotTextRect.anchorMin = Vector2.zero;
+        slotTextRect.anchorMax = Vector2.one;
+        slotTextRect.offsetMin = Vector2.zero;
+        slotTextRect.offsetMax = Vector2.zero;
+        
+        SetField(trayView, "layoutGroup", trayLayout);
+        SetField(trayView, "traySlotPrefab", traySlotPrefab);
+        SetField(gameController, "_trayView", trayView);
+
+        // ------------------
+        // Build Game Over UI
+        // ------------------
+        var gameOverGO = new GameObject("GameOverPanel", typeof(Image), typeof(GameOverPopup));
+        gameOverGO.transform.SetParent(canvasGO.transform, false);
+        var goImage = gameOverGO.GetComponent<Image>();
+        goImage.color = new Color(0, 0, 0, 0.8f);
+        var goRect = gameOverGO.GetComponent<RectTransform>();
+        goRect.anchorMin = Vector2.zero;
+        goRect.anchorMax = Vector2.one;
+        goRect.offsetMin = Vector2.zero;
+        goRect.offsetMax = Vector2.zero;
+
+        var goTextGO = new GameObject("Text", typeof(Text));
+        goTextGO.transform.SetParent(gameOverGO.transform, false);
+        var goText = goTextGO.GetComponent<Text>();
+        goText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        goText.fontSize = 60;
+        goText.text = "GAME OVER";
+        goText.alignment = TextAnchor.MiddleCenter;
+        var goTextRect = goTextGO.GetComponent<RectTransform>();
+        goTextRect.anchorMin = new Vector2(0.5f, 0.5f);
+        goTextRect.anchorMax = new Vector2(0.5f, 0.5f);
+        goTextRect.anchoredPosition = new Vector2(0, 100f);
+        goTextRect.sizeDelta = new Vector2(400, 100);
+
+        var restartBtnGO = new GameObject("RestartButton", typeof(Image), typeof(Button));
+        restartBtnGO.transform.SetParent(gameOverGO.transform, false);
+        var restartBtnRect = restartBtnGO.GetComponent<RectTransform>();
+        restartBtnRect.anchorMin = new Vector2(0.5f, 0.5f);
+        restartBtnRect.anchorMax = new Vector2(0.5f, 0.5f);
+        restartBtnRect.anchoredPosition = new Vector2(0, -50f);
+        restartBtnRect.sizeDelta = new Vector2(200, 60);
+        
+        var restartTextGO = new GameObject("Text", typeof(Text));
+        restartTextGO.transform.SetParent(restartBtnGO.transform, false);
+        var restartText = restartTextGO.GetComponent<Text>();
+        restartText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        restartText.fontSize = 30;
+        restartText.color = Color.black;
+        restartText.text = "Restart";
+        restartText.alignment = TextAnchor.MiddleCenter;
+        var restartTextRect = restartTextGO.GetComponent<RectTransform>();
+        restartTextRect.anchorMin = Vector2.zero;
+        restartTextRect.anchorMax = Vector2.one;
+        restartTextRect.offsetMin = Vector2.zero;
+        restartTextRect.offsetMax = Vector2.zero;
+
+        var gameOverPopup = gameOverGO.GetComponent<GameOverPopup>();
+        SetField(gameOverPopup, "restartButton", restartBtnGO.GetComponent<Button>());
+        SetField(gameController, "_gameOverPopup", gameOverPopup);
+        gameOverGO.SetActive(false); // Hidden by default
 
         Directory.CreateDirectory("Assets/Scenes");
         EditorSceneManager.SaveScene(scene, "Assets/Scenes/Game.unity");
@@ -84,17 +203,17 @@ public static class GameSceneBuilder
         var buttonGO = new GameObject(name, typeof(Image), typeof(Button));
         buttonGO.transform.SetParent(parent, false);
         var rect = buttonGO.GetComponent<RectTransform>();
-        rect.anchorMin = new Vector2(0f, 0f);
-        rect.anchorMax = new Vector2(0f, 0f);
-        rect.pivot = new Vector2(0f, 0f);
+        rect.anchorMin = new Vector2(0.5f, 0f);
+        rect.anchorMax = new Vector2(0.5f, 0f);
+        rect.pivot = new Vector2(0.5f, 0f);
         rect.anchoredPosition = anchoredPosition;
-        rect.sizeDelta = new Vector2(100f, 88f);
+        rect.sizeDelta = new Vector2(80f, 80f);
 
         var labelGO = new GameObject("Label", typeof(Text));
         labelGO.transform.SetParent(buttonGO.transform, false);
         var text = labelGO.GetComponent<Text>();
         text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        text.fontSize = 20;
+        text.fontSize = 40;
         text.alignment = TextAnchor.MiddleCenter;
         text.color = Color.black;
         text.text = label;

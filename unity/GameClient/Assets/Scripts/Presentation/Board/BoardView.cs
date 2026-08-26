@@ -9,7 +9,7 @@ namespace GameClient.Presentation.Board
     public sealed class BoardView : MonoBehaviour
     {
         [SerializeField] private TileView _tilePrefab;
-        [SerializeField] private float _cellSize = 1f;
+        [SerializeField] private float _cellSize = 0.9f;
 
         private readonly Dictionary<string, TileView> _tileViews = new Dictionary<string, TileView>();
         private Dictionary<string, TileSlot> _slotsById;

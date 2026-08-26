@@ -12,6 +12,9 @@ namespace GameClient.Presentation.Board
         [SerializeField] private Color _freeColor = Color.white;
         [SerializeField] private Color _blockedColor = new Color(0.55f, 0.55f, 0.55f, 1f);
         [SerializeField] private Color _highlightColor = new Color(1f, 0.85f, 0.2f, 1f);
+        
+        private Vector3 _originalLocalPos;
+        private Coroutine _shakeCoroutine;
 
         public string SlotId { get; private set; }
         public int Layer { get; private set; }
@@ -20,6 +23,11 @@ namespace GameClient.Presentation.Board
         {
             SlotId = slotId;
             Layer = layer;
+
+            // Apply a slight isometric offset based on layer to give a 3D stacked feel
+            _originalLocalPos = transform.localPosition + new Vector3(layer * -0.04f, layer * 0.08f, 0f);
+            transform.localPosition = _originalLocalPos;
+
             if (_iconRenderer != null)
                 _iconRenderer.color = tileColor;
             
@@ -43,11 +51,12 @@ namespace GameClient.Presentation.Board
         public void SetFree(bool isFree)
         {
             if (_backgroundRenderer != null)
-                _backgroundRenderer.color = isFree ? _freeColor : _blockedColor;
-
-            var collider = GetComponent<BoxCollider2D>();
-            if (collider != null)
-                collider.enabled = isFree;
+            {
+                // Darken lower layers slightly, and darken even more if blocked
+                float layerBrightness = Mathf.Clamp01(1f - (2 - Layer) * 0.1f);
+                Color baseColor = isFree ? _freeColor : _blockedColor;
+                _backgroundRenderer.color = new Color(baseColor.r * layerBrightness, baseColor.g * layerBrightness, baseColor.b * layerBrightness, baseColor.a);
+            }
         }
 
         public void Highlight()
@@ -76,6 +85,38 @@ namespace GameClient.Presentation.Board
             }
 
             Destroy(gameObject);
+        }
+
+        public void PlayShake()
+        {
+            if (_shakeCoroutine != null) StopCoroutine(_shakeCoroutine);
+            _shakeCoroutine = StartCoroutine(ShakeRoutine());
+        }
+
+        private IEnumerator ShakeRoutine()
+        {
+            float duration = 0.2f;
+            float elapsed = 0f;
+            
+            // Flash red
+            if (_backgroundRenderer != null) _backgroundRenderer.color = Color.red;
+
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                float xOffset = Mathf.Sin(elapsed * 40f) * 0.1f;
+                transform.localPosition = _originalLocalPos + new Vector3(xOffset, 0, 0);
+                yield return null;
+            }
+
+            transform.localPosition = _originalLocalPos;
+            
+            // Re-apply original color (assume blocked since it was shaken)
+            if (_backgroundRenderer != null)
+            {
+                float layerBrightness = Mathf.Clamp01(1f - (2 - Layer) * 0.1f);
+                _backgroundRenderer.color = new Color(_blockedColor.r * layerBrightness, _blockedColor.g * layerBrightness, _blockedColor.b * layerBrightness, _blockedColor.a);
+            }
         }
     }
 }

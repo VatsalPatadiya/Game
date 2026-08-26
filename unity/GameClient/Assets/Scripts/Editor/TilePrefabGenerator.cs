@@ -11,6 +11,17 @@ public static class TilePrefabGenerator
 
         var root = new GameObject("Tile");
 
+        var shadow = new GameObject("Shadow");
+        shadow.transform.SetParent(root.transform);
+        var shadowRenderer = shadow.AddComponent<SpriteRenderer>();
+        shadowRenderer.sprite = GetOrCreateSquareSprite();
+        shadowRenderer.drawMode = SpriteDrawMode.Sliced;
+        shadowRenderer.size = new Vector2(0.9f, 0.9f);
+        shadowRenderer.color = new Color(0, 0, 0, 0.4f); // Semi-transparent black
+        shadowRenderer.sortingOrder = -1;
+        // Offset shadow slightly to the bottom-right
+        shadow.transform.localPosition = new Vector3(0.08f, -0.08f, 0.05f);
+
         var background = new GameObject("Background");
         background.transform.SetParent(root.transform);
         var backgroundRenderer = background.AddComponent<SpriteRenderer>();
