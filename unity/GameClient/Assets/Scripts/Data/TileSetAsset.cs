@@ -6,5 +6,7 @@ namespace GameClient.Data
     public sealed class TileSetAsset : ScriptableObject
     {
         public string TileSetId;
+        public Sprite[] Icons;
+        public Color[] AccentColors;
     }
 }
