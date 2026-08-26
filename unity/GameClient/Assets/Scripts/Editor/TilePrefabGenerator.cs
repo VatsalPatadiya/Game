@@ -71,6 +71,10 @@ public static class TilePrefabGenerator
 
     private static Sprite GetOrCreateSquareSprite()
     {
-        return AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
+        var sprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Textures/Card/card_rounded_rect.png");
+        if (sprite == null)
+            throw new System.Exception(
+                "TILE_PREFAB_GENERATOR_MISSING_CARD_SPRITE: run CardSpriteGenerator.Generate() first");
+        return sprite;
     }
 }

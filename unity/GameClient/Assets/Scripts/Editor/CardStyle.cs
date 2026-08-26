@@ -7,10 +7,13 @@ using UnityEngine;
 // (world units for the board tile, normalized 0-1 anchors for the tray slot).
 public static class CardStyle
 {
+    // Accent border width = (AccentSizeRatio - CardSizeRatio) / 2 = 8% of tile
+    // width, within the 6-10% spec target. Card area share of (accent+card)
+    // combined area is ~68% — the dominant, clearly-majority color.
     public const float ShadowSizeRatio = 0.82f;
     public const float GlowSizeRatio = 1.0f;
-    public const float AccentSizeRatio = 0.86f;
-    public const float CardSizeRatio = 0.78f;
+    public const float AccentSizeRatio = 0.92f;
+    public const float CardSizeRatio = 0.76f;
     public const float IconSizeRatio = 0.5f;
 
     public static readonly Color ShadowColor = new Color(0f, 0f, 0f, 0.3f);
@@ -18,4 +21,15 @@ public static class CardStyle
     public static readonly Color AccentDefaultColor = new Color(0.69f, 0.26f, 0.16f, 1f);
     public static readonly Color CardColor = new Color(0.969f, 0.957f, 0.922f, 1f);
     public static readonly Color EmptySlotColor = new Color(1f, 1f, 1f, 0.12f);
+
+    // Procedural rounded-rect card sprite (CardSpriteGenerator): source texture
+    // is 256px with a border of 51.2px, giving a corner radius equal to 20% of
+    // a full 1.0-ratio footprint at PPU=256 (world-space rendering). UI Image
+    // layers don't share that PPU system, so they scale this same source
+    // border via Image.pixelsPerUnitMultiplier, computed per element as
+    // CardSpriteSourceBorderPx / (containerSizePx * CornerRadiusRatio).
+    public const int CardSpriteTextureSize = 256;
+    public const float CardSpriteCornerRadiusNormalized = 0.4f; // in [-1,1] SDF space, box half-width=1
+    public const float CardSpriteSourceBorderPx = 51.2f;
+    public const float CornerRadiusRatio = 0.2f; // target corner as % of an element's own on-screen width
 }
