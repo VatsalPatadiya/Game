@@ -55,8 +55,11 @@ namespace GameClient.Presentation
 
         private void LoadLevel()
         {
-            // Build a random pyramid with 20 tiles
-            _shape = PyramidShapeBuilder.BuildRandom(20, new System.Random());
+            // Turtle silhouette (wide top, hollow twin-pillar middle, wide
+            // bottom) - see docs/superpowers/specs/2026-08-26-pyramid-shape-
+            // and-tray-correction.md for why this replaced the flat
+            // rectangle-plus-bump PyramidShapeBuilder previously used here.
+            _shape = TurtleShapeBuilder.Build();
             _slotsById = _shape.ToDictionary(s => s.Id);
 
             var level = new LevelDefinition
