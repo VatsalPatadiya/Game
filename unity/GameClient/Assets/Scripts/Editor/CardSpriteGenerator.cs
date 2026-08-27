@@ -29,7 +29,7 @@ public static class CardSpriteGenerator
         Debug.Log("CARD_SPRITE_GENERATOR_DONE");
     }
 
-    private static float RoundedRectSdf(float u, float v)
+    internal static float RoundedRectSdf(float u, float v)
     {
         const float halfSize = 1f;
         const float radius = CardStyle.CardSpriteCornerRadiusNormalized;
