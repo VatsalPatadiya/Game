@@ -4,7 +4,9 @@ using System.Collections.Generic;
 using System.Linq;
 using GameClient.Data;
 using GameClient.Presentation.Board;
+using GameClient.Presentation.Board3D;
 using GameClient.Presentation.HUD;
+using GameClient.Presentation.HUD3D;
 using GameDomain.Gameplay;
 using GameDomain.Generation;
 using GameDomain.Model;
@@ -14,9 +16,9 @@ namespace GameClient.Presentation
 {
     public sealed class GameController : MonoBehaviour
     {
-        [SerializeField] private BoardView _boardView;
-        [SerializeField] private TrayView _trayView;
-        [SerializeField] private GameOverPopup _gameOverPopup;
+        [SerializeField] private BoardView3D _boardView;
+        [SerializeField] private TrayView3D _trayView;
+        [SerializeField] private GameOverPopup3D _gameOverPopup;
         [SerializeField] private MatchCelebrationController _matchCelebration;
 
         // Presentation-only streak timer for picking which praise-text tier
@@ -154,7 +156,7 @@ namespace GameClient.Presentation
                 var now = DateTime.UtcNow;
                 bool isCombo = _lastMatchTime.HasValue && (now - _lastMatchTime.Value).TotalSeconds <= ComboWindowSeconds;
                 _lastMatchTime = now;
-                _matchCelebration.PlayMatchCelebration(_trayView.GetSlotScreenPosition(targetIndex), isCombo);
+                _matchCelebration.PlayMatchCelebration(_trayView.GetSlotWorldPosition(targetIndex), isCombo);
             }
 
             yield return _trayView.ResolveAfterPush(oldTrayIds, slotId, _board.TrayTileIds, _board);
