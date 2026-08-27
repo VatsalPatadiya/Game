@@ -1,0 +1,174 @@
+# Premium Mahjong UI Redesign — Design Spec
+
+**Date:** 2026-08-27
+**Status:** Approved direction (hero tile locked), pending spec review
+
+## 1. Goal
+
+Transform the game's presentation from the current flat, messy look (white square
+tiles, tiny food models, scattered pile, flat green background, plain white HUD)
+into the premium, tactile look of the reference (Image #3): ivory 3D tiles with a
+jade bevel, a clean stacked pyramid with real shadows, a felt-table background,
+and wooden/bronze UI chrome. Additionally, convert the gameplay from the current
+tap-to-tray matching to **classic no-tray mahjong** (tap two matching free tiles
+directly to clear them).
+
+The hero-tile look has already been reviewed and approved as an HTML mock:
+warm ivory face (`#f7f2e6 → #eae1c9`), **medium-weight** jade bevel frame
+(`#2f8a54`), real thickness with a carved side, and a soft cast shadow onto the
+felt and onto tiles below. Food icons stay the current 3D food models (enlarged),
+not repainted.
+
+## 2. What already exists and is reused (no rewrite)
+
+The domain layer is already mahjong-shaped. We reuse it as-is:
+
+- `TileSlot` (`X, Y, Layer, CoveredByIds, LeftNeighborId, RightNeighborId`) — the
+  free-tile data model.
+- `FreedomRuleCalculator.IsFree` / `ComputeFreeSlots` — the mahjong free rule.
+- `MatchValidator.TryMatch(board, slots, idA, idB)` — **already** clears two free,
+  equal-valued tiles and records a `Move`. This is the no-tray core.
+- `HintFinder.FindFreePair` — returns a matchable free pair, or null. `null` = stuck.
+- `TurtleShapeBuilder` / `PyramidShapeBuilder` / `LayeredRowShapeBuilder` — layouts.
+- `BoardGenerator` + `ReverseConstructionSolver` — solvable board generation.
+- `UndoStack.TryUndo`, `ShuffleService.Shuffle`.
+- `TileInputController3D` — tap/drag detection that calls `GameController.OnTileTapped`.
+
+Assets are produced by editor generator scripts and regenerated on change:
+`TileMeshGenerator`, `CardMaterialGenerator`, `FoodModelGenerator`,
+`HudIconGenerator`, and `GameSceneBuilder3D` (assembles camera, light, HUD, tray,
+popup). Implementation edits the generators, then regenerates the prefabs/scene.
+
+## 3. Approved scope decisions
+
+- **Icons:** keep existing 3D food models (enlarged, better lit). No repaint.
+- **Tiles:** ivory face + medium jade bevel + thickness + cast shadow (approved mock).
+- **Background:** green felt texture + soft vignette (replaces flat green).
+- **UI chrome:** wooden/bronze beveled buttons; tray UI removed.
+- **Mechanic:** classic no-tray mahjong (two-tap direct pair match). This diverges
+  from the reference image (which has a tray), chosen deliberately by the user.
+- **Layout:** remove the random jitter/rotation; clean, aligned stacked pyramid.
+
+## 4. Design
+
+### 4.1 Tile visual (the hero tile)
+
+**Mesh** — `TileMeshGenerator` currently emits a thin `Cube`. Replace with a
+procedurally generated **rounded-rectangle extruded mesh** (rounded silhouette +
+top bevel + real thickness ≈ current `CardThickness 0.18`). The rounded silhouette
+matters: a hard-cornered cube reads square against the felt even with a rounded
+texture. Collider stays a `BoxCollider` sized to the tile footprint (raycast
+target; the small corner difference is imperceptible for tapping).
+
+**Material** — new `TileMaterialGenerator` produces an ivory URP/Lit material:
+- Albedo = generated texture: warm ivory field with a **jade rounded-rect stroke**
+  inset from the edge (the bevel frame), medium weight, plus a faint top sheen.
+- Smoothness low (matte bone), slight normal/AO in the bevel channel if cheap.
+- The food model sits on `FoodAnchor` slightly proud of the face, enlarged ~1.4×
+  vs today, with its own soft contact shadow.
+
+**States:**
+- *Free* — full ivory, tappable.
+- *Blocked* (covered or edge-locked) — soft dark veil (multiply toward `#262e22`),
+  matching the mock. Driven by existing `TileView3D.SetFree`.
+- *Selected* (new, for no-tray) — **jade/gold emission glow + a small forward lift**
+  toward the camera (decided), clearly distinct from the blocked veil and the hint
+  highlight. Deselect returns the tile to its resting position/tint.
+
+**Lighting & shadows** — a soft key directional light already exists with
+`LightShadows.Soft`. Tune: key angle for gentle top-left modelling, add a low fill,
+set URP shadow distance to cover the stacked stack, ensure tiles both cast and
+receive so raised layers drop shadow onto lower ones (the core of the 3D read).
+
+### 4.2 Board layout & background
+
+- **Remove jitter:** delete `_tileJitterAmount` and `_tileRotationJitterDegrees`
+  usage in `BoardView3D` so tiles align cleanly on the grid.
+- **Stacking depth:** keep `-slot.Layer * _layerHeight`; tune `_layerHeight` and the
+  camera tilt so raised layers visibly overlap and shadow the layer below.
+- **Felt background:** replace the camera `SolidColor` green with a felt look — a
+  large camera-facing quad at far depth textured with a generated radial felt +
+  vignette (darker edges, warm center), unlit. Generated by a new
+  `FeltBackgroundGenerator`, wired in `GameSceneBuilder3D`.
+
+### 4.3 No-tray mahjong mechanic
+
+Rewire `GameController` + `TileView3D`; domain already supports it.
+
+- Add `_selectedSlotId` state to `GameController`.
+- `OnTileTapped(slotId)`:
+  - Not free → `PlayShake()`, return.
+  - No current selection → select it (glow + lift), store `_selectedSlotId`.
+  - Tapped the selected tile again → deselect.
+  - Different free tile:
+    - Values equal → `MatchValidator.TryMatch(...)`; on success animate both clearing
+      (`PlayClearAndDestroy`), deselect, `RefreshFreeStates`, record undo, score,
+      celebration, `CheckEndOfLevel`.
+    - Values differ → move selection to the newly tapped tile (standard mahjong).
+- **Remove** the `TapToTrayRoutine`, `TrayManager` calls, `TrayView` usage, and the
+  `TrayTileIds` / `MaxTraySize` / tray-full game-over path.
+- **Win** = all cells cleared (unchanged). **Stuck/lose** = `HintFinder.FindFreePair`
+  returns null and board not cleared → `GameOverPopup.ShowStuck` (offer shuffle),
+  replacing the tray-full trigger.
+- Undo/shuffle/hint keep working against `MoveHistory` (no-tray moves are already the
+  `Move` shape `MatchValidator` writes). Hint highlights a real free pair (already
+  does).
+
+### 4.4 Wooden UI chrome
+
+- New wood/bronze materials (generated): beveled disc buttons for shuffle / hint /
+  undo, keeping the existing amber count-badge system; restyle the score readout onto
+  a wood pill.
+- **Top progress bar (in scope):** recreate the reference's milestone progress bar —
+  a horizontal track with milestone markers and an animated gold fill tied to score,
+  plus the milestone value labels. Its own sub-step within Phase 4.
+- **Remove** the tray row (`TrayView3D`, tray slot prefab) from `GameSceneBuilder3D`
+  since no-tray gameplay no longer needs it.
+- Restyle the game-over popup panel/button off the plain white card material onto the
+  wood palette for consistency.
+
+## 5. File impact (indicative)
+
+- `Editor/TileMeshGenerator.cs` — rounded-box mesh.
+- `Editor/TileMaterialGenerator.cs` (new) — ivory + jade albedo/material.
+- `Editor/FeltBackgroundGenerator.cs` (new) — felt + vignette texture/quad.
+- `Editor/WoodUiGenerator.cs` (new) or extend generators — bronze button/pill materials.
+- `Editor/GameSceneBuilder3D.cs` — felt bg quad, light tuning, remove tray, wooden HUD.
+- `Presentation/Board3D/BoardView3D.cs` — remove jitter, tune stacking.
+- `Presentation/Board3D/TileView3D.cs` — Selected/Deselect state + lift.
+- `Presentation/GameController.cs` — no-tray selection flow, stuck detection, drop tray.
+- Remove/retire: `TrayView3D`, `TraySlotView3D`, tray usage in controller (keep
+  `TrayManager` in domain, just unused, or delete if nothing references it).
+
+## 6. Testing
+
+- **Domain (EditMode unit tests):** `MatchValidator` (exists) + a new
+  "no free pair ⇒ stuck" test around `HintFinder.FindFreePair`; confirm `UndoStack`
+  round-trips a `MatchValidator` move.
+- **Presentation:** no unit harness for MonoBehaviours; verify by building/running the
+  scene and inspecting on device/editor at each phase checkpoint (hero tile → board →
+  mechanic → chrome), comparing against the approved mock.
+
+## 7. Phasing (each is a see-and-approve checkpoint)
+
+1. **Hero tile** — rounded mesh + ivory/jade material + lighting/shadow tuning; verify
+   one tile and a small cluster match the mock.
+2. **Board + felt** — roll the tile across board & (temporarily existing) tray slots,
+   remove jitter, clean stacking, felt background.
+3. **No-tray mechanic** — selection flow, direct pair match, remove tray, stuck
+   detection.
+4. **Wooden chrome** — bronze buttons, wood score pill, popup restyle, remove tray UI.
+
+## 8. Risks & open questions
+
+- **Rounded-box mesh** is the main new graphics primitive; if it proves fiddly, a
+  fallback is a cube with alpha-clipped rounded corners in the material (square
+  silhouette slightly less premium). Decision made during Phase 1.
+- **Shadow cost on mobile:** many stacked tiles casting soft shadows can be costly.
+  Mitigation: tuned shadow distance/resolution, or a cheap blob/contact shadow if
+  real-time shadows underperform on device.
+- **Resolved — top progress bar:** in scope (Phase 4), recreate the reference's
+  milestone progress bar with animated gold fill.
+- **Resolved — selected-tile feedback:** glow + lift.
+- **Resolved — tray divergence:** the game intentionally drops the tray despite the
+  reference showing one.
