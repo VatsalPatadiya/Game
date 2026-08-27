@@ -14,6 +14,7 @@ public static class RegenerateAll
         TileMeshGenerator.Generate();
         FoodModelGenerator.Generate();
         DataAssetGenerator.Generate();
+        FeltBackgroundGenerator.Generate();
         GameSceneBuilder3D.Build();
         Debug.Log("REGENERATE_ALL_DONE");
     }

@@ -2,54 +2,51 @@ using UnityEngine;
 
 namespace GameClient.Presentation.Board3D
 {
-    // Pure albedo generator for the tile face: vertical ivory gradient + an inset
-    // jade rounded-rect frame stroke. Fractions (padding/thickness/radius) are in
-    // 0..1 of the texture size so the look is resolution-independent.
+    // Builds the tile face at an arbitrary width:height so a PORTRAIT tile still
+    // gets a uniform-width jade frame. (A square texture stretched onto a tall
+    // tile makes the top/bottom border thicker than the sides.) The SDF works in
+    // isotropic pixel space, so equal pixel insets map to equal world insets when
+    // the texture aspect matches the tile aspect. Frame fractions are of WIDTH.
     public static class TileFaceTexture
     {
-        public static Texture2D Build(int size, Color ivoryTop, Color ivoryBottom, Color jade,
+        public static Texture2D Build(int width, int height, Color ivoryTop, Color ivoryBottom, Color jade,
                                       float framePadding, float frameThickness, float cornerRadius)
         {
-            var tex = new Texture2D(size, size, TextureFormat.RGBA32, mipChain: true)
+            var tex = new Texture2D(width, height, TextureFormat.RGBA32, mipChain: true)
             {
                 name = "TileFace",
                 wrapMode = TextureWrapMode.Clamp,
                 filterMode = FilterMode.Bilinear
             };
 
-            for (int y = 0; y < size; y++)
+            float pad = framePadding * width;
+            float half = frameThickness * width * 0.5f;
+            float rad = cornerRadius * width;
+            float cx = (width - 1) * 0.5f;
+            float cy = (height - 1) * 0.5f;
+            float hx = width * 0.5f - pad;   // frame outer half-extent, px
+            float hy = height * 0.5f - pad;
+
+            for (int y = 0; y < height; y++)
             {
-                float v = y / (float)(size - 1);
+                float v = y / (float)(height - 1);
                 Color baseCol = Color.Lerp(ivoryBottom, ivoryTop, v);
-                for (int x = 0; x < size; x++)
+                for (int x = 0; x < width; x++)
                 {
-                    float u = x / (float)(size - 1);
-                    float d = Mathf.Abs(RoundedRectSdf(u, v, framePadding, cornerRadius));
-                    // 1 inside the stroke band, fading to 0 just outside it
-                    float half = frameThickness * 0.5f;
-                    float band = 1f - SmoothStep01(half, half + 1.5f / size, d);
+                    float px = Mathf.Abs(x - cx);
+                    float py = Mathf.Abs(y - cy);
+                    float qx = px - (hx - rad);
+                    float qy = py - (hy - rad);
+                    float ax = Mathf.Max(qx, 0f);
+                    float ay = Mathf.Max(qy, 0f);
+                    // isotropic rounded-rect SDF in pixels, <0 inside the frame outline
+                    float d = Mathf.Sqrt(ax * ax + ay * ay) + Mathf.Min(Mathf.Max(qx, qy), 0f) - rad;
+                    float band = 1f - SmoothStep01(half - 1f, half + 1f, Mathf.Abs(d)); // ~1px feather
                     tex.SetPixel(x, y, Color.Lerp(baseCol, jade, band));
                 }
             }
             tex.Apply(updateMipmaps: true);
             return tex;
-        }
-
-        // Signed distance (in uv units) to a centred rounded rectangle whose edges
-        // sit `padding` in from each side. Negative = inside, positive = outside.
-        private static float RoundedRectSdf(float u, float v, float padding, float radius)
-        {
-            float px = Mathf.Abs(u - 0.5f);
-            float py = Mathf.Abs(v - 0.5f);
-            float halfExtent = 0.5f - padding;      // rect half-size
-            float inner = halfExtent - radius;      // straight-section half-size
-            float qx = px - inner;
-            float qy = py - inner;
-            float ax = Mathf.Max(qx, 0f);
-            float ay = Mathf.Max(qy, 0f);
-            float outside = Mathf.Sqrt(ax * ax + ay * ay);
-            float insideCorner = Mathf.Min(Mathf.Max(qx, qy), 0f);
-            return outside + insideCorner - radius;
         }
 
         // GLSL-style smoothstep: 0 below edge0, 1 above edge1, smooth in between.

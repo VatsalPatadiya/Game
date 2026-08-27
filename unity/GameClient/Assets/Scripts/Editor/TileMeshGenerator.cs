@@ -46,7 +46,24 @@ public static class TileMeshGenerator
         var foodAnchorGO = new GameObject("FoodAnchor");
         foodAnchorGO.transform.SetParent(root.transform, false);
         foodAnchorGO.transform.localPosition = new Vector3(0f, 0f, -(CardThickness / 2f + 0.02f));
-        foodAnchorGO.transform.localScale = Vector3.one * 1.4f;
+        foodAnchorGO.transform.localScale = Vector3.one * 1.8f;
+
+        // Soft drop shadow: a quad behind the tile body (toward the felt, +Z),
+        // nudged down-right so it reads under a top-left key light. Extends past
+        // the tile silhouette so its edges peek out as a contact shadow.
+        var shadowMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/TileShadow.mat");
+        if (shadowMat == null)
+            throw new System.Exception("TILE_MESH_GENERATOR_MISSING_SHADOW: run TileMaterialGenerator first");
+        var shadowGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        shadowGO.name = "DropShadow";
+        Object.DestroyImmediate(shadowGO.GetComponent<Collider>());
+        shadowGO.transform.SetParent(root.transform, false);
+        shadowGO.transform.localPosition = new Vector3(0.05f, -0.07f, CardThickness / 2f + 0.03f);
+        shadowGO.transform.localScale = new Vector3(w * 1.24f, h * 1.2f, 1f);
+        var shadowRenderer = shadowGO.GetComponent<MeshRenderer>();
+        shadowRenderer.sharedMaterial = shadowMat;
+        shadowRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        shadowRenderer.receiveShadows = false;
 
         var tileView = root.AddComponent<TileView3D>(); // auto-adds a BoxCollider to root via [RequireComponent]
         var collider = root.GetComponent<BoxCollider>();

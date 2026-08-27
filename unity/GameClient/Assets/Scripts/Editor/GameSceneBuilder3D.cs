@@ -32,7 +32,7 @@ public static class GameSceneBuilder3D
         camera.orthographic = false;
         camera.fieldOfView = 40f;
         camera.clearFlags = CameraClearFlags.SolidColor;
-        camera.backgroundColor = BoardGreen;
+        camera.backgroundColor = new Color(0.098f, 0.184f, 0.145f); // dark felt edge, in case the felt quad doesn't reach a frame corner
         cameraGO.tag = "MainCamera";
         // Editor batch mode has no real display, so Camera.aspect defaults
         // to some arbitrary (non-portrait) value here. Every
@@ -61,7 +61,7 @@ public static class GameSceneBuilder3D
         lightGO.transform.rotation = Quaternion.Euler(55f, -35f, 0f); // top-left key
         light.intensity = 1.05f;
         light.shadows = LightShadows.Soft;
-        light.shadowStrength = 0.55f;   // soft, not black
+        light.shadowStrength = 0.65f;   // soft, not black
 
         var fillGO = new GameObject("Fill Light", typeof(Light));
         var fill = fillGO.GetComponent<Light>();
@@ -69,6 +69,28 @@ public static class GameSceneBuilder3D
         fill.transform.rotation = Quaternion.Euler(20f, 150f, 0f);
         fill.intensity = 0.35f;
         fill.shadows = LightShadows.None;
+
+        // Warm ambient so the ivory tiles read warm and shadowed tiles don't go
+        // muddy against the felt.
+        RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+        RenderSettings.ambientLight = new Color(0.52f, 0.5f, 0.45f);
+
+        // Felt-table backdrop: a large quad behind the board (a bit past the
+        // deepest tile layer) so the board sits on a warm, vignetted table
+        // instead of floating in the flat camera colour. Double-sided material
+        // (Felt.mat _Cull=0), so the runtime camera tilt never culls it.
+        var feltMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Felt.mat");
+        RequireNotNull(feltMat, "Assets/Materials/Felt.mat as Material (run FeltBackgroundGenerator first)");
+        var feltGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        feltGO.name = "FeltBackground";
+        Object.DestroyImmediate(feltGO.GetComponent<Collider>());
+        feltGO.transform.position = new Vector3(0f, 0f, 1.6f);
+        feltGO.transform.rotation = Quaternion.identity;
+        feltGO.transform.localScale = new Vector3(60f, 60f, 1f);
+        var feltRenderer = feltGO.GetComponent<MeshRenderer>();
+        feltRenderer.sharedMaterial = feltMat;
+        feltRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        feltRenderer.receiveShadows = true;
 
         var cardMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/CardBody.mat");
         RequireNotNull(cardMaterial, "Assets/Materials/CardBody.mat as Material");

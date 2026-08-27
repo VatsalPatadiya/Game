@@ -12,7 +12,7 @@ namespace GameClient.Tests.EditMode.Rendering
         [Test]
         public void Build_CentreIsIvory_NotJade()
         {
-            var tex = TileFaceTexture.Build(128, Ivory, Ivory, Jade,
+            var tex = TileFaceTexture.Build(128, 128, Ivory, Ivory, Jade,
                 framePadding: 0.10f, frameThickness: 0.03f, cornerRadius: 0.14f);
             var c = tex.GetPixel(64, 64);
             Assert.Less(Vector4.Distance((Vector4)c, (Vector4)Ivory), 0.08f, "centre should be ivory");
@@ -22,7 +22,7 @@ namespace GameClient.Tests.EditMode.Rendering
         [Test]
         public void Build_FrameRingContainsJade()
         {
-            var tex = TileFaceTexture.Build(128, Ivory, Ivory, Jade,
+            var tex = TileFaceTexture.Build(128, 128, Ivory, Ivory, Jade,
                 framePadding: 0.10f, frameThickness: 0.03f, cornerRadius: 0.14f);
             // walk a vertical line inward from the top edge; the frame band should
             // produce at least one strongly-jade pixel.
