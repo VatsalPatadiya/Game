@@ -29,13 +29,22 @@ public static class TileMaterialGenerator
 
         var faceTex = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/TileFace.png");
 
-        var mat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+        var shader = Shader.Find("Universal Render Pipeline/Lit");
+        var mat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/TileBody.mat");
+        if (mat == null)
+        {
+            mat = new Material(shader);
+            AssetDatabase.CreateAsset(mat, "Assets/Materials/TileBody.mat");
+        }
+        else
+        {
+            mat.shader = shader;
+        }
         mat.SetTexture("_BaseMap", faceTex);
         mat.SetColor("_BaseColor", Color.white);           // tint stays white; MeshRendererTint drives free/blocked
         mat.SetFloat("_Smoothness", 0.15f);                // matte bone
         mat.SetColor("_EmissionColor", Color.black);
-        AssetDatabase.CreateAsset(mat, "Assets/Materials/TileBody.mat");
-
+        EditorUtility.SetDirty(mat);
         AssetDatabase.SaveAssets();
         Debug.Log("TILE_MATERIAL_GENERATOR_DONE");
     }

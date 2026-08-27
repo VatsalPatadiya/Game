@@ -52,7 +52,8 @@ public static class GameSceneBuilder3D
         // shadow onto the tiles below.
         var urp = (UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset)
                   UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline;
-        if (urp != null) urp.shadowDistance = 40f;
+        // URPSetup pins 15f for Galaxy A50 perf, but tiles sit ~18u from the camera so 15 shows no tile shadows; raise just enough for the stacked board to receive shadows. Verify FPS on the low-end test device.
+        if (urp != null) urp.shadowDistance = 30f;
 
         var lightGO = new GameObject("Key Light", typeof(Light));
         var light = lightGO.GetComponent<Light>();

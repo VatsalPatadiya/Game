@@ -3,6 +3,7 @@
     "rootNamespace": "",
     "references": [
         "Domain",
+        "GameClient.Rendering",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],
