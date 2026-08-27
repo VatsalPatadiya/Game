@@ -16,6 +16,7 @@ public static class RegenerateAll
         MahjongSymbolGenerator.Generate();
         DataAssetGenerator.Generate();
         FeltBackgroundGenerator.Generate();
+        WoodUiGenerator.Generate();
         GameSceneBuilder3D.Build();
         Debug.Log("REGENERATE_ALL_DONE");
     }

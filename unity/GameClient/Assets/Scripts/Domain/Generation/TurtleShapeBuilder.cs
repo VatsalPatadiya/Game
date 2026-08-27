@@ -28,9 +28,10 @@ namespace GameDomain.Generation
             // (fewer columns => each tile is larger once the camera fits the
             // board to the screen width). Every layer is a strict, centered
             // subset of the one below it, so nothing floats over open space.
-            for (int y = 0; y <= 6; y++) AddRow(slots, byPos, 0, 0, 5, y); // 6x7 = 42
-            for (int y = 1; y <= 5; y++) AddRow(slots, byPos, 1, 1, 4, y); // 4x5 = 20
-            // Total: 62 tiles (31 pairs) - same size already proven safe
+            for (int y = 0; y <= 4; y++) AddRow(slots, byPos, 0, 0, 5, y); // 6x5 = 30
+            for (int y = 1; y <= 2; y++) AddRow(slots, byPos, 1, 1, 4, y); // 4x2 = 8
+            AddRow(slots, byPos, 2, 2, 3, 1);                              // 2x1 = 2
+            // Total: 40 tiles (20 pairs)
 
             ComputeNeighborsAndCovering(slots, byPos);
 

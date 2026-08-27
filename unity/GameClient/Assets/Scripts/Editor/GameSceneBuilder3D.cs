@@ -12,6 +12,7 @@ public static class GameSceneBuilder3D
 {
     private static readonly Color BoardGreen = new Color(42f / 255f, 61f / 255f, 48f / 255f, 1f);
     private static readonly Color DarkHudText = new Color(40f / 255f, 46f / 255f, 36f / 255f, 1f);
+    private static readonly Color CreamHudText = new Color(0.96f, 0.93f, 0.84f, 1f); // light text on wood/bronze chrome
 
     // BoardView3D.FitCameraToBoard backs the camera off to ~18 world units
     // to frame the fixed TurtleShapeBuilder layout (9 cols x 4 rows at
@@ -94,6 +95,10 @@ public static class GameSceneBuilder3D
 
         var cardMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/CardBody.mat");
         RequireNotNull(cardMaterial, "Assets/Materials/CardBody.mat as Material");
+        var woodMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Wood.mat");
+        RequireNotNull(woodMaterial, "Assets/Materials/Wood.mat as Material (run WoodUiGenerator first)");
+        var bronzeMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Bronze.mat");
+        RequireNotNull(bronzeMaterial, "Assets/Materials/Bronze.mat as Material (run WoodUiGenerator first)");
 
         var boardGO = new GameObject("Board", typeof(BoardView3D));
         var boardView = boardGO.GetComponent<BoardView3D>();
@@ -128,13 +133,13 @@ public static class GameSceneBuilder3D
         scorePillGO.transform.localPosition = new Vector3(0f, 0f, 0.05f);
         scorePillGO.transform.localScale = new Vector3(2.6f, 0.7f, 0.1f);
         Object.DestroyImmediate(scorePillGO.GetComponent<BoxCollider>());
-        scorePillGO.GetComponent<MeshRenderer>().sharedMaterial = cardMaterial;
+        scorePillGO.GetComponent<MeshRenderer>().sharedMaterial = woodMaterial;
 
         var scoreGO = new GameObject("ScoreText", typeof(TextMeshPro), typeof(ScoreDisplay3D));
         scoreGO.transform.SetParent(scoreRootGO.transform, false);
         var scoreText = scoreGO.GetComponent<TextMeshPro>();
         scoreText.text = "Score: 0";
-        scoreText.color = DarkHudText; // now sits on the light Pill, not directly on BoardGreen
+        scoreText.color = CreamHudText; // cream on the wood pill
         scoreText.fontSize = 1.1f;
         scoreText.alignment = TextAlignmentOptions.Center;
         var scoreDisplay = scoreGO.GetComponent<ScoreDisplay3D>();
@@ -155,9 +160,9 @@ public static class GameSceneBuilder3D
         badgeMaterial.SetColor("_BaseColor", new Color(0.85f, 0.24f, 0.2f, 1f));
         AssetDatabase.CreateAsset(badgeMaterial, "Assets/Materials/HudBadgeRed.mat");
 
-        CreateHudButton3D(camera, cardMaterial, badgeMaterial, new Vector2(0.3f, 0.08f), gameController, typeof(ShuffleButton3D), shuffleIcon);
-        CreateHudButton3D(camera, cardMaterial, badgeMaterial, new Vector2(0.5f, 0.08f), gameController, typeof(HintButton3D), hintIcon);
-        CreateHudButton3D(camera, cardMaterial, badgeMaterial, new Vector2(0.7f, 0.08f), gameController, typeof(UndoButton3D), undoIcon);
+        CreateHudButton3D(camera, bronzeMaterial, badgeMaterial, new Vector2(0.3f, 0.08f), gameController, typeof(ShuffleButton3D), shuffleIcon);
+        CreateHudButton3D(camera, bronzeMaterial, badgeMaterial, new Vector2(0.5f, 0.08f), gameController, typeof(HintButton3D), hintIcon);
+        CreateHudButton3D(camera, bronzeMaterial, badgeMaterial, new Vector2(0.7f, 0.08f), gameController, typeof(UndoButton3D), undoIcon);
 
         // ------------------
         // Tray - row of fixed 3D slots in front of the board
@@ -168,7 +173,13 @@ public static class GameSceneBuilder3D
 
         var trayRootGO = new GameObject("TrayRoot", typeof(TrayView3D));
         var trayView = trayRootGO.GetComponent<TrayView3D>();
-        PositionInFrontOfCamera(trayRootGO.transform, camera, new Vector2(0.5f, 0.8f), HudDistance);
+        // Tray sits CLOSER to the camera than the board (TrayDistance < the
+        // board's fit distance) so it draws in FRONT of the stack instead of
+        // being occluded by the tiles. Scaled down by TrayDistance/HudDistance
+        // so its on-screen size is unchanged despite the nearer placement.
+        const float TrayDistance = 9f;
+        PositionInFrontOfCamera(trayRootGO.transform, camera, new Vector2(0.5f, 0.8f), TrayDistance);
+        trayRootGO.transform.localScale = Vector3.one * (TrayDistance / HudDistance);
 
         var anchors = new Transform[traySlotCount];
         float startX = -(traySlotCount - 1) * traySlotSpacing / 2f;
@@ -180,7 +191,7 @@ public static class GameSceneBuilder3D
             anchors[i] = anchorGO.transform;
         }
 
-        var traySlotPrefab = BuildTraySlotPrefab(cardMaterial, traySlotSize);
+        var traySlotPrefab = BuildTraySlotPrefab(woodMaterial, traySlotSize);
         SetField(trayView, "traySlotPrefab", traySlotPrefab);
         SetField(trayView, "tileSet", tileSet);
         SetFieldArray(trayView, "slotAnchors", anchors);
@@ -196,7 +207,7 @@ public static class GameSceneBuilder3D
         panel.name = "Panel";
         panel.transform.SetParent(popupGO.transform, false);
         panel.transform.localScale = new Vector3(3f, 2f, 0.15f);
-        panel.GetComponent<MeshRenderer>().sharedMaterial = cardMaterial;
+        panel.GetComponent<MeshRenderer>().sharedMaterial = woodMaterial;
         Object.DestroyImmediate(panel.GetComponent<BoxCollider>());
 
         var titleGO = new GameObject("Title", typeof(TextMeshPro));
@@ -205,7 +216,7 @@ public static class GameSceneBuilder3D
         var titleText = titleGO.GetComponent<TextMeshPro>();
         titleText.fontSize = 1.1f;
         titleText.alignment = TextAlignmentOptions.Center;
-        titleText.color = DarkHudText;
+        titleText.color = CreamHudText;
 
         var messageGO = new GameObject("Message", typeof(TextMeshPro));
         messageGO.transform.SetParent(popupGO.transform, false);
@@ -213,14 +224,14 @@ public static class GameSceneBuilder3D
         var messageText = messageGO.GetComponent<TextMeshPro>();
         messageText.fontSize = 0.66f;
         messageText.alignment = TextAlignmentOptions.Center;
-        messageText.color = DarkHudText;
+        messageText.color = CreamHudText;
 
         var restartGO = GameObject.CreatePrimitive(PrimitiveType.Cube);
         restartGO.name = "RestartButton";
         restartGO.transform.SetParent(popupGO.transform, false);
         restartGO.transform.localPosition = new Vector3(0f, -0.6f, -0.1f);
         restartGO.transform.localScale = new Vector3(1.4f, 0.5f, 0.15f);
-        restartGO.GetComponent<MeshRenderer>().sharedMaterial = cardMaterial;
+        restartGO.GetComponent<MeshRenderer>().sharedMaterial = bronzeMaterial;
         var restartButton = restartGO.AddComponent<PressScaleButton3D>();
         SetField(restartButton, "_targetCamera", camera);
 
@@ -231,7 +242,7 @@ public static class GameSceneBuilder3D
         restartText.text = "Restart";
         restartText.fontSize = 0.66f;
         restartText.alignment = TextAlignmentOptions.Center;
-        restartText.color = DarkHudText; // sits on the white cardMaterial restart button face, same contrast issue as the HUD icons/badges
+        restartText.color = CreamHudText; // cream on the bronze restart button
 
         var gameOverPopup = popupGO.GetComponent<GameOverPopup3D>();
         SetField(gameOverPopup, "restartButton", restartButton);
