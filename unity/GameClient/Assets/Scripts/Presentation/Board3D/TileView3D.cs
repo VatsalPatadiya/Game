@@ -9,7 +9,7 @@ namespace GameClient.Presentation.Board3D
     {
         [SerializeField] private MeshRenderer _bodyRenderer;
         [SerializeField] private BoxCollider _bodyCollider;
-        [SerializeField] private MeshRenderer _iconRenderer;
+        [SerializeField] private Transform _foodAnchor;
         [SerializeField] private Color _freeCardColor = new Color(0.969f, 0.957f, 0.922f, 1f);
         [SerializeField] private Color _blockedCardColor = new Color(0.62f, 0.63f, 0.58f, 1f);
         [SerializeField] private Color _highlightEmission = new Color(1f, 0.85f, 0.2f, 1f);
@@ -18,7 +18,7 @@ namespace GameClient.Presentation.Board3D
         private const float DragSnapBackDuration = 0.18f;
 
         private MeshRendererTint _bodyTint;
-        private MeshRendererTint _iconTint;
+        private MeshRendererTint[] _iconTints = new MeshRendererTint[0];
         private MeshRendererTint _emissionTint;
         private Vector3 _originalLocalPos;
         private Coroutine _shakeCoroutine;
@@ -29,28 +29,44 @@ namespace GameClient.Presentation.Board3D
         public string SlotId { get; private set; }
         public int Layer { get; private set; }
 
-        public void Initialize(string slotId, int layer, Sprite icon, Color accentColor)
+        // foodModelPrefab replaces the old flat icon+accentColor combo - each
+        // tile value gets a distinct food mesh (see TileVisual.FoodModelFor)
+        // instead of a shared quad retextured/tinted per value. A food model
+        // can have several sub-meshes/renderers (e.g. a burger's bun/patty
+        // parts), so every renderer under it gets its own MeshRendererTint -
+        // BuildRendererArray folds them all in alongside the card body for
+        // the shared fade animations in CardAnimator.
+        public void Initialize(string slotId, int layer, GameObject foodModelPrefab)
         {
             SlotId = slotId;
             Layer = layer;
 
             _bodyTint = new MeshRendererTint(_bodyRenderer, "_BaseColor");
-            _iconTint = new MeshRendererTint(_iconRenderer, "_BaseColor");
             _emissionTint = new MeshRendererTint(_bodyRenderer, "_EmissionColor");
 
             _originalLocalPos = transform.localPosition;
             transform.localScale = Vector3.one;
 
-            if (_iconRenderer != null)
+            _iconTints = new MeshRendererTint[0];
+            if (_foodAnchor != null)
             {
-                var iconBlock = new MaterialPropertyBlock();
-                _iconRenderer.GetPropertyBlock(iconBlock);
-                iconBlock.SetTexture("_BaseMap", icon.texture);
-                _iconRenderer.SetPropertyBlock(iconBlock);
+                for (int i = _foodAnchor.childCount - 1; i >= 0; i--)
+                    Destroy(_foodAnchor.GetChild(i).gameObject);
 
-                var c = accentColor;
-                c.a = 1f;
-                _iconTint.Color = c;
+                if (foodModelPrefab != null)
+                {
+                    var foodInstance = Instantiate(foodModelPrefab, _foodAnchor);
+                    foodInstance.transform.localPosition = Vector3.zero;
+                    foodInstance.transform.localRotation = Quaternion.identity;
+
+                    var renderers = foodInstance.GetComponentsInChildren<MeshRenderer>();
+                    _iconTints = new MeshRendererTint[renderers.Length];
+                    for (int i = 0; i < renderers.Length; i++)
+                    {
+                        _iconTints[i] = new MeshRendererTint(renderers[i], "_BaseColor");
+                        _iconTints[i].Color = Color.white;
+                    }
+                }
             }
 
             var noEmission = Color.black;
@@ -74,7 +90,10 @@ namespace GameClient.Presentation.Board3D
         public void PlayDealIn(float delaySeconds, System.Action onComplete)
         {
             var renderers = BuildRendererArray();
-            var targetColors = new[] { _bodyTint.Color, _iconTint.Color };
+            var targetColors = new Color[renderers.Length];
+            targetColors[0] = _bodyTint.Color;
+            for (int i = 0; i < _iconTints.Length; i++)
+                targetColors[i + 1] = _iconTints[i].Color;
             StartCoroutine(DealInRoutine(renderers, targetColors, delaySeconds, onComplete));
         }
 
@@ -103,7 +122,10 @@ namespace GameClient.Presentation.Board3D
         {
             transform.localScale = Vector3.one;
             var c = _bodyTint.Color; c.a = 1f; _bodyTint.Color = c;
-            var ic = _iconTint.Color; ic.a = 1f; _iconTint.Color = ic;
+            foreach (var tint in _iconTints)
+            {
+                var ic = tint.Color; ic.a = 1f; tint.Color = ic;
+            }
         }
 
         public void PlayClearAndDestroy()
@@ -137,7 +159,14 @@ namespace GameClient.Presentation.Board3D
             RefreshCardColor(false);
         }
 
-        private ITintable[] BuildRendererArray() => new ITintable[] { _bodyTint, _iconTint };
+        private ITintable[] BuildRendererArray()
+        {
+            var result = new ITintable[1 + _iconTints.Length];
+            result[0] = _bodyTint;
+            for (int i = 0; i < _iconTints.Length; i++)
+                result[i + 1] = _iconTints[i];
+            return result;
+        }
 
         public void BeginDrag()
         {

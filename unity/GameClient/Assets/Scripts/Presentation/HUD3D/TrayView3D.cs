@@ -37,17 +37,17 @@ namespace GameClient.Presentation.HUD3D
 
         public Vector3 GetSlotWorldPosition(int index) => _slots[index].transform.position;
 
-        public void PlayArrivalPopIn(int index, Sprite icon, Color accentColor)
+        public void PlayArrivalPopIn(int index, GameObject foodModelPrefab)
         {
             if (index < 0 || index >= _slots.Count) return;
-            _slots[index].PlayPopIn(icon, accentColor);
+            _slots[index].PlayPopIn(foodModelPrefab);
         }
 
-        public GameObject SpawnFlightCard(Sprite icon, Color accentColor, Vector3 startWorldPosition)
+        public GameObject SpawnFlightCard(GameObject foodModelPrefab, Vector3 startWorldPosition)
         {
             var flightCard = Instantiate(traySlotPrefab, startWorldPosition, Quaternion.identity);
             var flightSlotView = flightCard.GetComponent<TraySlotView3D>();
-            flightSlotView.SetFilled(icon, accentColor);
+            flightSlotView.SetFilled(foodModelPrefab);
             return flightCard;
         }
 
@@ -88,18 +88,17 @@ namespace GameClient.Presentation.HUD3D
 
         private IEnumerator ReflowSlot(int fromIndex, int toIndex, string value)
         {
-            var icon = TileVisual.IconFor(tileSet, value);
-            var accent = TileVisual.AccentColorFor(tileSet, value);
+            var foodModel = TileVisual.FoodModelFor(tileSet, value);
             var fromPos = _slots[fromIndex].transform.position;
             var toPos = _slots[toIndex].transform.position;
 
             _slots[fromIndex].SetEmpty();
 
-            var flightCard = SpawnFlightCard(icon, accent, fromPos);
+            var flightCard = SpawnFlightCard(foodModel, fromPos);
             yield return CardAnimator.MoveTransform(flightCard.transform, fromPos, toPos, ReflowDuration);
             Destroy(flightCard);
 
-            _slots[toIndex].SetFilled(icon, accent);
+            _slots[toIndex].SetFilled(foodModel);
         }
     }
 }

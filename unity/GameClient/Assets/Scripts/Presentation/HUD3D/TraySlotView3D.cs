@@ -8,11 +8,11 @@ namespace GameClient.Presentation.HUD3D
     {
         [SerializeField] private Transform _content;
         [SerializeField] private MeshRenderer _bodyRenderer;
-        [SerializeField] private MeshRenderer _iconRenderer;
+        [SerializeField] private Transform _foodAnchor;
         [SerializeField] private Color _highlightEmission = new Color(1f, 0.85f, 0.2f, 1f);
 
         private MeshRendererTint _bodyTint;
-        private MeshRendererTint _iconTint;
+        private MeshRendererTint[] _iconTints = new MeshRendererTint[0];
         private MeshRendererTint _emissionTint;
         private Coroutine _clearCoroutine;
         private Coroutine _popInCoroutine;
@@ -20,35 +20,44 @@ namespace GameClient.Presentation.HUD3D
         private void Awake()
         {
             _bodyTint = new MeshRendererTint(_bodyRenderer, "_BaseColor");
-            _iconTint = new MeshRendererTint(_iconRenderer, "_BaseColor");
             _emissionTint = new MeshRendererTint(_bodyRenderer, "_EmissionColor");
         }
 
         public void SetEmpty()
         {
             _emissionTint.Color = Color.black;
-            if (_iconRenderer != null) _iconRenderer.enabled = false;
+            if (_foodAnchor != null)
+            {
+                for (int i = _foodAnchor.childCount - 1; i >= 0; i--)
+                    Destroy(_foodAnchor.GetChild(i).gameObject);
+            }
+            _iconTints = new MeshRendererTint[0];
         }
 
-        public void SetFilled(Sprite icon, Color accentColor)
+        public void SetFilled(GameObject foodModelPrefab)
         {
-            accentColor.a = 1f;
             _emissionTint.Color = Color.black;
-            if (_iconRenderer != null)
-            {
-                var iconBlock = new MaterialPropertyBlock();
-                _iconRenderer.GetPropertyBlock(iconBlock);
-                iconBlock.SetTexture("_BaseMap", icon.texture);
-                _iconRenderer.SetPropertyBlock(iconBlock);
+            if (_foodAnchor == null || foodModelPrefab == null) return;
 
-                _iconTint.Color = accentColor;
-                _iconRenderer.enabled = true;
+            for (int i = _foodAnchor.childCount - 1; i >= 0; i--)
+                Destroy(_foodAnchor.GetChild(i).gameObject);
+
+            var foodInstance = Instantiate(foodModelPrefab, _foodAnchor);
+            foodInstance.transform.localPosition = Vector3.zero;
+            foodInstance.transform.localRotation = Quaternion.identity;
+
+            var renderers = foodInstance.GetComponentsInChildren<MeshRenderer>();
+            _iconTints = new MeshRendererTint[renderers.Length];
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                _iconTints[i] = new MeshRendererTint(renderers[i], "_BaseColor");
+                _iconTints[i].Color = Color.white;
             }
         }
 
-        public void PlayPopIn(Sprite icon, Color accentColor)
+        public void PlayPopIn(GameObject foodModelPrefab)
         {
-            SetFilled(icon, accentColor);
+            SetFilled(foodModelPrefab);
             if (_popInCoroutine != null) StopCoroutine(_popInCoroutine);
             _popInCoroutine = StartCoroutine(PopInRoutine());
         }
@@ -78,8 +87,12 @@ namespace GameClient.Presentation.HUD3D
         public void PlayHighlightThenClear(System.Action onComplete)
         {
             if (_clearCoroutine != null) StopCoroutine(_clearCoroutine);
+            var renderers = new ITintable[1 + _iconTints.Length];
+            renderers[0] = _bodyTint;
+            for (int i = 0; i < _iconTints.Length; i++)
+                renderers[i + 1] = _iconTints[i];
             _clearCoroutine = StartCoroutine(CardAnimator.HighlightThenClear(
-                _emissionTint, _highlightEmission, _content, new ITintable[] { _bodyTint, _iconTint },
+                _emissionTint, _highlightEmission, _content, renderers,
                 () =>
                 {
                     _content.localScale = Vector3.one;

@@ -126,14 +126,13 @@ namespace GameClient.Presentation
 
             var tileView = _boardView.GetTileView(slotId);
             string value = _board.Cells[slotId].Value;
-            var icon = TileVisual.IconFor(_boardView.TileSet, value);
-            var accentColor = TileVisual.AccentColorFor(_boardView.TileSet, value);
+            var foodModel = TileVisual.FoodModelFor(_boardView.TileSet, value);
             var oldTrayIds = new List<string>(_board.TrayTileIds);
             int targetIndex = oldTrayIds.Count;
 
             bool tileAwayDone = false;
             tileView?.PlayTapAway(() => tileAwayDone = true);
-            _trayView.PlayArrivalPopIn(targetIndex, icon, accentColor);
+            _trayView.PlayArrivalPopIn(targetIndex, foodModel);
 
             yield return new WaitUntil(() => tileAwayDone || tileView == null);
 
