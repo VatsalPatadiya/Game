@@ -27,7 +27,7 @@ namespace GameClient.Presentation.Board3D
                     float d = Mathf.Abs(RoundedRectSdf(u, v, framePadding, cornerRadius));
                     // 1 inside the stroke band, fading to 0 just outside it
                     float half = frameThickness * 0.5f;
-                    float band = 1f - Mathf.SmoothStep(half, half + 1.5f / size, d);
+                    float band = 1f - SmoothStep01(half, half + 1.5f / size, d);
                     tex.SetPixel(x, y, Color.Lerp(baseCol, jade, band));
                 }
             }
@@ -50,6 +50,14 @@ namespace GameClient.Presentation.Board3D
             float outside = Mathf.Sqrt(ax * ax + ay * ay);
             float insideCorner = Mathf.Min(Mathf.Max(qx, qy), 0f);
             return outside + insideCorner - radius;
+        }
+
+        // GLSL-style smoothstep: 0 below edge0, 1 above edge1, smooth in between.
+        // (Unity's Mathf.SmoothStep is a smoothed lerp between edge0 and edge1, not this.)
+        private static float SmoothStep01(float edge0, float edge1, float x)
+        {
+            float t = Mathf.Clamp01((x - edge0) / (edge1 - edge0));
+            return t * t * (3f - 2f * t);
         }
     }
 }
