@@ -40,6 +40,9 @@ public static class URPSetup
         GraphicsSettings.defaultRenderPipeline = pipelineAsset;
         QualitySettings.renderPipeline = pipelineAsset;
 
+        EditorUtility.SetDirty(pipelineAsset);
+        EditorUtility.SetDirty(renderer);
+
         AssetDatabase.SaveAssets();
         Debug.Log("URP_SETUP_DONE");
     }
