@@ -36,7 +36,11 @@ namespace GameClient.Presentation.HUD3D
             _emissionTint.Color = Color.black;
             if (_iconRenderer != null)
             {
-                _iconRenderer.sharedMaterial.SetTexture("_BaseMap", icon.texture);
+                var iconBlock = new MaterialPropertyBlock();
+                _iconRenderer.GetPropertyBlock(iconBlock);
+                iconBlock.SetTexture("_BaseMap", icon.texture);
+                _iconRenderer.SetPropertyBlock(iconBlock);
+
                 _iconTint.Color = accentColor;
                 _iconRenderer.enabled = true;
             }
