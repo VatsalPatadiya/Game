@@ -173,5 +173,20 @@ namespace GameClient.Presentation.Board
             }
             rect.position = toScreenPos;
         }
+
+        public static IEnumerator MoveTransform(
+            Transform target, Vector3 fromWorldPos, Vector3 toWorldPos, float duration)
+        {
+            target.position = fromWorldPos;
+            float elapsed = 0f;
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                float t = EaseOut(Mathf.Clamp01(elapsed / duration));
+                target.position = Vector3.Lerp(fromWorldPos, toWorldPos, t);
+                yield return null;
+            }
+            target.position = toWorldPos;
+        }
     }
 }
