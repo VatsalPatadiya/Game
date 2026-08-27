@@ -77,18 +77,29 @@ public static class GameSceneBuilder3D
         SetField(inputController, "_gameController", gameController);
 
         // ------------------
-        // Score text
+        // Score pill
         // ------------------
+        var scoreRootGO = new GameObject("ScoreRoot");
+        PositionInFrontOfCamera(scoreRootGO.transform, camera, new Vector2(0.5f, 0.92f), HudDistance);
+
+        var scorePillGO = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        scorePillGO.name = "Pill";
+        scorePillGO.transform.SetParent(scoreRootGO.transform, false);
+        scorePillGO.transform.localPosition = new Vector3(0f, 0f, 0.05f);
+        scorePillGO.transform.localScale = new Vector3(2.6f, 0.7f, 0.1f);
+        Object.DestroyImmediate(scorePillGO.GetComponent<BoxCollider>());
+        scorePillGO.GetComponent<MeshRenderer>().sharedMaterial = cardMaterial;
+
         var scoreGO = new GameObject("ScoreText", typeof(TextMeshPro), typeof(ScoreDisplay3D));
+        scoreGO.transform.SetParent(scoreRootGO.transform, false);
         var scoreText = scoreGO.GetComponent<TextMeshPro>();
         scoreText.text = "Score: 0";
-        scoreText.color = Color.white; // floats directly on BoardGreen, unlike titleText/messageText which sit on the light Panel
-        scoreText.fontSize = 1.2f;
+        scoreText.color = DarkHudText; // now sits on the light Pill, not directly on BoardGreen
+        scoreText.fontSize = 1.1f;
         scoreText.alignment = TextAlignmentOptions.Center;
         var scoreDisplay = scoreGO.GetComponent<ScoreDisplay3D>();
         SetField(scoreDisplay, "_scoreText", scoreText);
         SetField(scoreDisplay, "_gameController", gameController);
-        PositionInFrontOfCamera(scoreGO.transform, camera, new Vector2(0.5f, 0.92f), HudDistance);
 
         // ------------------
         // Control bar (hint/undo/shuffle)
@@ -100,16 +111,20 @@ public static class GameSceneBuilder3D
         RequireNotNull(undoIcon, "Assets/Textures/HudIcons/icon_undo.png as Sprite");
         RequireNotNull(shuffleIcon, "Assets/Textures/HudIcons/icon_shuffle.png as Sprite");
 
-        CreateHudButton3D(camera, cardMaterial, new Vector2(0.3f, 0.08f), gameController, typeof(ShuffleButton3D), shuffleIcon);
-        CreateHudButton3D(camera, cardMaterial, new Vector2(0.5f, 0.08f), gameController, typeof(HintButton3D), hintIcon);
-        CreateHudButton3D(camera, cardMaterial, new Vector2(0.7f, 0.08f), gameController, typeof(UndoButton3D), undoIcon);
+        var badgeMaterial = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+        badgeMaterial.SetColor("_BaseColor", new Color(0.85f, 0.24f, 0.2f, 1f));
+        AssetDatabase.CreateAsset(badgeMaterial, "Assets/Materials/HudBadgeRed.mat");
+
+        CreateHudButton3D(camera, cardMaterial, badgeMaterial, new Vector2(0.3f, 0.08f), gameController, typeof(ShuffleButton3D), shuffleIcon);
+        CreateHudButton3D(camera, cardMaterial, badgeMaterial, new Vector2(0.5f, 0.08f), gameController, typeof(HintButton3D), hintIcon);
+        CreateHudButton3D(camera, cardMaterial, badgeMaterial, new Vector2(0.7f, 0.08f), gameController, typeof(UndoButton3D), undoIcon);
 
         // ------------------
         // Tray - row of fixed 3D slots in front of the board
         // ------------------
         const int traySlotCount = 4;
-        const float traySlotSize = 0.5f;
-        const float traySlotSpacing = 0.55f;
+        const float traySlotSize = 0.65f;
+        const float traySlotSpacing = 0.72f;
 
         var trayRootGO = new GameObject("TrayRoot", typeof(TrayView3D));
         var trayView = trayRootGO.GetComponent<TrayView3D>();
@@ -207,16 +222,27 @@ public static class GameSceneBuilder3D
     }
 
     private static void CreateHudButton3D(
-        Camera camera, Material cardMaterial, Vector2 viewportPos, GameController gameController,
+        Camera camera, Material cardMaterial, Material badgeMaterial, Vector2 viewportPos, GameController gameController,
         System.Type hudComponentType, Sprite iconSprite)
     {
-        var buttonGO = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        buttonGO.name = hudComponentType.Name;
-        buttonGO.transform.localScale = new Vector3(0.45f, 0.45f, 0.15f);
+        // Empty, unrotated root: PressScaleButton3D requires a BoxCollider
+        // sized to the button's footprint, and every child below (icon,
+        // badge) is positioned assuming an unrotated parent - only the
+        // "Face" child is rotated, purely for its circular-disc look.
+        var buttonGO = new GameObject(hudComponentType.Name);
         PositionInFrontOfCamera(buttonGO.transform, camera, viewportPos, HudDistance);
-        buttonGO.GetComponent<MeshRenderer>().sharedMaterial = cardMaterial;
 
-        var pressButton = buttonGO.AddComponent<PressScaleButton3D>();
+        var faceGO = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        faceGO.name = "Face";
+        faceGO.transform.SetParent(buttonGO.transform, false);
+        faceGO.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+        faceGO.transform.localScale = new Vector3(0.45f, 0.15f, 0.45f);
+        Object.DestroyImmediate(faceGO.GetComponent<Collider>());
+        faceGO.GetComponent<MeshRenderer>().sharedMaterial = cardMaterial;
+
+        var pressButton = buttonGO.AddComponent<PressScaleButton3D>(); // RequireComponent auto-adds a BoxCollider, default-sized - must be resized to the disc's footprint
+        var buttonCollider = buttonGO.GetComponent<BoxCollider>();
+        buttonCollider.size = new Vector3(0.45f, 0.45f, 0.15f);
         SetField(pressButton, "_targetCamera", camera);
 
         var iconGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
@@ -239,18 +265,27 @@ public static class GameSceneBuilder3D
         AssetDatabase.CreateAsset(iconMaterial, "Assets/Materials/HudIcon_" + hudComponentType.Name + ".mat");
         iconGO.GetComponent<MeshRenderer>().material = iconMaterial;
 
+        var badgeBgGO = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        badgeBgGO.name = "BadgeBackground";
+        badgeBgGO.transform.SetParent(buttonGO.transform, false);
+        badgeBgGO.transform.localPosition = new Vector3(0.32f, 0.32f, -0.66f);
+        badgeBgGO.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+        badgeBgGO.transform.localScale = new Vector3(0.17f, 0.05f, 0.17f);
+        Object.DestroyImmediate(badgeBgGO.GetComponent<Collider>());
+        badgeBgGO.GetComponent<MeshRenderer>().sharedMaterial = badgeMaterial;
+
         var badgeGO = new GameObject("BadgeText", typeof(TextMeshPro));
         badgeGO.transform.SetParent(buttonGO.transform, false);
-        badgeGO.transform.localPosition = new Vector3(0.35f, 0.35f, -0.7f);
+        badgeGO.transform.localPosition = new Vector3(0.32f, 0.32f, -0.7f);
         var badgeText = badgeGO.GetComponent<TextMeshPro>();
         badgeText.text = "3";
-        badgeText.fontSize = 0.6f;
-        badgeText.color = DarkHudText; // sits directly on the white button face, same as the icon - white text there is invisible
+        badgeText.fontSize = 0.5f;
+        badgeText.color = Color.white; // sits on the red BadgeBackground circle now, not the button face
         badgeText.alignment = TextAlignmentOptions.Center;
 
         var usesDisplay = buttonGO.AddComponent<ControlButtonUsesDisplay3D>();
         SetField(usesDisplay, "_button", pressButton);
-        SetField(usesDisplay, "_faceRenderer", buttonGO.GetComponent<MeshRenderer>());
+        SetField(usesDisplay, "_faceRenderer", faceGO.GetComponent<MeshRenderer>());
         SetField(usesDisplay, "_iconRenderer", iconGO.GetComponent<MeshRenderer>());
         SetField(usesDisplay, "_badgeText", badgeText);
 
@@ -273,26 +308,14 @@ public static class GameSceneBuilder3D
         body.GetComponent<MeshRenderer>().sharedMaterial = cardMaterial;
         Object.DestroyImmediate(body.GetComponent<BoxCollider>());
 
-        var iconGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
-        iconGO.name = "Icon";
-        iconGO.transform.SetParent(content.transform, false);
-        Object.DestroyImmediate(iconGO.GetComponent<MeshCollider>());
-        iconGO.transform.localPosition = new Vector3(0f, 0f, -0.06f);
-        iconGO.transform.localScale = Vector3.one * size * CardStyle.IconSizeRatio;
-        var iconMaterial = new Material(Shader.Find("Universal Render Pipeline/Lit"));
-        URPMaterialUtil.SetTransparent(iconMaterial);
-        // Saved as a real asset for the same reason as HudIcon_*.mat above -
-        // an embedded-only transparent material renders its alpha cutout as a
-        // solid opaque quad on-device.
-        Directory.CreateDirectory("Assets/Materials");
-        AssetDatabase.CreateAsset(iconMaterial, "Assets/Materials/TrayIcon.mat");
-        iconGO.GetComponent<MeshRenderer>().material = iconMaterial;
-        iconGO.SetActive(false); // TraySlotView3D.SetEmpty() keeps it disabled until a tile fills the slot
+        var foodAnchorGO = new GameObject("FoodAnchor");
+        foodAnchorGO.transform.SetParent(content.transform, false);
+        foodAnchorGO.transform.localPosition = new Vector3(0f, 0f, -0.08f);
 
         var slotView = root.AddComponent<TraySlotView3D>();
         SetField(slotView, "_content", content.transform);
         SetField(slotView, "_bodyRenderer", body.GetComponent<MeshRenderer>());
-        SetField(slotView, "_iconRenderer", iconGO.GetComponent<MeshRenderer>());
+        SetField(slotView, "_foodAnchor", foodAnchorGO.transform);
 
         Directory.CreateDirectory("Assets/Prefabs");
         var prefab = PrefabUtility.SaveAsPrefabAsset(root, "Assets/Prefabs/TraySlot3D.prefab");

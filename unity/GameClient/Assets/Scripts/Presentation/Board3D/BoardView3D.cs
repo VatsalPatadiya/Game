@@ -18,10 +18,14 @@ namespace GameClient.Presentation.Board3D
         [SerializeField] private TileView3D _tilePrefab;
         [SerializeField] private TileSetAsset _tileSet;
         [SerializeField] private Camera _camera;
-        [SerializeField] private float _cellWidth = 0.57f;
-        [SerializeField] private float _cellHeight = 0.85f;
+        [SerializeField] private float _cellWidth = 0.64f;
+        [SerializeField] private float _cellHeight = 0.95f;
         [SerializeField] private float _layerHeight = 0.22f; // real Z step per layer
         [SerializeField] private float _cameraMargin = 0.5f;
+        [SerializeField] private float _cameraTiltDegrees = 30f; // downward pitch, so stacked layers are actually visible instead of sitting in perfect parallax-free overlap
+        [SerializeField] private float _tiltDistancePadding = 1.35f; // the flat-on fit formula understates the required distance once the camera is tilted (board projects smaller near the top of frame)
+        [SerializeField] private float _tileJitterAmount = 0.07f; // small per-tile scatter so the board reads as a loose pile, not a perfect grid
+        [SerializeField] private float _tileRotationJitterDegrees = 4f;
 
         private readonly Dictionary<string, TileView3D> _tileViews = new Dictionary<string, TileView3D>();
         private Dictionary<string, TileSlot> _slotsById;
@@ -74,11 +78,13 @@ namespace GameClient.Presentation.Board3D
                 var kv = orderedCells[i];
                 var slot = slotsById[kv.Key];
                 var view = Instantiate(_tilePrefab, transform);
+                var jitter = JitterFor(slot.Id);
                 view.transform.localPosition = new Vector3(
-                    slot.X * _cellWidth,
-                    slot.Y * _cellHeight,
+                    slot.X * _cellWidth + jitter.x,
+                    slot.Y * _cellHeight + jitter.y,
                     -slot.Layer * _layerHeight);
-                view.Initialize(slot.Id, slot.Layer, TileVisual.IconFor(_tileSet, kv.Value.Value), TileVisual.AccentColorFor(_tileSet, kv.Value.Value));
+                view.transform.localRotation = Quaternion.Euler(0f, 0f, jitter.z);
+                view.Initialize(slot.Id, slot.Layer, TileVisual.FoodModelFor(_tileSet, kv.Value.Value));
                 _tileViews[kv.Key] = view;
 
                 if (animateDealIn)
@@ -124,12 +130,29 @@ namespace GameClient.Presentation.Board3D
             float horizontalFovRad = 2f * Mathf.Atan(Mathf.Tan(verticalFovRad / 2f) * aspect);
             float distanceForWidth = (boardWidth / 2f) / Mathf.Tan(horizontalFovRad / 2f);
 
-            float distance = Mathf.Max(distanceForHeight, distanceForWidth);
+            float distance = Mathf.Max(distanceForHeight, distanceForWidth) * _tiltDistancePadding;
 
             float centerX = (minX + maxX) / 2f * _cellWidth;
             float centerY = (minY + maxY) / 2f * _cellHeight;
-            _camera.transform.position = new Vector3(centerX, centerY, -distance);
-            _camera.transform.rotation = Quaternion.identity;
+            var boardCenter = new Vector3(centerX, centerY, 0f);
+
+            var rotation = Quaternion.Euler(_cameraTiltDegrees, 0f, 0f);
+            _camera.transform.rotation = rotation;
+            _camera.transform.position = boardCenter - (rotation * Vector3.forward) * distance;
+        }
+
+        // Deterministic per-tile scatter (position x/y, rotation z) seeded by
+        // slot ID so it's stable across rebuilds of the same board - purely a
+        // rendering offset, doesn't touch the domain-layer slot.X/Y that
+        // drive matching/freedom-rule logic.
+        private Vector3 JitterFor(string slotId)
+        {
+            int hash = slotId.GetHashCode();
+            float jx = ((hash & 0xFFFF) / 65535f - 0.5f) * 2f * _tileJitterAmount;
+            float jy = (((hash >> 16) & 0xFFFF) / 65535f - 0.5f) * 2f * _tileJitterAmount;
+            int hash2 = unchecked(hash * unchecked((int)0x9E3779B1)) ^ (hash >> 13);
+            float jr = ((hash2 & 0xFFFF) / 65535f - 0.5f) * 2f * _tileRotationJitterDegrees;
+            return new Vector3(jx, jy, jr);
         }
 
         public void RefreshFreeStates(BoardState board)
