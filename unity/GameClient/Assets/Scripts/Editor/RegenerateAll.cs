@@ -12,7 +12,6 @@ public static class RegenerateAll
         CardMaterialGenerator.Generate();
         TileMeshGenerator.Generate();
         DataAssetGenerator.Generate();
-        TilePrefabGenerator.Generate();
         GameSceneBuilder3D.Build();
         Debug.Log("REGENERATE_ALL_DONE");
     }
