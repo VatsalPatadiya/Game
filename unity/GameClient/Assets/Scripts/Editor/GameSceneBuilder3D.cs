@@ -276,7 +276,14 @@ public static class GameSceneBuilder3D
 
         var badgeGO = new GameObject("BadgeText", typeof(TextMeshPro));
         badgeGO.transform.SetParent(buttonGO.transform, false);
-        badgeGO.transform.localPosition = new Vector3(0.32f, 0.32f, -0.7f);
+        // BadgeBackground is a Cylinder (default half-height 1) scaled to
+        // 0.05 and rotated so its height axis is local Z - its front face
+        // sits at -0.66 - 0.05 = -0.71, in front of the old -0.7 text
+        // position. That embedded the flat text mesh behind the opaque
+        // disc's front cap, hiding it entirely (confirmed on-device: badge
+        // showed only a bare red circle, no digit). -0.72 clears the front
+        // face by the same 0.01 epsilon used elsewhere in this file.
+        badgeGO.transform.localPosition = new Vector3(0.32f, 0.32f, -0.72f);
         var badgeText = badgeGO.GetComponent<TextMeshPro>();
         badgeText.text = "3";
         badgeText.fontSize = 0.5f;
