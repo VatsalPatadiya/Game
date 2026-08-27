@@ -84,7 +84,7 @@ public static class GameSceneBuilder3D
         var feltGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
         feltGO.name = "FeltBackground";
         Object.DestroyImmediate(feltGO.GetComponent<Collider>());
-        feltGO.transform.position = new Vector3(0f, 0f, 1.6f);
+        feltGO.transform.position = new Vector3(0f, 0f, 9f); // well behind the HUD (~z3-4) so it never occludes the score bar / buttons
         feltGO.transform.rotation = Quaternion.identity;
         feltGO.transform.localScale = new Vector3(60f, 60f, 1f);
         var feltRenderer = feltGO.GetComponent<MeshRenderer>();
