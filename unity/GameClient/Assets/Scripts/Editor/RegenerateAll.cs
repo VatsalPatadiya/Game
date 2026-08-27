@@ -4,6 +4,7 @@ public static class RegenerateAll
 {
     public static void Run()
     {
+        URPSetup.Configure();
         TileIconGenerator.Generate();
         HudIconGenerator.Generate();
         CardSpriteGenerator.Generate();
