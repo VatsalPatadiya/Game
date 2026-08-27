@@ -14,6 +14,9 @@ namespace GameClient.Presentation.Board3D
         [SerializeField] private Color _blockedCardColor = new Color(0.62f, 0.63f, 0.58f, 1f);
         [SerializeField] private Color _highlightEmission = new Color(1f, 0.85f, 0.2f, 1f);
 
+        private const float DragLiftDistance = 1.5f; // pulled toward the camera, in front of every layer
+        private const float DragSnapBackDuration = 0.18f;
+
         private MeshRendererTint _bodyTint;
         private MeshRendererTint _iconTint;
         private MeshRendererTint _emissionTint;
@@ -21,6 +24,7 @@ namespace GameClient.Presentation.Board3D
         private Coroutine _shakeCoroutine;
         private Coroutine _clearCoroutine;
         private Coroutine _fadeCoroutine;
+        private Coroutine _dragSnapCoroutine;
 
         public string SlotId { get; private set; }
         public int Layer { get; private set; }
@@ -134,5 +138,41 @@ namespace GameClient.Presentation.Board3D
         }
 
         private ITintable[] BuildRendererArray() => new ITintable[] { _bodyTint, _iconTint };
+
+        public void BeginDrag()
+        {
+            if (_dragSnapCoroutine != null)
+            {
+                StopCoroutine(_dragSnapCoroutine);
+                _dragSnapCoroutine = null;
+            }
+        }
+
+        public void UpdateDragOffset(Vector3 worldDeltaXY)
+        {
+            transform.localPosition = _originalLocalPos + new Vector3(worldDeltaXY.x, worldDeltaXY.y, -DragLiftDistance);
+        }
+
+        public void EndDrag()
+        {
+            if (_dragSnapCoroutine != null) StopCoroutine(_dragSnapCoroutine);
+            _dragSnapCoroutine = StartCoroutine(SnapBackRoutine());
+        }
+
+        private IEnumerator SnapBackRoutine()
+        {
+            var start = transform.localPosition;
+            float elapsed = 0f;
+            while (elapsed < DragSnapBackDuration)
+            {
+                elapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(elapsed / DragSnapBackDuration);
+                float eased = 1f - Mathf.Pow(1f - t, 3f);
+                transform.localPosition = Vector3.Lerp(start, _originalLocalPos, eased);
+                yield return null;
+            }
+            transform.localPosition = _originalLocalPos;
+            _dragSnapCoroutine = null;
+        }
     }
 }
