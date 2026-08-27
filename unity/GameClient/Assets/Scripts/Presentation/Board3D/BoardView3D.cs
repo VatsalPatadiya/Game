@@ -21,7 +21,7 @@ namespace GameClient.Presentation.Board3D
         [SerializeField] private float _cellWidth = 0.64f;
         [SerializeField] private float _cellHeight = 0.95f;
         [SerializeField] private float _layerHeight = 0.22f; // real Z step per layer
-        [SerializeField] private float _cameraMargin = 0.2f; // tighter frame so the board fills more of the screen (was 0.5)
+        [SerializeField] private float _cameraMargin = 0.02f; // board fills nearly the full screen width -> bigger tiles (was 0.5, then 0.2)
         [SerializeField] private float _cameraTiltDegrees = 6f; // near front-on to match the flat mock; depth now comes from the per-tile drop shadow, not camera parallax (was 30, which skewed the board into a parallelogram)
         [SerializeField] private float _tiltDistancePadding = 1.05f; // barely-tilted view needs almost no extra distance (was 1.35 for the 30-degree pitch)
         [SerializeField] private float _tileJitterAmount = 0f; // clean aligned grid (premium mahjong look); was 0.07 loose-pile scatter

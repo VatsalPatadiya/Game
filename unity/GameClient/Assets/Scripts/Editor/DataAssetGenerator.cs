@@ -38,13 +38,17 @@ public static class DataAssetGenerator
         }
         tileSet.AccentColors = AccentColors;
 
-        tileSet.FoodModels = new GameObject[FoodModelGenerator.FoodNames.Length];
-        for (int i = 0; i < FoodModelGenerator.FoodNames.Length; i++)
+        // Tile faces now use flat mahjong-symbol quad prefabs (dots/bamboo/rings)
+        // instead of the 3D food models. They flow through the same FoodModels
+        // slot so the board/tray rendering pipeline is unchanged.
+        tileSet.FoodModels = new GameObject[MahjongSymbolGenerator.SymbolNames.Length];
+        for (int i = 0; i < MahjongSymbolGenerator.SymbolNames.Length; i++)
         {
-            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Food/" + FoodModelGenerator.FoodNames[i] + ".prefab");
+            var name = MahjongSymbolGenerator.SymbolNames[i];
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Symbols/" + name + ".prefab");
             if (prefab == null)
                 throw new System.Exception(
-                    "DATA_ASSET_GENERATOR_MISSING_FOOD_MODEL: " + FoodModelGenerator.FoodNames[i] + " - run FoodModelGenerator.Generate() first");
+                    "DATA_ASSET_GENERATOR_MISSING_SYMBOL: " + name + " - run MahjongSymbolGenerator.Generate() first");
             tileSet.FoodModels[i] = prefab;
         }
 

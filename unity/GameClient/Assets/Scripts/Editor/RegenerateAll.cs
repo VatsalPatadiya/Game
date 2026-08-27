@@ -13,6 +13,7 @@ public static class RegenerateAll
         TileMaterialGenerator.Generate();
         TileMeshGenerator.Generate();
         FoodModelGenerator.Generate();
+        MahjongSymbolGenerator.Generate();
         DataAssetGenerator.Generate();
         FeltBackgroundGenerator.Generate();
         GameSceneBuilder3D.Build();
