@@ -10,6 +10,7 @@ public static class RegenerateAll
         CardSpriteGenerator.Generate();
         CardNormalMapGenerator.Generate();
         CardMaterialGenerator.Generate();
+        TileMaterialGenerator.Generate();
         TileMeshGenerator.Generate();
         FoodModelGenerator.Generate();
         DataAssetGenerator.Generate();
