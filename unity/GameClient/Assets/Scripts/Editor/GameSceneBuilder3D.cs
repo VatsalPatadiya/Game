@@ -45,12 +45,29 @@ public static class GameSceneBuilder3D
         // positions match what actually renders on-device.
         camera.aspect = 1080f / 2340f;
 
+        // Tiles are only ~a couple units deep, but the camera sits ~18 world
+        // units back (see HudDistance/BoardView3D.FitCameraToBoard above) -
+        // URP's default shadow distance is too short to cover the whole
+        // tilted board at that camera distance, so raised tiles would cast no
+        // shadow onto the tiles below.
+        var urp = (UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset)
+                  UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline;
+        if (urp != null) urp.shadowDistance = 40f;
+
         var lightGO = new GameObject("Key Light", typeof(Light));
         var light = lightGO.GetComponent<Light>();
         light.type = LightType.Directional;
-        light.transform.rotation = Quaternion.Euler(45f, -30f, 0f);
+        lightGO.transform.rotation = Quaternion.Euler(55f, -35f, 0f); // top-left key
+        light.intensity = 1.05f;
         light.shadows = LightShadows.Soft;
-        light.intensity = 1.1f;
+        light.shadowStrength = 0.55f;   // soft, not black
+
+        var fillGO = new GameObject("Fill Light", typeof(Light));
+        var fill = fillGO.GetComponent<Light>();
+        fill.type = LightType.Directional;
+        fill.transform.rotation = Quaternion.Euler(20f, 150f, 0f);
+        fill.intensity = 0.35f;
+        fill.shadows = LightShadows.None;
 
         var cardMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/CardBody.mat");
         RequireNotNull(cardMaterial, "Assets/Materials/CardBody.mat as Material");
