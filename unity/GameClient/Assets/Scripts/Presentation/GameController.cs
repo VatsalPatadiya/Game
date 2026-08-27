@@ -43,6 +43,16 @@ namespace GameClient.Presentation
 
         private void Start()
         {
+            // vSyncCount must be 0 for targetFrameRate to take effect at all -
+            // otherwise Unity ignores it and locks to (display refresh /
+            // vSyncCount). Requesting 120 only actually renders at 120 on a
+            // device whose display supports it (paired with
+            // PlayerSettings.Android.optimizedFramePacing in AndroidBuilder,
+            // which asks Android for the higher display mode); on a 60Hz-only
+            // panel this same code just runs at that panel's 60Hz ceiling.
+            QualitySettings.vSyncCount = 0;
+            Application.targetFrameRate = 120;
+
             LoadLevel();
         }
 
