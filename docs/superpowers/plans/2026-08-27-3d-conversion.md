@@ -1690,7 +1690,7 @@ git commit -m "feat: add 3D HUD buttons, game-over popup, and control/score bind
 
 Grounded directly in `unity/GameClient/Assets/Scripts/Editor/GameSceneBuilder.cs` (read in full for this task) — same overall shape (one `Build()` method, a `SetField` helper via `SerializedObject`), instantiating the 3D prefabs/components from Tasks 5–10 instead of the 2D ones, positioned as real `Transform`s instead of `RectTransform` anchors. `MatchCelebrationController` (particle burst + praise text, `SpriteRenderer`/`Canvas`-based) is deliberately **not** instantiated here — it's out of this plan's scope (see spec), and `GameController.TapToTrayRoutine` already null-guards it (`if (matched && _matchCelebration != null)`), so leaving `_matchCelebration` unassigned is safe, not a half-wired risk.
 
-- [ ] **Step 1: Write `GameSceneBuilder3D.cs`**
+- [x] **Step 1: Write `GameSceneBuilder3D.cs`**
 
 ```csharp
 using System.IO;
@@ -1988,9 +1988,9 @@ public static class GameSceneBuilder3D
 }
 ```
 
-- [ ] **Step 2: Wire into `RegenerateAll.Run()`**, replacing the existing `GameSceneBuilder.Build()` call with `GameSceneBuilder3D.Build()`.
+- [x] **Step 2: Wire into `RegenerateAll.Run()`**, replacing the existing `GameSceneBuilder.Build()` call with `GameSceneBuilder3D.Build()`.
 
-- [ ] **Step 3: Verify**
+- [x] **Step 3: Verify**
 
 ```bash
 "/Applications/Unity/Hub/Editor/6000.5.9f1/Unity.app/Contents/MacOS/Unity" \
@@ -1999,7 +1999,7 @@ public static class GameSceneBuilder3D
 ```
 Expected: `REGENERATE_ALL_DONE`, no `error CS`, no `GAME_SCENE_BUILDER_3D_MISSING*` exception (a missing asset path or unassigned field throws here immediately, not silently at runtime).
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add unity/GameClient/Assets/Scripts/Editor/GameSceneBuilder3D.cs unity/GameClient/Assets/Scripts/Editor/RegenerateAll.cs unity/GameClient/Assets/Scenes/Game.unity unity/GameClient/Assets/Prefabs/TraySlot3D.prefab
@@ -2017,7 +2017,7 @@ git commit -m "feat: assemble the 3D scene (GameSceneBuilder3D)"
 - Consumes: `BoardView3D`, `TrayView3D`, `GameOverPopup3D` (Tasks 7, 9, 10).
 - Produces: no change to `GameController`'s own public API (per Global Constraints) — only its private field types change.
 
-- [ ] **Step 1: Change field declarations** at `GameController.cs:17-20`:
+- [x] **Step 1: Change field declarations** at `GameController.cs:17-20`:
 ```csharp
 [SerializeField] private Board3D.BoardView3D _boardView;
 [SerializeField] private HUD3D.TrayView3D _trayView;
@@ -2026,13 +2026,13 @@ git commit -m "feat: assemble the 3D scene (GameSceneBuilder3D)"
 ```
 (Add `using GameClient.Presentation.Board3D;` and `using GameClient.Presentation.HUD3D;` at the top of the file, or fully-qualify as above — match whichever style the rest of the file's `using` block prefers.)
 
-- [ ] **Step 2: Update call sites that used `TrayView.GetSlotScreenPosition`**
+- [x] **Step 2: Update call sites that used `TrayView.GetSlotScreenPosition`**
 
 At `GameController.cs:147`, `_trayView.GetSlotScreenPosition(targetIndex)` becomes `_trayView.GetSlotWorldPosition(targetIndex)` (matching `TrayView3D`'s renamed method from Task 9).
 
-- [ ] **Step 3: `MatchCelebrationController` note** — this component (particle burst + praise text, added round 4) is `SpriteRenderer`/`Canvas`-based and out of this plan's explicit scope (not named in the approved spec's component list). Task 11 already leaves `GameSceneBuilder3D` without instantiating it at all, which is safe (`GameController.TapToTrayRoutine` null-guards every use). No action needed here beyond confirming the field stays `null` after this task's field-type change — don't wire it, and don't remove the field either (removing it would be an unrelated scope expansion this task doesn't need). File a proper 3D port as a known follow-up if the missing celebration effect is noticed later.
+- [x] **Step 3: `MatchCelebrationController` note** — this component (particle burst + praise text, added round 4) is `SpriteRenderer`/`Canvas`-based and out of this plan's explicit scope (not named in the approved spec's component list). Task 11 already leaves `GameSceneBuilder3D` without instantiating it at all, which is safe (`GameController.TapToTrayRoutine` null-guards every use). No action needed here beyond confirming the field stays `null` after this task's field-type change — don't wire it, and don't remove the field either (removing it would be an unrelated scope expansion this task doesn't need). File a proper 3D port as a known follow-up if the missing celebration effect is noticed later.
 
-- [ ] **Step 4: Verify compile**
+- [x] **Step 4: Verify compile**
 
 ```bash
 "/Applications/Unity/Hub/Editor/6000.5.9f1/Unity.app/Contents/MacOS/Unity" \
@@ -2041,7 +2041,7 @@ At `GameController.cs:147`, `_trayView.GetSlotScreenPosition(targetIndex)` becom
 ```
 Expected: 40/40 passed, no `error CS`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add unity/GameClient/Assets/Scripts/Presentation/GameController.cs
