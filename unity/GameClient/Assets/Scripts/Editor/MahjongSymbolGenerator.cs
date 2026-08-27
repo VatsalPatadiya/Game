@@ -84,7 +84,7 @@ public static class MahjongSymbolGenerator
             var quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
             quad.name = name;
             Object.DestroyImmediate(quad.GetComponent<Collider>());
-            quad.transform.localScale = new Vector3(0.22f, 0.22f, 1f); // x FoodAnchor(1.8) ~= 0.4 world
+            quad.transform.localScale = new Vector3(0.36f, 0.36f, 1f); // bigger symbols; x FoodAnchor(1.8) ~= 0.65 world
             quad.GetComponent<MeshRenderer>().sharedMaterial = mat;
             quad.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             PrefabUtility.SaveAsPrefabAsset(quad, PrefabDir + "/" + name + ".prefab");

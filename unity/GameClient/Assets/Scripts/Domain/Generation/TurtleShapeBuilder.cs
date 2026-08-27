@@ -24,12 +24,12 @@ namespace GameDomain.Generation
             var slots = new List<TileSlot>();
             var byPos = new Dictionary<(int x, int y, int l), TileSlot>();
 
-            // Every layer is a strict, centered subset of the one below it,
-            // so nothing ever floats over open space.
-            for (int y = 0; y <= 3; y++) AddRow(slots, byPos, 0, 0, 8, y); // 9x4 = 36
-            for (int y = 0; y <= 2; y++) AddRow(slots, byPos, 1, 1, 7, y); // 7x3 = 21
-            AddRow(slots, byPos, 2, 3, 5, 0);                              // 3x1 = 3
-            AddRow(slots, byPos, 3, 3, 4, 0);                              // 2x1 = 2
+            // Narrow + tall so the board fills a portrait screen with BIG tiles
+            // (fewer columns => each tile is larger once the camera fits the
+            // board to the screen width). Every layer is a strict, centered
+            // subset of the one below it, so nothing floats over open space.
+            for (int y = 0; y <= 6; y++) AddRow(slots, byPos, 0, 0, 5, y); // 6x7 = 42
+            for (int y = 1; y <= 5; y++) AddRow(slots, byPos, 1, 1, 4, y); // 4x5 = 20
             // Total: 62 tiles (31 pairs) - same size already proven safe
 
             ComputeNeighborsAndCovering(slots, byPos);
