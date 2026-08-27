@@ -10,6 +10,7 @@ public static class RegenerateAll
         CardSpriteGenerator.Generate();
         CardNormalMapGenerator.Generate();
         CardMaterialGenerator.Generate();
+        TileMeshGenerator.Generate();
         DataAssetGenerator.Generate();
         TilePrefabGenerator.Generate();
         GameSceneBuilder.Build();
