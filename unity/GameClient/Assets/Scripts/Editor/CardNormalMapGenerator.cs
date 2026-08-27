@@ -39,7 +39,7 @@ public static class CardNormalMapGenerator
                 // [-BevelWidth, 0]); flat everywhere else (interior face,
                 // and outside the shape where alpha will be 0 anyway).
                 float bevelT = Mathf.Clamp01((dist + BevelWidth) / BevelWidth);
-                float slope = (1f - bevelT) * BevelStrength;
+                float slope = bevelT * BevelStrength;
 
                 var normal = new Vector3(-gradX * slope, -gradY * slope, 1f).normalized;
                 var encoded = new Color(
