@@ -13,7 +13,7 @@ public static class RegenerateAll
         TileMeshGenerator.Generate();
         DataAssetGenerator.Generate();
         TilePrefabGenerator.Generate();
-        GameSceneBuilder.Build();
+        GameSceneBuilder3D.Build();
         Debug.Log("REGENERATE_ALL_DONE");
     }
 }
