@@ -122,29 +122,62 @@ public static class GameSceneBuilder3D
         SetField(inputController, "_gameController", gameController);
 
         // ------------------
-        // Score pill
+        // Progress bar (score-driven gold fill) - replaces the score plaque
         // ------------------
-        var scoreRootGO = new GameObject("ScoreRoot");
+        const float TrackWidth = 2.6f;   // matches ProgressBar3D._trackWidth default
+        const float TrackHeight = 0.34f;
+
+        var scoreRootGO = new GameObject("ProgressBar");
         PositionInFrontOfCamera(scoreRootGO.transform, camera, new Vector2(0.5f, 0.92f), HudDistance);
 
-        var scorePillGO = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        scorePillGO.name = "Pill";
-        scorePillGO.transform.SetParent(scoreRootGO.transform, false);
-        scorePillGO.transform.localPosition = new Vector3(0f, 0f, 0.05f);
-        scorePillGO.transform.localScale = new Vector3(2.6f, 0.7f, 0.1f);
-        Object.DestroyImmediate(scorePillGO.GetComponent<BoxCollider>());
-        scorePillGO.GetComponent<MeshRenderer>().sharedMaterial = woodMaterial;
+        // wood track (the empty groove)
+        var trackGO = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        trackGO.name = "Track";
+        trackGO.transform.SetParent(scoreRootGO.transform, false);
+        trackGO.transform.localPosition = new Vector3(0f, 0f, 0.05f);
+        trackGO.transform.localScale = new Vector3(TrackWidth + 0.12f, TrackHeight + 0.12f, 0.1f);
+        Object.DestroyImmediate(trackGO.GetComponent<BoxCollider>());
+        trackGO.GetComponent<MeshRenderer>().sharedMaterial = woodMaterial;
 
-        var scoreGO = new GameObject("ScoreText", typeof(TextMeshPro), typeof(ScoreDisplay3D));
+        // gold fill (left-anchored, grown by ProgressBar3D)
+        var barFillGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        barFillGO.name = "Fill";
+        barFillGO.transform.SetParent(scoreRootGO.transform, false);
+        barFillGO.transform.localPosition = new Vector3(-TrackWidth * 0.5f, 0f, -0.02f);
+        barFillGO.transform.localScale = new Vector3(0f, TrackHeight * 0.72f, 1f);
+        Object.DestroyImmediate(barFillGO.GetComponent<Collider>());
+        barFillGO.GetComponent<MeshRenderer>().sharedMaterial =
+            AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Gold.mat");
+
+        // milestone ticks at 1/3 and 2/3
+        foreach (float f in new[] { 1f / 3f, 2f / 3f })
+        {
+            var tick = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            tick.name = "Tick";
+            tick.transform.SetParent(scoreRootGO.transform, false);
+            tick.transform.localPosition = new Vector3(-TrackWidth * 0.5f + TrackWidth * f, 0f, -0.04f);
+            tick.transform.localScale = new Vector3(0.02f, TrackHeight * 0.9f, 1f);
+            Object.DestroyImmediate(tick.GetComponent<Collider>());
+            var tm = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+            tm.SetColor("_BaseColor", new Color(0.2f, 0.13f, 0.06f));
+            tick.GetComponent<MeshRenderer>().sharedMaterial = tm;
+        }
+
+        var scoreGO = new GameObject("ScoreText", typeof(TextMeshPro));
         scoreGO.transform.SetParent(scoreRootGO.transform, false);
+        scoreGO.transform.localPosition = new Vector3(0f, 0f, -0.08f);
         var scoreText = scoreGO.GetComponent<TextMeshPro>();
-        scoreText.text = "Score: 0";
-        scoreText.color = CreamHudText; // cream on the wood pill
-        scoreText.fontSize = 1.1f;
+        scoreText.text = "0";
+        scoreText.color = CreamHudText;
+        scoreText.fontSize = 0.9f;
         scoreText.alignment = TextAlignmentOptions.Center;
-        var scoreDisplay = scoreGO.GetComponent<ScoreDisplay3D>();
-        SetField(scoreDisplay, "_scoreText", scoreText);
-        SetField(scoreDisplay, "_gameController", gameController);
+
+        var progressBar = scoreRootGO.AddComponent<ProgressBar3D>();
+        SetField(progressBar, "_fill", barFillGO.transform);
+        SetField(progressBar, "_label", scoreText);
+        SetField(progressBar, "_gameController", gameController);
+        // _maxScore (2000), _trackWidth (2.6), _fillHeight (0.24) use the
+        // component's serialized defaults, which match the track built above.
 
         // ------------------
         // Control bar (hint/undo/shuffle)
@@ -181,6 +214,17 @@ public static class GameSceneBuilder3D
         PositionInFrontOfCamera(trayRootGO.transform, camera, new Vector2(0.5f, 0.8f), TrayDistance);
         trayRootGO.transform.localScale = Vector3.one * (TrayDistance / HudDistance);
 
+        // One wood container box behind the slots so the tray reads as a single
+        // box divided into 4 parts (the slots are darker recesses inside it).
+        var trayContainerGO = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        trayContainerGO.name = "TrayContainer";
+        trayContainerGO.transform.SetParent(trayRootGO.transform, false);
+        float containerWidth = (traySlotCount - 1) * traySlotSpacing + traySlotSize + 0.34f;
+        trayContainerGO.transform.localPosition = new Vector3(0f, 0f, 0.06f); // behind the recess slots (+Z, away from camera)
+        trayContainerGO.transform.localScale = new Vector3(containerWidth, traySlotSize + 0.26f, 0.12f);
+        Object.DestroyImmediate(trayContainerGO.GetComponent<BoxCollider>());
+        trayContainerGO.GetComponent<MeshRenderer>().sharedMaterial = woodMaterial;
+
         var anchors = new Transform[traySlotCount];
         float startX = -(traySlotCount - 1) * traySlotSpacing / 2f;
         for (int i = 0; i < traySlotCount; i++)
@@ -191,7 +235,9 @@ public static class GameSceneBuilder3D
             anchors[i] = anchorGO.transform;
         }
 
-        var traySlotPrefab = BuildTraySlotPrefab(woodMaterial, traySlotSize);
+        var recessMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/TrayRecess.mat");
+        RequireNotNull(recessMaterial, "Assets/Materials/TrayRecess.mat (run WoodUiGenerator first)");
+        var traySlotPrefab = BuildTraySlotPrefab(recessMaterial, traySlotSize);
         SetField(trayView, "traySlotPrefab", traySlotPrefab);
         SetField(trayView, "tileSet", tileSet);
         SetFieldArray(trayView, "slotAnchors", anchors);
@@ -362,8 +408,9 @@ public static class GameSceneBuilder3D
         var body = GameObject.CreatePrimitive(PrimitiveType.Cube);
         body.name = "Body";
         body.transform.SetParent(content.transform, false);
-        body.transform.localScale = new Vector3(size, size, 0.1f);
-        body.GetComponent<MeshRenderer>().sharedMaterial = cardMaterial;
+        body.transform.localPosition = new Vector3(0f, 0f, -0.03f); // slightly toward camera, inset within the tray container
+        body.transform.localScale = new Vector3(size * 0.9f, size * 0.9f, 0.04f);
+        body.GetComponent<MeshRenderer>().sharedMaterial = cardMaterial; // recess material passed in
         Object.DestroyImmediate(body.GetComponent<BoxCollider>());
 
         var foodAnchorGO = new GameObject("FoodAnchor");

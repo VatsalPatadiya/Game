@@ -86,6 +86,43 @@ public static class WoodUiGenerator
         bronze.SetFloat("_Metallic", 0f);
         EditorUtility.SetDirty(bronze);
 
+        // Darker wood for the tray-slot recesses (same grain, dimmed) so the
+        // slots read as insets in the one wood tray container.
+        var recess = LoadOrCreate("Assets/Materials/TrayRecess.mat", shader);
+        recess.SetTexture("_BaseMap", woodTex);
+        recess.SetColor("_BaseColor", new Color(0.45f, 0.42f, 0.36f, 1f));
+        recess.SetFloat("_Smoothness", 0.15f);
+        recess.SetFloat("_Metallic", 0f);
+        EditorUtility.SetDirty(recess);
+
+        // --- gold fill texture for the progress bar (vertical sheen) ---
+        var gLight = new Color(0.96f, 0.78f, 0.36f); // #F5C75C
+        var gDeep  = new Color(0.82f, 0.55f, 0.16f); // #D18C29
+        var gtex = new Texture2D(w, h, TextureFormat.RGBA32, mipChain: true) { name = "Gold", wrapMode = TextureWrapMode.Clamp };
+        for (int y = 0; y < h; y++)
+        {
+            float v = y / (float)(h - 1);
+            float sheen = Mathf.Sin(v * Mathf.PI); // brighter in the middle band
+            var c = Color.Lerp(gDeep, gLight, sheen);
+            for (int x = 0; x < w; x++) gtex.SetPixel(x, y, c);
+        }
+        gtex.Apply(true);
+        File.WriteAllBytes("Assets/Textures/Gold.png", gtex.EncodeToPNG());
+        Object.DestroyImmediate(gtex);
+        AssetDatabase.ImportAsset("Assets/Textures/Gold.png");
+        var gimp = (TextureImporter)AssetImporter.GetAtPath("Assets/Textures/Gold.png");
+        gimp.textureType = TextureImporterType.Default; gimp.sRGBTexture = true; gimp.SaveAndReimport();
+        var goldTex = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/Gold.png");
+
+        var gold = LoadOrCreate("Assets/Materials/Gold.mat", shader);
+        gold.SetTexture("_BaseMap", goldTex);
+        gold.SetColor("_BaseColor", Color.white);
+        gold.SetColor("_EmissionColor", new Color(0.35f, 0.24f, 0.05f)); // subtle glow so it reads bright
+        gold.EnableKeyword("_EMISSION");
+        gold.SetFloat("_Smoothness", 0.4f);
+        gold.SetFloat("_Metallic", 0f);
+        EditorUtility.SetDirty(gold);
+
         AssetDatabase.SaveAssets();
         Debug.Log("WOOD_UI_GENERATOR_DONE");
     }
