@@ -15,7 +15,7 @@ public static class CardStyle
     public const float ShadowSizeRatio = 0.82f;
     public const float GlowSizeRatio = 1.0f;
     public const float AccentSizeRatio = 0.84f;
-    public const float CardSizeRatio = 0.76f;
+    public const float CardSizeRatio = 0.92f;
     public const float IconSizeRatio = 0.5f;
 
     // Width:height of the board tile card - measured directly off the

@@ -8,5 +8,6 @@ namespace GameClient.Data
         public string TileSetId;
         public Sprite[] Icons;
         public Color[] AccentColors;
+        public GameObject[] FoodModels;
     }
 }

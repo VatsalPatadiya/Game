@@ -37,6 +37,17 @@ public static class DataAssetGenerator
             tileSet.Icons[i] = sprite;
         }
         tileSet.AccentColors = AccentColors;
+
+        tileSet.FoodModels = new GameObject[FoodModelGenerator.FoodNames.Length];
+        for (int i = 0; i < FoodModelGenerator.FoodNames.Length; i++)
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Food/" + FoodModelGenerator.FoodNames[i] + ".prefab");
+            if (prefab == null)
+                throw new System.Exception(
+                    "DATA_ASSET_GENERATOR_MISSING_FOOD_MODEL: " + FoodModelGenerator.FoodNames[i] + " - run FoodModelGenerator.Generate() first");
+            tileSet.FoodModels[i] = prefab;
+        }
+
         AssetDatabase.CreateAsset(tileSet, "Assets/Data/DefaultTileSet.asset");
 
         var level = ScriptableObject.CreateInstance<LevelShapeAsset>();

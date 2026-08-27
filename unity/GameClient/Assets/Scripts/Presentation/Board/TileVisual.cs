@@ -22,5 +22,15 @@ namespace GameClient.Presentation.Board
             int colorIndex = (index / tileSet.Icons.Length) % tileSet.AccentColors.Length;
             return tileSet.AccentColors[colorIndex];
         }
+
+        // 26 distinct food models, one per value (values are capped at mod 26
+        // by ReverseConstructionSolver, see the comment above) - each value
+        // already gets a visually unique model, so no accent-color tinting is
+        // layered on top the way IconFor/AccentColorFor combine.
+        public static GameObject FoodModelFor(TileSetAsset tileSet, string value)
+        {
+            int index = int.Parse(value);
+            return tileSet.FoodModels[index % tileSet.FoodModels.Length];
+        }
     }
 }

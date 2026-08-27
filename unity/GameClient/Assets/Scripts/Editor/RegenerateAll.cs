@@ -11,6 +11,7 @@ public static class RegenerateAll
         CardNormalMapGenerator.Generate();
         CardMaterialGenerator.Generate();
         TileMeshGenerator.Generate();
+        FoodModelGenerator.Generate();
         DataAssetGenerator.Generate();
         GameSceneBuilder3D.Build();
         Debug.Log("REGENERATE_ALL_DONE");

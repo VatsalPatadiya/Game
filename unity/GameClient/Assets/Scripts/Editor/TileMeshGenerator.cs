@@ -27,20 +27,9 @@ public static class TileMeshGenerator
             throw new System.Exception("TILE_MESH_GENERATOR_MISSING_MATERIAL: run CardMaterialGenerator first");
         bodyRenderer.sharedMaterial = cardMaterial;
 
-        var iconGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
-        iconGO.name = "Icon";
-        iconGO.transform.SetParent(root.transform, false);
-        Object.DestroyImmediate(iconGO.GetComponent<MeshCollider>());
-        iconGO.transform.localPosition = new Vector3(0f, 0f, -(CardThickness / 2f + 0.01f));
-        iconGO.transform.localScale = Vector3.one * CardStyle.IconSizeRatio;
-        var iconRenderer = iconGO.GetComponent<MeshRenderer>();
-        var iconShader = Shader.Find("Universal Render Pipeline/Lit");
-        var iconMaterial = new Material(iconShader);
-        URPMaterialUtil.SetTransparent(iconMaterial); // so the icon sprite's alpha shows the card body behind it
-        iconMaterial.SetFloat("_Smoothness", 0f);
-        System.IO.Directory.CreateDirectory("Assets/Materials");
-        AssetDatabase.CreateAsset(iconMaterial, "Assets/Materials/TileIcon.mat");
-        iconRenderer.sharedMaterial = iconMaterial;
+        var foodAnchorGO = new GameObject("FoodAnchor");
+        foodAnchorGO.transform.SetParent(root.transform, false);
+        foodAnchorGO.transform.localPosition = new Vector3(0f, 0f, -(CardThickness / 2f + 0.02f));
 
         var tileView = root.AddComponent<TileView3D>(); // auto-adds a BoxCollider to root via [RequireComponent]
         var collider = root.GetComponent<BoxCollider>();
@@ -53,7 +42,7 @@ public static class TileMeshGenerator
         var serialized = new SerializedObject(tileView);
         serialized.FindProperty("_bodyRenderer").objectReferenceValue = bodyRenderer;
         serialized.FindProperty("_bodyCollider").objectReferenceValue = collider;
-        serialized.FindProperty("_iconRenderer").objectReferenceValue = iconRenderer;
+        serialized.FindProperty("_foodAnchor").objectReferenceValue = foodAnchorGO.transform;
         serialized.ApplyModifiedPropertiesWithoutUndo();
 
         PrefabUtility.SaveAsPrefabAsset(root, "Assets/Prefabs/Tile3D.prefab");
