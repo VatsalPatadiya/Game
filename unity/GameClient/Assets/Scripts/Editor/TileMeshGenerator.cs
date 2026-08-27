@@ -12,24 +12,41 @@ public static class TileMeshGenerator
 
         var root = new GameObject("Tile3D");
 
-        var body = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        body.name = "CardBody";
+        float w = CardStyle.CardSizeRatio * CardStyle.CardAspectRatio;
+        float h = CardStyle.CardSizeRatio;
+        float cornerRadius = w * 0.16f;
+
+        var body = new GameObject("CardBody", typeof(MeshFilter), typeof(MeshRenderer));
         body.transform.SetParent(root.transform, false);
-        body.transform.localScale = new Vector3(
-            CardStyle.CardSizeRatio * CardStyle.CardAspectRatio,
-            CardStyle.CardSizeRatio,
-            CardThickness);
-        Object.DestroyImmediate(body.GetComponent<BoxCollider>());
+
+        var tileMesh = RoundedTileMesh.Build(w, h, CardThickness, cornerRadius, cornerSegments: 6);
+        // Persist the generated mesh as a standalone asset BEFORE saving the
+        // prefab, so the saved prefab's MeshFilter references a real asset on
+        // disk rather than an unsaved runtime Mesh (AddObjectToAsset after
+        // SaveAsPrefabAsset does not reliably re-link the already-serialized
+        // prefab reference, leaving the tile invisible).
+        System.IO.Directory.CreateDirectory("Assets/Meshes");
+        const string meshPath = "Assets/Meshes/RoundedTile.asset";
+        var existingMesh = AssetDatabase.LoadAssetAtPath<Mesh>(meshPath);
+        if (existingMesh != null)
+            AssetDatabase.DeleteAsset(meshPath);
+        AssetDatabase.CreateAsset(tileMesh, meshPath);
+        AssetDatabase.SaveAssets();
+        var persistedMesh = AssetDatabase.LoadAssetAtPath<Mesh>(meshPath);
+        body.GetComponent<MeshFilter>().sharedMesh = persistedMesh;
 
         var bodyRenderer = body.GetComponent<MeshRenderer>();
-        var cardMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/CardBody.mat");
+        var cardMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/TileBody.mat");
         if (cardMaterial == null)
-            throw new System.Exception("TILE_MESH_GENERATOR_MISSING_MATERIAL: run CardMaterialGenerator first");
+            throw new System.Exception("TILE_MESH_GENERATOR_MISSING_MATERIAL: run TileMaterialGenerator first");
         bodyRenderer.sharedMaterial = cardMaterial;
+        bodyRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
+        bodyRenderer.receiveShadows = true;
 
         var foodAnchorGO = new GameObject("FoodAnchor");
         foodAnchorGO.transform.SetParent(root.transform, false);
         foodAnchorGO.transform.localPosition = new Vector3(0f, 0f, -(CardThickness / 2f + 0.02f));
+        foodAnchorGO.transform.localScale = Vector3.one * 1.4f;
 
         var tileView = root.AddComponent<TileView3D>(); // auto-adds a BoxCollider to root via [RequireComponent]
         var collider = root.GetComponent<BoxCollider>();
