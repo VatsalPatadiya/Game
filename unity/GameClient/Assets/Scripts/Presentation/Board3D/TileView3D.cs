@@ -39,7 +39,11 @@ namespace GameClient.Presentation.Board3D
 
             if (_iconRenderer != null)
             {
-                _iconRenderer.sharedMaterial.SetTexture("_BaseMap", icon.texture);
+                var iconBlock = new MaterialPropertyBlock();
+                _iconRenderer.GetPropertyBlock(iconBlock);
+                iconBlock.SetTexture("_BaseMap", icon.texture);
+                _iconRenderer.SetPropertyBlock(iconBlock);
+
                 var c = accentColor;
                 c.a = 1f;
                 _iconTint.Color = c;
