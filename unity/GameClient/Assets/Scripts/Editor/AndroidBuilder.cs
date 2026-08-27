@@ -3,7 +3,11 @@ using UnityEngine;
 
 public static class AndroidBuilder
 {
-    public static void Build()
+    public static void Build() => BuildInternal("Builds/GameClient.apk", BuildOptions.Development | BuildOptions.AllowDebugging);
+
+    public static void BuildRelease() => BuildInternal("Builds/GameClient-release.apk", BuildOptions.None);
+
+    private static void BuildInternal(string outputPath, BuildOptions buildOptions)
     {
         PlayerSettings.SetScriptingBackend(BuildTargetGroup.Android, ScriptingImplementation.IL2CPP);
         PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
@@ -18,9 +22,9 @@ public static class AndroidBuilder
         var options = new BuildPlayerOptions
         {
             scenes = new[] { "Assets/Scenes/Game.unity" },
-            locationPathName = "Builds/GameClient.apk",
+            locationPathName = outputPath,
             target = BuildTarget.Android,
-            options = BuildOptions.Development | BuildOptions.AllowDebugging
+            options = buildOptions
         };
 
         var report = BuildPipeline.BuildPlayer(options);

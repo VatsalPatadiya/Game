@@ -13,6 +13,16 @@ public static class GameSceneBuilder3D
     private static readonly Color BoardGreen = new Color(42f / 255f, 61f / 255f, 48f / 255f, 1f);
     private static readonly Color DarkHudText = new Color(40f / 255f, 46f / 255f, 36f / 255f, 1f);
 
+    // BoardView3D.FitCameraToBoard backs the camera off to ~18 world units
+    // to frame the fixed TurtleShapeBuilder layout (9 cols x 4 rows at
+    // _cellWidth=0.57/_cellHeight=0.85, see BoardView3D's own distance
+    // formula). HUD elements sized in the same tile-comparable world units
+    // (traySlotSize=0.5, button scale=0.45) need to sit at roughly that same
+    // distance from camera to read at the intended scale relative to the
+    // board - placing them at the old distance=6 made them ~3x too large.
+    private const float HudDistance = 18f;
+    private const float PopupDistance = 11f; // closer than HudDistance so the modal reads larger, in front of the board
+
     public static void Build()
     {
         var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
@@ -24,6 +34,16 @@ public static class GameSceneBuilder3D
         camera.clearFlags = CameraClearFlags.SolidColor;
         camera.backgroundColor = BoardGreen;
         cameraGO.tag = "MainCamera";
+        // Editor batch mode has no real display, so Camera.aspect defaults
+        // to some arbitrary (non-portrait) value here. Every
+        // PositionInFrontOfCamera call below bakes a viewport->world
+        // conversion that depends on this aspect - left at the default, any
+        // off-center viewport X (buttons at 0.3/0.7; only dead-center 0.5
+        // elements are aspect-independent) ends up positioned for the wrong
+        // screen shape and lands outside the real device's view frustum.
+        // Pin it to this project's target portrait resolution so the baked
+        // positions match what actually renders on-device.
+        camera.aspect = 1080f / 2340f;
 
         var lightGO = new GameObject("Key Light", typeof(Light));
         var light = lightGO.GetComponent<Light>();
@@ -62,13 +82,13 @@ public static class GameSceneBuilder3D
         var scoreGO = new GameObject("ScoreText", typeof(TextMeshPro), typeof(ScoreDisplay3D));
         var scoreText = scoreGO.GetComponent<TextMeshPro>();
         scoreText.text = "Score: 0";
-        scoreText.color = DarkHudText;
-        scoreText.fontSize = 6f;
+        scoreText.color = Color.white; // floats directly on BoardGreen, unlike titleText/messageText which sit on the light Panel
+        scoreText.fontSize = 1.2f;
         scoreText.alignment = TextAlignmentOptions.Center;
         var scoreDisplay = scoreGO.GetComponent<ScoreDisplay3D>();
         SetField(scoreDisplay, "_scoreText", scoreText);
         SetField(scoreDisplay, "_gameController", gameController);
-        PositionInFrontOfCamera(scoreGO.transform, camera, new Vector2(0.5f, 0.92f), 6f);
+        PositionInFrontOfCamera(scoreGO.transform, camera, new Vector2(0.5f, 0.92f), HudDistance);
 
         // ------------------
         // Control bar (hint/undo/shuffle)
@@ -93,7 +113,7 @@ public static class GameSceneBuilder3D
 
         var trayRootGO = new GameObject("TrayRoot", typeof(TrayView3D));
         var trayView = trayRootGO.GetComponent<TrayView3D>();
-        PositionInFrontOfCamera(trayRootGO.transform, camera, new Vector2(0.5f, 0.8f), 6f);
+        PositionInFrontOfCamera(trayRootGO.transform, camera, new Vector2(0.5f, 0.8f), HudDistance);
 
         var anchors = new Transform[traySlotCount];
         float startX = -(traySlotCount - 1) * traySlotSpacing / 2f;
@@ -115,7 +135,7 @@ public static class GameSceneBuilder3D
         // Game over popup
         // ------------------
         var popupGO = new GameObject("GameOverPopup", typeof(GameOverPopup3D));
-        PositionInFrontOfCamera(popupGO.transform, camera, new Vector2(0.5f, 0.5f), 5f);
+        PositionInFrontOfCamera(popupGO.transform, camera, new Vector2(0.5f, 0.5f), PopupDistance);
 
         var panel = GameObject.CreatePrimitive(PrimitiveType.Cube);
         panel.name = "Panel";
@@ -128,7 +148,7 @@ public static class GameSceneBuilder3D
         titleGO.transform.SetParent(popupGO.transform, false);
         titleGO.transform.localPosition = new Vector3(0f, 0.6f, -0.1f);
         var titleText = titleGO.GetComponent<TextMeshPro>();
-        titleText.fontSize = 8f;
+        titleText.fontSize = 1.1f;
         titleText.alignment = TextAlignmentOptions.Center;
         titleText.color = DarkHudText;
 
@@ -136,7 +156,7 @@ public static class GameSceneBuilder3D
         messageGO.transform.SetParent(popupGO.transform, false);
         messageGO.transform.localPosition = new Vector3(0f, 0.1f, -0.1f);
         var messageText = messageGO.GetComponent<TextMeshPro>();
-        messageText.fontSize = 5f;
+        messageText.fontSize = 0.66f;
         messageText.alignment = TextAlignmentOptions.Center;
         messageText.color = DarkHudText;
 
@@ -154,9 +174,9 @@ public static class GameSceneBuilder3D
         restartTextGO.transform.localPosition = new Vector3(0f, 0f, -0.1f);
         var restartText = restartTextGO.GetComponent<TextMeshPro>();
         restartText.text = "Restart";
-        restartText.fontSize = 5f;
+        restartText.fontSize = 0.66f;
         restartText.alignment = TextAlignmentOptions.Center;
-        restartText.color = Color.white;
+        restartText.color = DarkHudText; // sits on the white cardMaterial restart button face, same contrast issue as the HUD icons/badges
 
         var gameOverPopup = popupGO.GetComponent<GameOverPopup3D>();
         SetField(gameOverPopup, "restartButton", restartButton);
@@ -174,11 +194,16 @@ public static class GameSceneBuilder3D
     // Places an element at a fixed viewport position, a fixed distance in
     // front of the camera - the 3D-scene replacement for the 2D Canvas's
     // screen-anchored RectTransforms, so HUD elements stay in the same
-    // screen location regardless of board size/camera distance.
+    // screen location regardless of board size/camera distance. Parented to
+    // the camera so it stays true after BoardView3D.FitCameraToBoard moves
+    // the camera at runtime (Build() only positions relative to the camera's
+    // build-time pose at the world origin - without parenting, a runtime
+    // camera move leaves every HUD element behind, out of registration).
     private static void PositionInFrontOfCamera(Transform target, Camera camera, Vector2 viewportPos, float distance)
     {
         target.position = camera.ViewportToWorldPoint(new Vector3(viewportPos.x, viewportPos.y, distance));
         target.rotation = camera.transform.rotation;
+        target.SetParent(camera.transform, true);
     }
 
     private static void CreateHudButton3D(
@@ -188,7 +213,7 @@ public static class GameSceneBuilder3D
         var buttonGO = GameObject.CreatePrimitive(PrimitiveType.Cube);
         buttonGO.name = hudComponentType.Name;
         buttonGO.transform.localScale = new Vector3(0.45f, 0.45f, 0.15f);
-        PositionInFrontOfCamera(buttonGO.transform, camera, viewportPos, 6f);
+        PositionInFrontOfCamera(buttonGO.transform, camera, viewportPos, HudDistance);
         buttonGO.GetComponent<MeshRenderer>().sharedMaterial = cardMaterial;
 
         var pressButton = buttonGO.AddComponent<PressScaleButton3D>();
@@ -203,6 +228,15 @@ public static class GameSceneBuilder3D
         var iconMaterial = new Material(Shader.Find("Universal Render Pipeline/Lit"));
         URPMaterialUtil.SetTransparent(iconMaterial);
         iconMaterial.SetTexture("_BaseMap", iconSprite.texture);
+        iconMaterial.SetColor("_BaseColor", DarkHudText); // the glyph pixels are opaque white with alpha shaping - untinted, they're invisible against the white button face. ControlButtonUsesDisplay3D seeds its MeshRendererTint with the same color so this doesn't get reset to white on the first SetRemaining() call.
+        // Must be saved as a real asset, like TileMeshGenerator's TileIcon.mat -
+        // a transparent material that only ever exists embedded in the scene
+        // (never an AssetDatabase asset) renders its alpha-cutout shape as a
+        // solid opaque quad on-device, even though it looks correct in the
+        // Editor (confirmed by comparison: TileIcon.mat's glyphs render fine,
+        // this one didn't until saved the same way).
+        Directory.CreateDirectory("Assets/Materials");
+        AssetDatabase.CreateAsset(iconMaterial, "Assets/Materials/HudIcon_" + hudComponentType.Name + ".mat");
         iconGO.GetComponent<MeshRenderer>().material = iconMaterial;
 
         var badgeGO = new GameObject("BadgeText", typeof(TextMeshPro));
@@ -210,8 +244,8 @@ public static class GameSceneBuilder3D
         badgeGO.transform.localPosition = new Vector3(0.35f, 0.35f, -0.7f);
         var badgeText = badgeGO.GetComponent<TextMeshPro>();
         badgeText.text = "3";
-        badgeText.fontSize = 3f;
-        badgeText.color = Color.white;
+        badgeText.fontSize = 0.6f;
+        badgeText.color = DarkHudText; // sits directly on the white button face, same as the icon - white text there is invisible
         badgeText.alignment = TextAlignmentOptions.Center;
 
         var usesDisplay = buttonGO.AddComponent<ControlButtonUsesDisplay3D>();
@@ -247,6 +281,11 @@ public static class GameSceneBuilder3D
         iconGO.transform.localScale = Vector3.one * size * CardStyle.IconSizeRatio;
         var iconMaterial = new Material(Shader.Find("Universal Render Pipeline/Lit"));
         URPMaterialUtil.SetTransparent(iconMaterial);
+        // Saved as a real asset for the same reason as HudIcon_*.mat above -
+        // an embedded-only transparent material renders its alpha cutout as a
+        // solid opaque quad on-device.
+        Directory.CreateDirectory("Assets/Materials");
+        AssetDatabase.CreateAsset(iconMaterial, "Assets/Materials/TrayIcon.mat");
         iconGO.GetComponent<MeshRenderer>().material = iconMaterial;
         iconGO.SetActive(false); // TraySlotView3D.SetEmpty() keeps it disabled until a tile fills the slot
 

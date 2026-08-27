@@ -37,12 +37,12 @@ namespace GameClient.Presentation.Board
         private readonly MaterialPropertyBlock _block;
         private Color _color;
 
-        public MeshRendererTint(MeshRenderer renderer, string colorProperty = "_BaseColor")
+        public MeshRendererTint(MeshRenderer renderer, string colorProperty = "_BaseColor", Color? initialColor = null)
         {
             _renderer = renderer;
             _colorProperty = colorProperty;
             _block = new MaterialPropertyBlock();
-            _color = Color.white;
+            _color = initialColor ?? Color.white;
         }
 
         public Color Color
