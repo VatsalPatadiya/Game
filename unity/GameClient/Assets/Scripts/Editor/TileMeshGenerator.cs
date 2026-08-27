@@ -27,8 +27,6 @@ public static class TileMeshGenerator
             throw new System.Exception("TILE_MESH_GENERATOR_MISSING_MATERIAL: run CardMaterialGenerator first");
         bodyRenderer.sharedMaterial = cardMaterial;
 
-        var collider = body.AddComponent<BoxCollider>();
-
         var iconGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
         iconGO.name = "Icon";
         iconGO.transform.SetParent(root.transform, false);
@@ -40,9 +38,18 @@ public static class TileMeshGenerator
         var iconMaterial = new Material(iconShader);
         URPMaterialUtil.SetTransparent(iconMaterial); // so the icon sprite's alpha shows the card body behind it
         iconMaterial.SetFloat("_Smoothness", 0f);
-        iconRenderer.material = iconMaterial;
+        System.IO.Directory.CreateDirectory("Assets/Materials");
+        AssetDatabase.CreateAsset(iconMaterial, "Assets/Materials/TileIcon.mat");
+        iconRenderer.sharedMaterial = iconMaterial;
 
-        var tileView = root.AddComponent<TileView3D>();
+        var tileView = root.AddComponent<TileView3D>(); // auto-adds a BoxCollider to root via [RequireComponent]
+        var collider = root.GetComponent<BoxCollider>();
+        collider.size = new Vector3(
+            CardStyle.CardSizeRatio * CardStyle.CardAspectRatio,
+            CardStyle.CardSizeRatio,
+            CardThickness);
+        collider.center = Vector3.zero;
+
         var serialized = new SerializedObject(tileView);
         serialized.FindProperty("_bodyRenderer").objectReferenceValue = bodyRenderer;
         serialized.FindProperty("_bodyCollider").objectReferenceValue = collider;
