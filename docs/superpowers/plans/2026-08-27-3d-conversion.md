@@ -185,8 +185,13 @@ public static class CardNormalMapGenerator
                 // Only bevel a thin band just inside the edge (dist in
                 // [-BevelWidth, 0]); flat everywhere else (interior face,
                 // and outside the shape where alpha will be 0 anyway).
+                // bevelT is 1 at the true edge (dist=0), ramping to 0 over
+                // BevelWidth as you move inward - so slope must scale WITH
+                // bevelT, not against it (an earlier (1f-bevelT) version
+                // inverted this, beveling the whole interior instead of the
+                // edge - caught in SDD Task 2 review).
                 float bevelT = Mathf.Clamp01((dist + BevelWidth) / BevelWidth);
-                float slope = (1f - bevelT) * BevelStrength;
+                float slope = bevelT * BevelStrength;
 
                 var normal = new Vector3(-gradX * slope, -gradY * slope, 1f).normalized;
                 var encoded = new Color(
