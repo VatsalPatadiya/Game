@@ -45,9 +45,14 @@ namespace GameDomain.Gameplay
             return true;
         }
 
+        // Match size for a tray clear. 2 = pair match: two identical tiles in the
+        // 4-slot tray clear together; a tray full of distinct tiles is a loss.
+        public const int MatchSize = 2;
+
         private static void CheckForMatches(BoardState board)
         {
-            // We look for any 2 tiles in the tray with the same value
+            // Group tray tiles by value and clear the first group that reaches
+            // MatchSize identical tiles.
             var valueToSlotIds = new Dictionary<string, List<string>>();
             foreach (var id in board.TrayTileIds)
             {
@@ -62,26 +67,28 @@ namespace GameDomain.Gameplay
 
             foreach (var kv in valueToSlotIds)
             {
-                if (kv.Value.Count >= 2)
+                if (kv.Value.Count >= MatchSize)
                 {
-                    // Found a match!
-                    string id1 = kv.Value[0];
-                    string id2 = kv.Value[1];
+                    var matched = kv.Value.GetRange(0, MatchSize);
 
-                    board.TrayTileIds.Remove(id1);
-                    board.TrayTileIds.Remove(id2);
-                    board.Cells[id1].Cleared = true;
-                    board.Cells[id2].Cleared = true;
+                    foreach (var id in matched)
+                    {
+                        board.TrayTileIds.Remove(id);
+                        board.Cells[id].Cleared = true;
+                    }
 
                     board.MoveHistory.Add(new Move
                     {
-                        SlotIdA = id1,
-                        SlotIdB = id2,
+                        // First two ids/value keep the legacy pair fields valid for
+                        // the pair-based ShuffleService/UndoStack (deferred powerups).
+                        SlotIdA = matched[0],
+                        SlotIdB = matched[1],
                         ValueA = kv.Key,
-                        ValueB = kv.Key
+                        ValueB = kv.Key,
+                        ClearedSlotIds = matched,
+                        Value = kv.Key
                     });
 
-                    // Add score points (simple calculation)
                     board.Score += 100;
                     break; // Only process one match per push
                 }

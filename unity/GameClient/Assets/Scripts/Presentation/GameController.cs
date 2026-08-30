@@ -33,8 +33,6 @@ namespace GameClient.Presentation
         private BoardState _board;
         private List<TileSlot> _shape;
         private Dictionary<string, TileSlot> _slotsById;
-        private readonly ComboScorer _comboScorer = new ComboScorer();
-
         public event Action<int, int> ScoreChanged;
         public event Action<int, int, int> UsesChanged;
 
@@ -81,11 +79,15 @@ namespace GameClient.Presentation
                 TileSetId = "default"
             };
 
+            // Pair-match tray: values come in pairs so two identical tiles collected
+            // in the tray clear together (a triple board would strand a leftover).
             _board = BoardGenerator.Generate(level, new System.Random());
             _lastMatchTime = null;
 
+            // The tray holds tapped tiles until 2 identical ones collect and clear.
+            // Slot count matches the board's MaxTraySize (4).
             if (_trayView != null)
-                _trayView.Initialize(4); // 4 slots
+                _trayView.Initialize(_board.MaxTraySize);
 
             IsInputLocked = true;
             _boardView.Build(_board, _slotsById, animateDealIn: true, onDealInComplete: () => IsInputLocked = false);
@@ -94,141 +96,98 @@ namespace GameClient.Presentation
             NotifyUsesChanged();
         }
 
+        // Tray triple-match: tap a FREE tile to send it flying up into the tray.
+        // Collect 3 identical tiles in the tray and they clear together. If the
+        // tray fills without a completable triple, it's game over.
         public void OnTileTapped(string slotId)
         {
-            if (_board.IsGameOver) return;
             if (IsInputLocked) return;
+            if (_board.IsGameOver) return;
+            if (_board.Cells.Values.All(c => c.Cleared)) return;
 
-            // Compute remaining tiles (not cleared and not in tray)
-            var remaining = new HashSet<string>(
-                _board.Cells.Where(kv => !kv.Value.Cleared && !_board.TrayTileIds.Contains(kv.Key)).Select(kv => kv.Key));
+            var oldTray = new List<string>(_board.TrayTileIds);
 
-            if (!FreedomRuleCalculator.IsFree(_slotsById[slotId], remaining))
+            // TrayManager runs the freedom check itself (excluding tray tiles) and
+            // rejects covered tiles, a full tray, or an already-collected tile.
+            if (!TrayManager.TryPushToTray(_board, _slotsById, slotId))
             {
                 _boardView.GetTileView(slotId)?.PlayShake();
                 return;
             }
 
-            StartCoroutine(TapToTrayRoutine(slotId));
+            var newTray = new List<string>(_board.TrayTileIds);
+            StartCoroutine(AnimateTapToTray(slotId, oldTray, newTray));
         }
 
-        // Tap-confirm flash + quick scale-down-fade on the board tile (at its
-        // own position - see TileView.PlayTapAway) while the tray slot pops
-        // in concurrently - replaces the round-2 cross-screen flying-proxy,
-        // which footage showed doesn't match how fast the real transition
-        // reads (well under 150ms, no catchable in-transit frame). The
-        // domain push still only runs *after* that settles, so
-        // TrayManager.TryPushToTray is called exactly once, just later than
-        // an instant tap would.
-        private IEnumerator TapToTrayRoutine(string slotId)
+        private IEnumerator AnimateTapToTray(string slotId, List<string> oldTray, List<string> newTray)
         {
             IsInputLocked = true;
 
-            var tileView = _boardView.GetTileView(slotId);
-            string value = _board.Cells[slotId].Value;
+            var value = _board.Cells[slotId].Value;
             var foodModel = TileVisual.FoodModelFor(_boardView.TileSet, value);
-            var oldTrayIds = new List<string>(_board.TrayTileIds);
-            int targetIndex = oldTrayIds.Count;
 
-            bool tileAwayDone = false;
-            tileView?.PlayTapAway(() => tileAwayDone = true);
-            _trayView.PlayArrivalPopIn(targetIndex, foodModel);
+            var tileView = _boardView.GetTileView(slotId);
+            Vector3 startPos = tileView != null
+                ? tileView.transform.position
+                : _trayView.GetSlotWorldPosition(0);
 
-            yield return new WaitUntil(() => tileAwayDone || tileView == null);
-
-            bool pushed = TrayManager.TryPushToTray(_board, _slotsById, slotId);
-            if (!pushed)
-            {
-                // Shouldn't happen given the pre-check and the input lock
-                // (nothing else can mutate the board mid-flight), but recover
-                // gracefully rather than leaving the tile permanently invisible.
-                tileView?.PlayFadeInOnly();
-                IsInputLocked = false;
-                yield break;
-            }
-
+            // The tile now lives in the tray (domain-side), so take it off the board.
             _boardView.RemoveTileInstant(slotId);
 
-            bool matched = _board.TrayTileIds.Count < oldTrayIds.Count + 1;
-            if (matched && _matchCelebration != null)
+            // Fly a card from the board up to the slot it landed in.
+            int landingIndex = oldTray.Count;
+            var flight = _trayView.SpawnFlightCard(foodModel, startPos);
+            Vector3 slotPos = _trayView.GetSlotWorldPosition(landingIndex);
+            yield return CardAnimator.MoveTransform(flight.transform, startPos, slotPos, 0.22f);
+            Destroy(flight);
+            _trayView.PlayArrivalPopIn(landingIndex, foodModel);
+
+            // A triple cleared if the tray ended up shorter than "old + this one".
+            bool matched = newTray.Count < oldTray.Count + 1;
+            if (matched)
             {
-                var now = DateTime.UtcNow;
-                bool isCombo = _lastMatchTime.HasValue && (now - _lastMatchTime.Value).TotalSeconds <= ComboWindowSeconds;
-                _lastMatchTime = now;
-                _matchCelebration.PlayMatchCelebration(_trayView.GetSlotWorldPosition(targetIndex), isCombo);
+                if (_matchCelebration != null)
+                {
+                    var now = DateTime.UtcNow;
+                    bool isCombo = _lastMatchTime.HasValue && (now - _lastMatchTime.Value).TotalSeconds <= ComboWindowSeconds;
+                    _lastMatchTime = now;
+                    _matchCelebration.PlayMatchCelebration(slotPos, isCombo);
+                }
+                yield return _trayView.ResolveAfterPush(oldTray, slotId, newTray, _board);
             }
 
-            yield return _trayView.ResolveAfterPush(oldTrayIds, slotId, _board.TrayTileIds, _board);
-
-            _boardView.RefreshFreeStates(_board);
+            _boardView.RefreshFreeStates(_board); // newly-uncovered tiles brighten
             ScoreChanged?.Invoke(_board.Score, _board.ComboCount);
 
-            CheckEndOfLevel();
+            EvaluateEndState();
 
             IsInputLocked = false;
         }
 
-        private void CheckEndOfLevel()
+        private void EvaluateEndState()
         {
             if (_board.Cells.Values.All(c => c.Cleared))
             {
-                if (_gameOverPopup != null)
-                    _gameOverPopup.ShowWin(this, _board.Score);
+                _gameOverPopup?.ShowWin(this, _board.Score);
+                return;
             }
-            else if (_board.IsGameOver)
-            {
-                if (_gameOverPopup != null)
-                    _gameOverPopup.ShowStuck(this);
-            }
+
+            // Lose when the tray is full, or when every remaining tile is already in
+            // the tray (stranded - nothing left on the board to complete a triple).
+            bool anyOnBoard = _board.Cells.Any(kv => !kv.Value.Cleared && !_board.TrayTileIds.Contains(kv.Key));
+            if (_board.IsGameOver || !anyOnBoard)
+                _gameOverPopup?.ShowLose(this);
         }
 
-        public void OnHintRequested()
-        {
-            if (IsInputLocked) return;
-            if (_board.HintsRemaining <= 0) return;
+        // Powerups are deferred for the tray triple-match conversion: the old
+        // implementations were pair-based (HintFinder.FindFreePair,
+        // UndoStack/ShuffleService assume 2-of-a-kind). Left inert so the buttons
+        // do nothing until they're re-adapted to the tray mechanic.
+        public void OnHintRequested() { }
 
-            var hint = HintFinder.FindFreePair(_board, _slotsById);
-            if (!hint.HasValue) return;
+        public void OnUndoRequested() { }
 
-            _board.HintsRemaining -= 1;
-
-            // Hint shouldn't use highlight anymore if tiles move to tray directly,
-            // or maybe it highlights a free tile on the board that matches something in the tray?
-            // For now, let's just highlight a free pair on the board.
-            _boardView.GetTileView(hint.Value.slotIdA)?.Highlight();
-            _boardView.GetTileView(hint.Value.slotIdB)?.Highlight();
-            NotifyUsesChanged();
-        }
-
-        public void OnUndoRequested()
-        {
-            if (IsInputLocked) return;
-
-            if (UndoStack.TryUndo(_board))
-            {
-                _boardView.Build(_board, _slotsById, animateDealIn: false);
-                ScoreChanged?.Invoke(_board.Score, _board.ComboCount);
-                NotifyUsesChanged();
-            }
-        }
-
-        public void OnShuffleRequested()
-        {
-            if (IsInputLocked) return;
-
-            try
-            {
-                if (ShuffleService.Shuffle(_board, _shape, new System.Random()))
-                {
-                    _boardView.Build(_board, _slotsById, animateDealIn: false);
-                    NotifyUsesChanged();
-                }
-            }
-            catch (BoardGenerationException ex)
-            {
-                Debug.LogWarning("Shuffle could not find a solvable arrangement, board left unchanged: " + ex.Message);
-            }
-        }
+        public void OnShuffleRequested() { }
 
         private void NotifyUsesChanged()
         {

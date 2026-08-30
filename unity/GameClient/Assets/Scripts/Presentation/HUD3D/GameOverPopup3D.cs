@@ -33,6 +33,14 @@ namespace GameClient.Presentation.HUD3D
             gameObject.SetActive(true);
         }
 
+        public void ShowLose(GameController controller)
+        {
+            _gameController = controller;
+            if (titleText != null) titleText.text = "Tray full!";
+            if (messageText != null) messageText.text = "No more matches possible. Try again!";
+            gameObject.SetActive(true);
+        }
+
         public void Hide()
         {
             gameObject.SetActive(false);

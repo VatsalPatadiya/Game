@@ -59,15 +59,16 @@ namespace GameClient.Presentation.HUD3D
             if (newTrayIds.Count == beforePush.Count)
                 yield break;
 
+            // Any number of matched tiles clear together (3 for a triple match).
             var matchedIds = beforePush.Except(newTrayIds).ToList();
-            int firstIndex = beforePush.IndexOf(matchedIds[0]);
-            int secondIndex = beforePush.IndexOf(matchedIds[1]);
+            int clearedCount = 0;
+            foreach (var id in matchedIds)
+            {
+                int index = beforePush.IndexOf(id);
+                _slots[index].PlayHighlightThenClear(() => clearedCount++);
+            }
 
-            bool clearedFirst = false, clearedSecond = false;
-            _slots[firstIndex].PlayHighlightThenClear(() => clearedFirst = true);
-            _slots[secondIndex].PlayHighlightThenClear(() => clearedSecond = true);
-
-            yield return new WaitUntil(() => clearedFirst && clearedSecond);
+            yield return new WaitUntil(() => clearedCount >= matchedIds.Count);
 
             var reflowRoutines = new List<Coroutine>();
             for (int newIndex = 0; newIndex < newTrayIds.Count; newIndex++)

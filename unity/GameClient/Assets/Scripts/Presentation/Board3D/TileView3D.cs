@@ -11,7 +11,7 @@ namespace GameClient.Presentation.Board3D
         [SerializeField] private BoxCollider _bodyCollider;
         [SerializeField] private Transform _foodAnchor;
         [SerializeField] private Color _freeCardColor = new Color(0.969f, 0.957f, 0.922f, 1f);
-        [SerializeField] private Color _blockedCardColor = new Color(0.62f, 0.63f, 0.58f, 1f);
+        [SerializeField] private Color _blockedCardColor = new Color(0.48f, 0.50f, 0.46f, 1f); // clearly darker than the ivory free tile so covered (non-tappable) tiles read as unavailable at a glance
         [SerializeField] private Color _highlightEmission = new Color(1f, 0.85f, 0.2f, 1f);
 
         private const float DragLiftDistance = 1.5f; // pulled toward the camera, in front of every layer
@@ -85,6 +85,17 @@ namespace GameClient.Presentation.Board3D
         public void Highlight()
         {
             _emissionTint.Color = _highlightEmission;
+        }
+
+        private const float SelectLift = 0.35f; // toward the camera, so a picked tile pops forward
+
+        // No-tray mahjong selection feedback: glow + a small forward lift.
+        public void SetSelected(bool selected)
+        {
+            _emissionTint.Color = selected ? _highlightEmission : Color.black;
+            transform.localPosition = selected
+                ? _originalLocalPos + new Vector3(0f, 0f, -SelectLift)
+                : _originalLocalPos;
         }
 
         public void PlayDealIn(float delaySeconds, System.Action onComplete)

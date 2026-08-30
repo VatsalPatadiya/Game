@@ -200,7 +200,7 @@ public static class GameSceneBuilder3D
         // ------------------
         // Tray - row of fixed 3D slots in front of the board
         // ------------------
-        const int traySlotCount = 4;
+        const int traySlotCount = 4;    // pair-match tray: 4 slots (matches BoardState.MaxTraySize)
         const float traySlotSize = 0.65f;
         const float traySlotSpacing = 0.72f;
 
@@ -416,11 +416,22 @@ public static class GameSceneBuilder3D
         var foodAnchorGO = new GameObject("FoodAnchor");
         foodAnchorGO.transform.SetParent(content.transform, false);
         foodAnchorGO.transform.localPosition = new Vector3(0f, 0f, -0.08f);
+        // Bold symbol filling the tray tile (default scale 1 read tiny/faint on the
+        // ivory face); board tiles use ~2.0, tray tiles are smaller so ~1.6 fills them.
+        foodAnchorGO.transform.localScale = Vector3.one * 1.6f;
+
+        // Filled slots swap to the ivory tile face so a collected tile looks like a
+        // real white tile in the tray (matches the reference); empty slots keep the
+        // dark recess (cardMaterial).
+        var tileFaceMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/TileBody.mat");
+        RequireNotNull(tileFaceMaterial, "Assets/Materials/TileBody.mat (run TileMaterialGenerator first)");
 
         var slotView = root.AddComponent<TraySlotView3D>();
         SetField(slotView, "_content", content.transform);
         SetField(slotView, "_bodyRenderer", body.GetComponent<MeshRenderer>());
         SetField(slotView, "_foodAnchor", foodAnchorGO.transform);
+        SetField(slotView, "_emptyMaterial", cardMaterial);
+        SetField(slotView, "_filledMaterial", tileFaceMaterial);
 
         Directory.CreateDirectory("Assets/Prefabs");
         var prefab = PrefabUtility.SaveAsPrefabAsset(root, "Assets/Prefabs/TraySlot3D.prefab");

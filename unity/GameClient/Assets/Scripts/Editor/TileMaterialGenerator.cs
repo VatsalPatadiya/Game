@@ -16,13 +16,16 @@ public static class TileMaterialGenerator
         Directory.CreateDirectory("Assets/Materials");
 
         // Portrait texture matching the tile aspect (CardAspectRatio = width/height)
-        // so the jade frame is a uniform inset all round. Frame values match the
-        // approved mock (fractions of tile WIDTH): padding 0.055, stroke 0.022,
-        // corner 0.11.
+        // so the jade edge is a uniform stroke all round. The reference mahjong
+        // tiles have a CLEAN ivory face with the jade sitting right at the tile
+        // perimeter (a thin edge line), NOT an inset picture-frame - so pull the
+        // frame padding out to the very edge and thin the stroke. Fractions of
+        // tile WIDTH: padding 0.012 (hugs the edge), stroke 0.016 (thin), corner
+        // 0.15 (follows the rounded tile silhouette).
         const int texW = 512;
         int texH = Mathf.RoundToInt(texW / CardStyle.CardAspectRatio);
         var tex = TileFaceTexture.Build(texW, texH, IvoryTop, IvoryBottom, Jade,
-            framePadding: 0.055f, frameThickness: 0.022f, cornerRadius: 0.11f);
+            framePadding: 0.012f, frameThickness: 0.016f, cornerRadius: 0.15f);
         File.WriteAllBytes("Assets/Textures/TileFace.png", tex.EncodeToPNG());
         Object.DestroyImmediate(tex);
         AssetDatabase.ImportAsset("Assets/Textures/TileFace.png");
@@ -84,7 +87,7 @@ public static class TileMaterialGenerator
             float d = Mathf.Sqrt(qx * qx + qy * qy) - 0.16f; // rounded-rect SDF, <0 inside
             float t = Mathf.Clamp01((d + 0.14f) / 0.20f);    // 0 well inside -> 1 outside, soft band
             t = t * t * (3f - 2f * t);
-            float a = 0.42f * (1f - t);
+            float a = 0.28f * (1f - t); // softened: with the dense straddle many tile shadows overlap, so a lighter per-tile shadow keeps the pile from muddying
             shTex.SetPixel(x, y, new Color(0f, 0f, 0f, Mathf.Clamp01(a)));
         }
         shTex.Apply(updateMipmaps: true);

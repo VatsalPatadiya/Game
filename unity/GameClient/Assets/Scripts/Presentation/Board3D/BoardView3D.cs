@@ -18,11 +18,16 @@ namespace GameClient.Presentation.Board3D
         [SerializeField] private TileView3D _tilePrefab;
         [SerializeField] private TileSetAsset _tileSet;
         [SerializeField] private Camera _camera;
-        [SerializeField] private float _cellWidth = 0.64f;
-        [SerializeField] private float _cellHeight = 0.95f;
-        [SerializeField] private float _layerHeight = 0.22f; // real Z step per layer
+        // Slot X/Y are in HALF-tile units (see TurtleShapeBuilder), so a cell here
+        // is HALF a tile: same-layer tiles (step 2) land one full tile apart
+        // (packed), and half-tile-offset layers (step 1) land half a tile over -
+        // the real mahjong straddle. Tile is ~0.626w x 0.92h, so half = 0.313 x 0.46.
+        [SerializeField] private float _cellWidth = 0.313f;
+        [SerializeField] private float _cellHeight = 0.46f;
+        [SerializeField] private float _layerHeight = 0.28f; // real Z step per layer (stacked layers read as depth via the straddle + shadow + tilt)
+        [SerializeField] private float _layerStraddle = 0f;  // NO fake render offset: the half-tile straddle now lives in the slot coordinates, so rendered overlap == domain coverage (a tile that looks covered really is covered/non-free)
         [SerializeField] private float _cameraMargin = 0.3f; // leaves felt margins top/bottom for the HUD, tiles still large (0.02 filled the whole screen and hid the HUD)
-        [SerializeField] private float _cameraTiltDegrees = 6f; // near front-on to match the flat mock; depth now comes from the per-tile drop shadow, not camera parallax (was 30, which skewed the board into a parallelogram)
+        [SerializeField] private float _cameraTiltDegrees = 14f; // pitch so the stacked layers read as 3D depth (30 skewed the board into a parallelogram)
         [SerializeField] private float _tiltDistancePadding = 1.05f; // barely-tilted view needs almost no extra distance (was 1.35 for the 30-degree pitch)
         [SerializeField] private float _tileJitterAmount = 0f; // clean aligned grid (premium mahjong look); was 0.07 loose-pile scatter
         [SerializeField] private float _tileRotationJitterDegrees = 0f;
@@ -79,9 +84,10 @@ namespace GameClient.Presentation.Board3D
                 var slot = slotsById[kv.Key];
                 var view = Instantiate(_tilePrefab, transform);
                 var jitter = JitterFor(slot.Id);
+                var layerOffset = LayerRenderOffset(slot.Layer);
                 view.transform.localPosition = new Vector3(
-                    slot.X * _cellWidth + jitter.x,
-                    slot.Y * _cellHeight + jitter.y,
+                    slot.X * _cellWidth + jitter.x + layerOffset.x,
+                    slot.Y * _cellHeight + jitter.y + layerOffset.y,
                     -slot.Layer * _layerHeight);
                 view.transform.localRotation = Quaternion.Euler(0f, 0f, jitter.z);
                 view.Initialize(slot.Id, slot.Layer, TileVisual.FoodModelFor(_tileSet, kv.Value.Value));
@@ -119,9 +125,18 @@ namespace GameClient.Presentation.Board3D
             float maxX = slotsById.Values.Max(s => s.X);
             float minY = slotsById.Values.Min(s => s.Y);
             float maxY = slotsById.Values.Max(s => s.Y);
+            int maxLayer = slotsById.Values.Max(s => s.Layer);
 
-            float boardWidth = (maxX - minX) * _cellWidth + _cellWidth + _cameraMargin * 2f;
-            float boardHeight = (maxY - minY) * _cellHeight + _cellHeight + _cameraMargin * 2f;
+            // Upper layers shift up-left by LayerRenderOffset, so the fitted box has
+            // to grow on those two sides (and its centre shifts half that) or the
+            // topmost tiles clip past the felt / behind the HUD.
+            float offX = maxLayer * _layerStraddle * _cellWidth;  // extra extent to the left
+            float offY = maxLayer * _layerStraddle * _cellHeight; // extra extent up
+
+            // A tile footprint is 2 half-units, so pad by a whole tile (2 cells) on
+            // top of the centre-to-centre span.
+            float boardWidth = (maxX - minX) * _cellWidth + 2f * _cellWidth + offX + _cameraMargin * 2f;
+            float boardHeight = (maxY - minY) * _cellHeight + 2f * _cellHeight + offY + _cameraMargin * 2f;
 
             float aspect = Screen.height > 0 ? (float)Screen.width / Screen.height : 0.5f;
             float verticalFovRad = _camera.fieldOfView * Mathf.Deg2Rad;
@@ -132,8 +147,8 @@ namespace GameClient.Presentation.Board3D
 
             float distance = Mathf.Max(distanceForHeight, distanceForWidth) * _tiltDistancePadding;
 
-            float centerX = (minX + maxX) / 2f * _cellWidth;
-            float centerY = (minY + maxY) / 2f * _cellHeight;
+            float centerX = (minX + maxX) / 2f * _cellWidth - offX / 2f;
+            float centerY = (minY + maxY) / 2f * _cellHeight + offY / 2f;
             var boardCenter = new Vector3(centerX, centerY, 0f);
 
             var rotation = Quaternion.Euler(_cameraTiltDegrees, 0f, 0f);
@@ -145,6 +160,14 @@ namespace GameClient.Presentation.Board3D
         // slot ID so it's stable across rebuilds of the same board - purely a
         // rendering offset, doesn't touch the domain-layer slot.X/Y that
         // drive matching/freedom-rule logic.
+        // Screen-space shift applied to a whole layer so upper layers sit up-left
+        // of the ones they cover (the stacked-pyramid straddle look). Purely a
+        // rendering offset - the domain slot.X/Y/Layer that drive matching and the
+        // freedom rule are untouched.
+        private Vector2 LayerRenderOffset(int layer) => new Vector2(
+            -layer * _layerStraddle * _cellWidth,
+             layer * _layerStraddle * _cellHeight);
+
         private Vector3 JitterFor(string slotId)
         {
             int hash = slotId.GetHashCode();
@@ -157,8 +180,14 @@ namespace GameClient.Presentation.Board3D
 
         public void RefreshFreeStates(BoardState board)
         {
+            // Tiles sitting in the tray are physically off the board, so they must
+            // NOT count as covering the tiles beneath them - exclude them exactly
+            // like TrayManager's own freedom check does, or uncovered tiles won't
+            // brighten after a tile flies up.
             var remaining = new HashSet<string>(
-                board.Cells.Where(kv => !kv.Value.Cleared).Select(kv => kv.Key));
+                board.Cells
+                    .Where(kv => !kv.Value.Cleared && !board.TrayTileIds.Contains(kv.Key))
+                    .Select(kv => kv.Key));
 
             foreach (var kv in _tileViews)
             {

@@ -73,7 +73,7 @@ MonoBehaviour:
   _bodyCollider: {fileID: 5567145662034241304}
   _foodAnchor: {fileID: 7696083228766261864}
   _freeCardColor: {r: 0.969, g: 0.957, b: 0.922, a: 1}
-  _blockedCardColor: {r: 0.62, g: 0.63, b: 0.58, a: 1}
+  _blockedCardColor: {r: 0.48, g: 0.5, b: 0.46, a: 1}
   _highlightEmission: {r: 1, g: 0.85, b: 0.2, a: 1}
 --- !u!1 &2450599630809543362
 GameObject:
@@ -191,7 +191,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: -0.11}
-  m_LocalScale: {x: 1.8, y: 1.8, z: 1.8}
+  m_LocalScale: {x: 2, y: 2, z: 2}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 610501431035816570}

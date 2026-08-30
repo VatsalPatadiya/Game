@@ -26,7 +26,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: -0.08}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 1.6, y: 1.6, z: 1.6}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 83196479091661088}
@@ -170,6 +170,8 @@ MonoBehaviour:
   _bodyRenderer: {fileID: 124867908574503313}
   _foodAnchor: {fileID: 3841944412623136726}
   _highlightEmission: {r: 1, g: 0.85, b: 0.2, a: 1}
+  _emptyMaterial: {fileID: 2100000, guid: 184e386bd12154a15b3ee10c28d87166, type: 2}
+  _filledMaterial: {fileID: 2100000, guid: 0c36938ace3cc40ffb856021a2612e9f, type: 2}
 --- !u!1 &8943654531387973699
 GameObject:
   m_ObjectHideFlags: 0

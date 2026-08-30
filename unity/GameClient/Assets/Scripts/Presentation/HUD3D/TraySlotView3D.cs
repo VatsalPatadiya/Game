@@ -10,6 +10,11 @@ namespace GameClient.Presentation.HUD3D
         [SerializeField] private MeshRenderer _bodyRenderer;
         [SerializeField] private Transform _foodAnchor;
         [SerializeField] private Color _highlightEmission = new Color(1f, 0.85f, 0.2f, 1f);
+        // Empty slot shows the dark wood recess; a filled slot swaps to the ivory
+        // tile face so a collected tile reads as a real white tile (like the
+        // reference), not a symbol floating on wood.
+        [SerializeField] private Material _emptyMaterial;
+        [SerializeField] private Material _filledMaterial;
 
         private MeshRendererTint _bodyTint;
         private MeshRendererTint[] _iconTints = new MeshRendererTint[0];
@@ -26,6 +31,8 @@ namespace GameClient.Presentation.HUD3D
         public void SetEmpty()
         {
             _emissionTint.Color = Color.black;
+            if (_emptyMaterial != null && _bodyRenderer != null)
+                _bodyRenderer.sharedMaterial = _emptyMaterial; // dark recess look
             if (_foodAnchor != null)
             {
                 for (int i = _foodAnchor.childCount - 1; i >= 0; i--)
@@ -37,6 +44,9 @@ namespace GameClient.Presentation.HUD3D
         public void SetFilled(GameObject foodModelPrefab)
         {
             _emissionTint.Color = Color.black;
+            if (_filledMaterial != null && _bodyRenderer != null)
+                _bodyRenderer.sharedMaterial = _filledMaterial; // ivory tile face
+            _bodyTint.Color = Color.white; // clear any leftover fade from a prior clear animation
             if (_foodAnchor == null || foodModelPrefab == null) return;
 
             for (int i = _foodAnchor.childCount - 1; i >= 0; i--)

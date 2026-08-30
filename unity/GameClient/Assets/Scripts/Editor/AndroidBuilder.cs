@@ -5,6 +5,16 @@ public static class AndroidBuilder
 {
     public static void Build() => BuildInternal("Builds/GameClient.apk", BuildOptions.Development | BuildOptions.AllowDebugging);
 
+    // Regenerate every code-generated asset (tile material/mesh, symbols, felt,
+    // wood UI) AND rebuild the scene from GameSceneBuilder3D so BoardView3D's
+    // updated layout defaults take effect, then build the debug APK - all in one
+    // batchmode -executeMethod (Unity runs only one per invocation).
+    public static void RegenerateAndBuild()
+    {
+        RegenerateAll.Run();
+        Build();
+    }
+
     public static void BuildRelease() => BuildInternal("Builds/GameClient-release.apk", BuildOptions.None);
 
     private static void BuildInternal(string outputPath, BuildOptions buildOptions)

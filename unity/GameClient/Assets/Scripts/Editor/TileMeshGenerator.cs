@@ -46,7 +46,7 @@ public static class TileMeshGenerator
         var foodAnchorGO = new GameObject("FoodAnchor");
         foodAnchorGO.transform.SetParent(root.transform, false);
         foodAnchorGO.transform.localPosition = new Vector3(0f, 0f, -(CardThickness / 2f + 0.02f));
-        foodAnchorGO.transform.localScale = Vector3.one * 1.8f;
+        foodAnchorGO.transform.localScale = Vector3.one * 2.0f; // bigger symbol: the clean (frameless) face leaves more room, matching the reference's large symbols
 
         // Soft drop shadow: a quad behind the tile body (toward the felt, +Z),
         // nudged down-right so it reads under a top-left key light. Extends past
