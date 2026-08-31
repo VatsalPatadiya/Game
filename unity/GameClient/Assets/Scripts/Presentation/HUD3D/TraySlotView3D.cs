@@ -31,8 +31,13 @@ namespace GameClient.Presentation.HUD3D
         public void SetEmpty()
         {
             _emissionTint.Color = Color.black;
-            if (_emptyMaterial != null && _bodyRenderer != null)
-                _bodyRenderer.sharedMaterial = _emptyMaterial; // dark recess look
+            // Empty slot shows the warm recess (one of the tray's 4 visible parts).
+            if (_bodyRenderer != null)
+            {
+                _bodyRenderer.enabled = true;
+                if (_emptyMaterial != null)
+                    _bodyRenderer.sharedMaterial = _emptyMaterial;
+            }
             if (_foodAnchor != null)
             {
                 for (int i = _foodAnchor.childCount - 1; i >= 0; i--)
@@ -44,8 +49,12 @@ namespace GameClient.Presentation.HUD3D
         public void SetFilled(GameObject foodModelPrefab)
         {
             _emissionTint.Color = Color.black;
-            if (_filledMaterial != null && _bodyRenderer != null)
-                _bodyRenderer.sharedMaterial = _filledMaterial; // ivory tile face
+            if (_bodyRenderer != null)
+            {
+                _bodyRenderer.enabled = true; // show the ivory tile (was hidden while empty)
+                if (_filledMaterial != null)
+                    _bodyRenderer.sharedMaterial = _filledMaterial; // ivory tile face
+            }
             _bodyTint.Color = Color.white; // clear any leftover fade from a prior clear animation
             if (_foodAnchor == null || foodModelPrefab == null) return;
 

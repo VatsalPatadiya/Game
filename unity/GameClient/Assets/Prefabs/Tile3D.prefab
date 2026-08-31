@@ -73,7 +73,7 @@ MonoBehaviour:
   _bodyCollider: {fileID: 5567145662034241304}
   _foodAnchor: {fileID: 7696083228766261864}
   _freeCardColor: {r: 0.969, g: 0.957, b: 0.922, a: 1}
-  _blockedCardColor: {r: 0.48, g: 0.5, b: 0.46, a: 1}
+  _blockedCardColor: {r: 0.969, g: 0.957, b: 0.922, a: 1}
   _highlightEmission: {r: 1, g: 0.85, b: 0.2, a: 1}
 --- !u!1 &2450599630809543362
 GameObject:

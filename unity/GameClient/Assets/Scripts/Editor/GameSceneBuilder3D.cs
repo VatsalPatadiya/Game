@@ -202,7 +202,7 @@ public static class GameSceneBuilder3D
         // ------------------
         const int traySlotCount = 4;    // pair-match tray: 4 slots (matches BoardState.MaxTraySize)
         const float traySlotSize = 0.65f;
-        const float traySlotSpacing = 0.72f;
+        const float traySlotSpacing = 0.66f; // snug tiles like the reference (was 0.72, too gappy)
 
         var trayRootGO = new GameObject("TrayRoot", typeof(TrayView3D));
         var trayView = trayRootGO.GetComponent<TrayView3D>();
@@ -214,15 +214,15 @@ public static class GameSceneBuilder3D
         PositionInFrontOfCamera(trayRootGO.transform, camera, new Vector2(0.5f, 0.8f), TrayDistance);
         trayRootGO.transform.localScale = Vector3.one * (TrayDistance / HudDistance);
 
-        // One wood container box behind the slots so the tray reads as a single
-        // box divided into 4 parts (the slots are darker recesses inside it).
-        var trayContainerGO = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        trayContainerGO.name = "TrayContainer";
-        trayContainerGO.transform.SetParent(trayRootGO.transform, false);
+        // Rounded wood frame behind the slots (matches the reference's rounded
+        // tray corners). The 4 slots sit on it as warm recessed parts.
         float containerWidth = (traySlotCount - 1) * traySlotSpacing + traySlotSize + 0.34f;
-        trayContainerGO.transform.localPosition = new Vector3(0f, 0f, 0.06f); // behind the recess slots (+Z, away from camera)
-        trayContainerGO.transform.localScale = new Vector3(containerWidth, traySlotSize + 0.26f, 0.12f);
-        Object.DestroyImmediate(trayContainerGO.GetComponent<BoxCollider>());
+        float frameHeight = traySlotSize + 0.26f;
+        var frameMesh = SaveRoundedTrayMesh("Assets/Meshes/TrayFrame.asset", containerWidth, frameHeight, 0.12f, 0.14f);
+        var trayContainerGO = new GameObject("TrayContainer", typeof(MeshFilter), typeof(MeshRenderer));
+        trayContainerGO.transform.SetParent(trayRootGO.transform, false);
+        trayContainerGO.transform.localPosition = new Vector3(0f, 0f, 0.06f); // behind the slots (+Z, away from camera)
+        trayContainerGO.GetComponent<MeshFilter>().sharedMesh = frameMesh;
         trayContainerGO.GetComponent<MeshRenderer>().sharedMaterial = woodMaterial;
 
         var anchors = new Transform[traySlotCount];
@@ -399,19 +399,34 @@ public static class GameSceneBuilder3D
         SetField(hudComponent, "_gameController", gameController);
     }
 
+    // Builds a rounded-rectangle slab mesh and saves it as an asset (so both the
+    // in-scene frame and the slot prefab reference a real asset, not a runtime mesh).
+    private static Mesh SaveRoundedTrayMesh(string path, float w, float h, float thickness, float radius)
+    {
+        var mesh = RoundedTileMesh.Build(w, h, thickness, radius, cornerSegments: 6);
+        mesh.name = System.IO.Path.GetFileNameWithoutExtension(path);
+        System.IO.Directory.CreateDirectory("Assets/Meshes");
+        if (AssetDatabase.LoadAssetAtPath<Mesh>(path) != null)
+            AssetDatabase.DeleteAsset(path);
+        AssetDatabase.CreateAsset(mesh, path);
+        AssetDatabase.SaveAssets();
+        return AssetDatabase.LoadAssetAtPath<Mesh>(path);
+    }
+
     private static GameObject BuildTraySlotPrefab(Material cardMaterial, float size)
     {
         var root = new GameObject("TraySlot3D");
         var content = new GameObject("Content");
         content.transform.SetParent(root.transform, false);
 
-        var body = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        body.name = "Body";
+        // Rounded slot body (rounded corners like the reference); empty = warm
+        // recess (cardMaterial), filled swaps to the ivory tile face.
+        var slotMesh = SaveRoundedTrayMesh("Assets/Meshes/TraySlot.asset", size * 0.9f, size * 0.9f, 0.05f, size * 0.16f);
+        var body = new GameObject("Body", typeof(MeshFilter), typeof(MeshRenderer));
         body.transform.SetParent(content.transform, false);
         body.transform.localPosition = new Vector3(0f, 0f, -0.03f); // slightly toward camera, inset within the tray container
-        body.transform.localScale = new Vector3(size * 0.9f, size * 0.9f, 0.04f);
+        body.GetComponent<MeshFilter>().sharedMesh = slotMesh;
         body.GetComponent<MeshRenderer>().sharedMaterial = cardMaterial; // recess material passed in
-        Object.DestroyImmediate(body.GetComponent<BoxCollider>());
 
         var foodAnchorGO = new GameObject("FoodAnchor");
         foodAnchorGO.transform.SetParent(content.transform, false);

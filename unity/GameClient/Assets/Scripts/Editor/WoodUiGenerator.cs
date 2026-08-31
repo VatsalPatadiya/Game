@@ -86,11 +86,12 @@ public static class WoodUiGenerator
         bronze.SetFloat("_Metallic", 0f);
         EditorUtility.SetDirty(bronze);
 
-        // Darker wood for the tray-slot recesses (same grain, dimmed) so the
-        // slots read as insets in the one wood tray container.
+        // Warm darker wood for the tray's inner well (same grain, dimmed toward
+        // brown - not grey - so it reads like the reference's warm recessed well
+        // rather than a dull grey box).
         var recess = LoadOrCreate("Assets/Materials/TrayRecess.mat", shader);
         recess.SetTexture("_BaseMap", woodTex);
-        recess.SetColor("_BaseColor", new Color(0.45f, 0.42f, 0.36f, 1f));
+        recess.SetColor("_BaseColor", new Color(0.34f, 0.22f, 0.12f, 1f));
         recess.SetFloat("_Smoothness", 0.15f);
         recess.SetFloat("_Metallic", 0f);
         EditorUtility.SetDirty(recess);

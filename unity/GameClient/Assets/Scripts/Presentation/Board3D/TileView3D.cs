@@ -11,7 +11,10 @@ namespace GameClient.Presentation.Board3D
         [SerializeField] private BoxCollider _bodyCollider;
         [SerializeField] private Transform _foodAnchor;
         [SerializeField] private Color _freeCardColor = new Color(0.969f, 0.957f, 0.922f, 1f);
-        [SerializeField] private Color _blockedCardColor = new Color(0.48f, 0.50f, 0.46f, 1f); // clearly darker than the ivory free tile so covered (non-tappable) tiles read as unavailable at a glance
+        // Covered tiles keep their full ivory colour (no grey-out) - depth reads
+        // from the real stacking shadows, like the reference. (Was a dark grey that
+        // made the whole board look washed out.)
+        [SerializeField] private Color _blockedCardColor = new Color(0.969f, 0.957f, 0.922f, 1f);
         [SerializeField] private Color _highlightEmission = new Color(1f, 0.85f, 0.2f, 1f);
 
         private const float DragLiftDistance = 1.5f; // pulled toward the camera, in front of every layer
