@@ -53,8 +53,16 @@ namespace GameClient.Presentation
             QualitySettings.vSyncCount = 0;
             Application.targetFrameRate = 120;
 
-            LoadLevel();
+            // The board no longer deals in on scene load - the level-start
+            // screen (LevelStartScreen3D) is shown first and calls BeginLevel()
+            // when the player taps Play. If no level-start screen is present in
+            // the scene, BeginLevel is never auto-called, so the board stays
+            // empty; wire one in GameSceneBuilder3D or call BeginLevel directly.
         }
+
+        // Entry point from the level-start screen's Play button (see
+        // LevelStartScreen3D). Deals the board in for the first time.
+        public void BeginLevel() => LoadLevel();
 
         public void RestartLevel()
         {

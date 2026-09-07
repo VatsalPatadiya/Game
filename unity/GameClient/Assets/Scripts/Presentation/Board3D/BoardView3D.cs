@@ -31,6 +31,17 @@ namespace GameClient.Presentation.Board3D
         [SerializeField] private float _tiltDistancePadding = 1.05f; // barely-tilted view needs almost no extra distance (was 1.35 for the 30-degree pitch)
         [SerializeField] private float _tileJitterAmount = 0f; // clean aligned grid (premium mahjong look); was 0.07 loose-pile scatter
         [SerializeField] private float _tileRotationJitterDegrees = 0f;
+        // The HUD (score bar, tray, control buttons) is parented to this camera at
+        // a fixed distance baked by GameSceneBuilder3D (its HudDistance constant,
+        // wired in here via SetField so the two can't silently drift apart). The
+        // fit below picks whatever distance the CURRENT board needs, which shrinks
+        // for a smaller board/tile size - if that ever undercuts HudDistance, the
+        // board's front tiles end up nearer the camera than the HUD and occlude it
+        // entirely. Clamping the fit distance to at least this value guarantees the
+        // HUD always clears the board, regardless of how the board's size changes.
+        [SerializeField] private float _minDistanceForHud = 0f; // 0 = no floor; GameSceneBuilder3D sets this to HudDistance
+
+
 
         private readonly Dictionary<string, TileView3D> _tileViews = new Dictionary<string, TileView3D>();
         private Dictionary<string, TileSlot> _slotsById;
@@ -146,6 +157,7 @@ namespace GameClient.Presentation.Board3D
             float distanceForWidth = (boardWidth / 2f) / Mathf.Tan(horizontalFovRad / 2f);
 
             float distance = Mathf.Max(distanceForHeight, distanceForWidth) * _tiltDistancePadding;
+            distance = Mathf.Max(distance, _minDistanceForHud);
 
             float centerX = (minX + maxX) / 2f * _cellWidth - offX / 2f;
             float centerY = (minY + maxY) / 2f * _cellHeight + offY / 2f;

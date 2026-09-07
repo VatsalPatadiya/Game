@@ -5,8 +5,12 @@ using UnityEngine;
 
 public static class TileMaterialGenerator
 {
-    private static readonly Color IvoryTop    = new Color(0.969f, 0.949f, 0.902f); // #F7F2E6
-    private static readonly Color IvoryBottom = new Color(0.918f, 0.882f, 0.788f); // #EAE1C9
+    // Widened top/bottom delta (was 0.969/0.918 -> 0.949/0.882, a ~0.05 gap
+    // barely visible at tile size) for a more visible glossy sheen on the
+    // card body - part of a pass giving the whole HUD/board more dimensional
+    // shading instead of flat single colors.
+    private static readonly Color IvoryTop    = new Color(0.99f, 0.972f, 0.93f);  // #FCF8ED
+    private static readonly Color IvoryBottom = new Color(0.87f, 0.825f, 0.72f);  // #DED2B8
     private static readonly Color Jade        = new Color(0.184f, 0.541f, 0.329f); // #2F8A54
 
     [MenuItem("Tools/Mahjong/Generate Tile Material")]
@@ -16,16 +20,14 @@ public static class TileMaterialGenerator
         Directory.CreateDirectory("Assets/Materials");
 
         // Portrait texture matching the tile aspect (CardAspectRatio = width/height)
-        // so the jade edge is a uniform stroke all round. The reference mahjong
-        // tiles have a CLEAN ivory face with the jade sitting right at the tile
-        // perimeter (a thin edge line), NOT an inset picture-frame - so pull the
-        // frame padding out to the very edge and thin the stroke. Fractions of
-        // tile WIDTH: padding 0.012 (hugs the edge), stroke 0.016 (thin), corner
-        // 0.15 (follows the rounded tile silhouette).
+        // so the jade edge is a uniform stroke all round. Padding pulled in from
+        // the very edge (was 0.012, hugging the perimeter) to a visible inset so
+        // the frame reads as a border sitting slightly inside the tile, not a
+        // trim line flush with the silhouette. Fractions of tile WIDTH.
         const int texW = 512;
         int texH = Mathf.RoundToInt(texW / CardStyle.CardAspectRatio);
         var tex = TileFaceTexture.Build(texW, texH, IvoryTop, IvoryBottom, Jade,
-            framePadding: 0.012f, frameThickness: 0.016f, cornerRadius: 0.15f);
+            framePadding: 0.045f, frameThickness: 0.018f, cornerRadius: 0.15f);
         File.WriteAllBytes("Assets/Textures/TileFace.png", tex.EncodeToPNG());
         Object.DestroyImmediate(tex);
         AssetDatabase.ImportAsset("Assets/Textures/TileFace.png");
@@ -87,7 +89,7 @@ public static class TileMaterialGenerator
             float d = Mathf.Sqrt(qx * qx + qy * qy) - 0.16f; // rounded-rect SDF, <0 inside
             float t = Mathf.Clamp01((d + 0.14f) / 0.20f);    // 0 well inside -> 1 outside, soft band
             t = t * t * (3f - 2f * t);
-            float a = 0.28f * (1f - t); // softened: with the dense straddle many tile shadows overlap, so a lighter per-tile shadow keeps the pile from muddying
+            float a = 0.34f * (1f - t); // was 0.28 - nudged up for clearer depth separation between stacked layers; still short of the original un-softened value to avoid muddying the dense straddle
             shTex.SetPixel(x, y, new Color(0f, 0f, 0f, Mathf.Clamp01(a)));
         }
         shTex.Apply(updateMipmaps: true);

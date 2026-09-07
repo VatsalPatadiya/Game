@@ -8,8 +8,13 @@ using UnityEngine;
 // instead of floating in a flat colour void.
 public static class FeltBackgroundGenerator
 {
+    // Two-stage falloff (bright core -> mid felt -> near-black edge) instead
+    // of one flat lerp - a single-stage gradient read as a slightly-tinted
+    // flat color with no real depth. The bright core simulates an overhead
+    // spotlight pool on the table, matching the reference's richer backdrop.
+    private static readonly Color FeltHighlight = new Color(0.34f, 0.53f, 0.42f); // #57875B bright warm core
     private static readonly Color FeltCentre = new Color(0.243f, 0.404f, 0.325f); // #3E6753 warm felt
-    private static readonly Color FeltEdge   = new Color(0.098f, 0.184f, 0.145f); // #192F25 dark vignette
+    private static readonly Color FeltEdge   = new Color(0.018f, 0.040f, 0.031f); // #04140A deeper still than before
 
     [MenuItem("Tools/Mahjong/Generate Felt Background")]
     public static void Generate()
@@ -31,9 +36,16 @@ public static class FeltBackgroundGenerator
             float v = y / (float)(size - 1) * 2f - 1f;
             // centre of the glow sits slightly above middle, like an overhead lamp
             float d = Mathf.Sqrt(u * u + (v - 0.18f) * (v - 0.18f));
-            float t = Mathf.Clamp01(d / 1.35f);
+
+            // Stage 1: bright core fading to base felt by d=0.6.
+            float core = Mathf.Clamp01(d / 0.6f);
+            core = core * core * (3f - 2f * core);
+            var baseCol = Color.Lerp(FeltHighlight, FeltCentre, core);
+
+            // Stage 2: base felt fading to near-black edge.
+            float t = Mathf.Clamp01(d / 1.05f); // tighter radius than before (was 1.35) so the dark edge reaches in further, matching the reference's stronger falloff
             t = t * t * (3f - 2f * t); // smooth vignette
-            var c = Color.Lerp(FeltCentre, FeltEdge, t);
+            var c = Color.Lerp(baseCol, FeltEdge, t);
             float n = ((float)rng.NextDouble() - 0.5f) * 0.018f; // faint felt grain
             c.r = Mathf.Clamp01(c.r + n);
             c.g = Mathf.Clamp01(c.g + n);

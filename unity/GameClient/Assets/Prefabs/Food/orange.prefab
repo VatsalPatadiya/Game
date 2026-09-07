@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &2505309032523814794
+--- !u!1 &524185255074036583
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,9 +8,9 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 7727414992885622666}
-  - component: {fileID: 1517904845977857989}
-  - component: {fileID: 5346184980423462353}
+  - component: {fileID: 1455813697203621251}
+  - component: {fileID: 2105086332327714911}
+  - component: {fileID: 529773480374498065}
   m_Layer: 0
   m_Name: orange
   m_TagString: Untagged
@@ -18,13 +18,13 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &7727414992885622666
+--- !u!4 &1455813697203621251
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2505309032523814794}
+  m_GameObject: {fileID: 524185255074036583}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: -0, y: 0, z: 0}
@@ -33,21 +33,21 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1366131984586225814}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!33 &1517904845977857989
+--- !u!33 &2105086332327714911
 MeshFilter:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2505309032523814794}
+  m_GameObject: {fileID: 524185255074036583}
   m_Mesh: {fileID: -4542256552269943631, guid: f96113489cc7e4db8ba5067dc3f08ad0, type: 3}
---- !u!23 &5346184980423462353
+--- !u!23 &529773480374498065
 MeshRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2505309032523814794}
+  m_GameObject: {fileID: 524185255074036583}
   m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
@@ -151,6 +151,6 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 7727414992885622666}
+  - {fileID: 1455813697203621251}
   m_Father: {fileID: 865726760731728615}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}

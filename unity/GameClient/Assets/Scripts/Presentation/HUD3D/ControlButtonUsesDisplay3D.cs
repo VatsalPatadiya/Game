@@ -10,15 +10,16 @@ namespace GameClient.Presentation.HUD3D
         [SerializeField] private TMPro.TextMeshPro _badgeText;
         [SerializeField] private float _disabledAlpha = 0.4f;
 
-        // Must match GameSceneBuilder3D's DarkHudText - the icon material there
-        // is tinted this color because its source PNGs are opaque-white glyphs
-        // shaped by alpha, invisible untinted against the white face. Tint
-        // defaults to white otherwise (see MeshRendererTint), which is correct
-        // for TileView3D/TraySlotView3D's pre-colored icon textures but would
-        // silently overwrite this tint back to white the first time
+        // Must match whatever color GameSceneBuilder3D tinted this button's
+        // icon material with (unlocked buttons use a cream tint, the locked
+        // shuffle button uses a muted grey) - the icon PNGs are opaque-white
+        // glyphs shaped by alpha, invisible untinted against the dark disc
+        // face. Tint defaults to white otherwise (see MeshRendererTint), which
+        // is correct for TileView3D/TraySlotView3D's pre-colored icon textures
+        // but would silently overwrite this tint back to white the first time
         // SetRemaining runs, since SetAlpha only ever adjusts the alpha of
         // whatever color the tint was constructed with.
-        private static readonly Color IconTintColor = new Color(40f / 255f, 46f / 255f, 36f / 255f, 1f);
+        [SerializeField] private Color _iconTintColor = new Color(40f / 255f, 46f / 255f, 36f / 255f, 1f);
 
         private GameClient.Presentation.Board.MeshRendererTint _faceTint;
         private GameClient.Presentation.Board.MeshRendererTint _iconTint;
@@ -26,7 +27,7 @@ namespace GameClient.Presentation.HUD3D
         private void Awake()
         {
             if (_faceRenderer != null) _faceTint = new GameClient.Presentation.Board.MeshRendererTint(_faceRenderer);
-            if (_iconRenderer != null) _iconTint = new GameClient.Presentation.Board.MeshRendererTint(_iconRenderer, initialColor: IconTintColor);
+            if (_iconRenderer != null) _iconTint = new GameClient.Presentation.Board.MeshRendererTint(_iconRenderer, initialColor: _iconTintColor);
         }
 
         public void SetRemaining(int remaining)
