@@ -10,6 +10,7 @@ using GameClient.Presentation.HUD3D;
 using GameDomain.Gameplay;
 using GameDomain.Generation;
 using GameDomain.Model;
+using GameDomain.Progression;
 using UnityEngine;
 
 namespace GameClient.Presentation
@@ -29,6 +30,14 @@ namespace GameClient.Presentation
         private DateTime? _lastMatchTime;
         private int _comboCount;
         private readonly System.Random _random = new System.Random();
+
+        // Progression (sub-project #4): loaded/saved progress, the level being
+        // played, and how many aids were spent this attempt (for star scoring).
+        private GameProgress _progress;
+        private int _currentLevelId = 1;
+        private int _aidsUsed;
+        public int CurrentLevelId => _currentLevelId;
+        public GameProgress Progress => _progress;
 
         private BoardState _board;
         private List<TileSlot> _shape;
@@ -56,6 +65,11 @@ namespace GameClient.Presentation
             QualitySettings.vSyncCount = 0;
             Application.targetFrameRate = 120;
 
+            // Load saved progress and start on the furthest unlocked level.
+            _progress = SaveSystem.Load();
+            _currentLevelId = Mathf.Clamp(_progress.HighestUnlockedLevelId, 1,
+                LevelCatalog.Levels[LevelCatalog.Levels.Count - 1].LevelId);
+
             // The board no longer deals in on scene load - the level-start
             // screen (LevelStartScreen3D) is shown first and calls BeginLevel()
             // when the player taps Play.
@@ -78,7 +92,7 @@ namespace GameClient.Presentation
 
             var level = new LevelDefinition
             {
-                LevelId = 999,
+                LevelId = _currentLevelId,
                 Shape = _shape,
                 TileSetId = "default"
             };
@@ -88,6 +102,7 @@ namespace GameClient.Presentation
             _board = BoardGenerator.Generate(level, _random);
             _lastMatchTime = null;
             _comboCount = 0;
+            _aidsUsed = 0;
 
             // The tray holds tapped tiles until 2 identical ones collect and
             // clear; slot count matches the board's MaxTraySize (4).
@@ -172,6 +187,7 @@ namespace GameClient.Presentation
         {
             if (_board.Cells.Values.All(c => c.Cleared))
             {
+                RecordWin();
                 _gameOverPopup?.ShowWin(this, _board.Score);
                 return;
             }
@@ -193,6 +209,7 @@ namespace GameClient.Presentation
             var (a, b) = TrayHintFinder.FindHint(_board, _slotsById);
             if (a == null) return;
             _board.HintsRemaining -= 1;
+            _aidsUsed++;
             _boardView.GetTileView(a)?.Highlight();
             if (b != null) _boardView.GetTileView(b)?.Highlight();
             NotifyUsesChanged();
@@ -205,6 +222,7 @@ namespace GameClient.Presentation
             if (IsInputLocked || _board.IsGameOver) return;
             var popped = TrayUndo.TryUndo(_board);
             if (popped == null) return;
+            _aidsUsed++;
             _boardView.RestoreTiles(new[] { popped }, _board);
             if (_trayView != null) _trayView.RenderTray(_board.TrayTileIds, _board);
             _boardView.RefreshFreeStates(_board);
@@ -217,8 +235,22 @@ namespace GameClient.Presentation
             if (IsInputLocked || _board.IsGameOver) return;
             var ids = TrayShuffle.Shuffle(_board, _random);
             if (ids == null) return;
+            _aidsUsed++;
             _boardView.RefreshTileValues(ids, _board);
             NotifyUsesChanged();
+        }
+
+        // On a win: score the attempt (stars), record it (best stars + unlock the
+        // next level), persist, and advance the current level for the next play.
+        private void RecordWin()
+        {
+            if (_progress == null) _progress = new GameProgress();
+            var levelData = LevelCatalog.Get(_currentLevelId) ?? LevelCatalog.Levels[0];
+            int stars = StarRating.Evaluate(levelData, _aidsUsed, won: true);
+            int next = LevelCatalog.NextLevelId(_currentLevelId);
+            _progress.RecordResult(_currentLevelId, stars, next);
+            SaveSystem.Save(_progress);
+            _currentLevelId = next;
         }
 
         private void NotifyUsesChanged()
