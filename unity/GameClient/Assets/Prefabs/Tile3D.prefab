@@ -75,6 +75,7 @@ MonoBehaviour:
   _freeCardColor: {r: 0.969, g: 0.957, b: 0.922, a: 1}
   _blockedCardColor: {r: 0.969, g: 0.957, b: 0.922, a: 1}
   _highlightEmission: {r: 1, g: 0.85, b: 0.2, a: 1}
+  _freeIdleEmission: {r: 0.09, g: 0.075, b: 0.02, a: 1}
 --- !u!1 &2450599630809543362
 GameObject:
   m_ObjectHideFlags: 0

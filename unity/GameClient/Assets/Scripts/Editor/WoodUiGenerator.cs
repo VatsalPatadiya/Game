@@ -259,7 +259,7 @@ public static class WoodUiGenerator
         // them - using the same flat color for both (an earlier attempt)
         // made the four slots invisibly blend into one solid black rectangle.
         var recess = LoadOrCreate("Assets/Materials/TrayRecess.mat", shader);
-        ApplyVerticalGradientPanel(recess, "TrayRecessGradient", new Color(0.10f, 0.06f, 0.04f));
+        ApplyVerticalGradientPanel(recess, "TrayRecessGradient", new Color(0.03f, 0.09f, 0.07f), recessed: true); // dark jade sunken slot (jade+gold theme)
         recess.SetFloat("_Smoothness", 0.1f);
         recess.SetFloat("_Metallic", 0f);
         EditorUtility.SetDirty(recess);
@@ -268,7 +268,7 @@ public static class WoodUiGenerator
         // front of the individual slot cutouts) - lighter than TrayRecess
         // above so the slots read as darker pockets set into this panel.
         var trayBody = LoadOrCreate("Assets/Materials/TrayBody.mat", shader);
-        ApplyVerticalGradientPanel(trayBody, "TrayBodyGradient", new Color(0.24f, 0.15f, 0.09f));
+        ApplyVerticalGradientPanel(trayBody, "TrayBodyGradient", new Color(0.06f, 0.16f, 0.12f)); // dark jade tray panel (jade+gold theme)
         trayBody.SetFloat("_Smoothness", 0.1f);
         trayBody.SetFloat("_Metallic", 0f);
         EditorUtility.SetDirty(trayBody);

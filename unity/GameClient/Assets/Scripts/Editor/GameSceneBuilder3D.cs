@@ -146,13 +146,13 @@ public static class GameSceneBuilder3D
         SetField(inputController, "_targetCamera", camera);
         SetField(inputController, "_gameController", gameController);
 
-        // Progress-bar width reference. Retained from the (now removed) tray row
-        // so the bar keeps the same width it had when the two sat as one aligned
-        // unit; the visual re-theme (sub-project #2) can revisit this.
-        const int ProgressWidthSlotCount = 4;
-        const float ProgressWidthSlotSize = 0.65f;
-        const float ProgressWidthSlotSpacing = 0.66f;
-        float trayContainerWidth = (ProgressWidthSlotCount - 1) * ProgressWidthSlotSpacing + ProgressWidthSlotSize + 0.34f;
+        // Tray sizing, computed early so the progress bar (below) can match its
+        // width exactly. Also used further down to build the tray row itself.
+        const int TraySlotCount = 4;    // pair-match tray: 4 slots (matches BoardState.MaxTraySize)
+        const float TraySlotSize = 0.65f;
+        const float TraySlotSpacing = 0.66f;
+        float trayContainerWidth = (TraySlotCount - 1) * TraySlotSpacing + TraySlotSize + 0.34f;
+        float trayFrameHeight = TraySlotSize + 0.26f;
 
         // ------------------
         // Progress bar - simplified to just the bar (border/background/fill),
@@ -280,56 +280,10 @@ public static class GameSceneBuilder3D
         // _maxScore (2000) and _fillHeight (0.24) still use the component's
         // serialized defaults.
 
-        // ------------------
-        // Combo meter (Pass D, guidelines s6) - a small gold drain bar + "xN"
-        // label just under the score bar, hidden until a combo streak. The
-        // ComboMeter3D sits on an ALWAYS-ACTIVE root and toggles a child "Visual"
-        // GO (a component on a self-disabled GO can't re-enable itself), so the
-        // visual is what shows/hides while Update keeps running.
-        const float ComboTrackWidth = 1.4f;
-        const float ComboFillHeight = 0.12f;
-        var comboRootGO = new GameObject("ComboMeter");
-        comboRootGO.transform.SetParent(scoreRootGO.transform, false);
-        comboRootGO.transform.localPosition = new Vector3(0f, -0.42f, 0f);
-
-        var comboVisualGO = new GameObject("Visual");
-        comboVisualGO.transform.SetParent(comboRootGO.transform, false);
-
-        var comboTrackGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
-        comboTrackGO.name = "Track";
-        Object.DestroyImmediate(comboTrackGO.GetComponent<Collider>());
-        comboTrackGO.transform.SetParent(comboVisualGO.transform, false);
-        comboTrackGO.transform.localPosition = new Vector3(0f, 0f, 0.02f);
-        comboTrackGO.transform.localScale = new Vector3(ComboTrackWidth + 0.08f, ComboFillHeight + 0.06f, 1f);
-        comboTrackGO.GetComponent<MeshRenderer>().sharedMaterial = progressBackgroundMaterial;
-
-        var comboFillGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
-        comboFillGO.name = "Fill";
-        Object.DestroyImmediate(comboFillGO.GetComponent<Collider>());
-        comboFillGO.transform.SetParent(comboVisualGO.transform, false);
-        comboFillGO.transform.localPosition = new Vector3(-ComboTrackWidth * 0.5f, 0f, -0.02f);
-        comboFillGO.transform.localScale = new Vector3(ComboTrackWidth, ComboFillHeight, 1f);
-        comboFillGO.GetComponent<MeshRenderer>().sharedMaterial = GetOrCreateNonEmissiveGoldMaterial(alwaysOnTop: true);
-
-        var comboLabelGO = new GameObject("ComboLabel", typeof(TextMeshPro));
-        comboLabelGO.transform.SetParent(comboVisualGO.transform, false);
-        comboLabelGO.transform.localPosition = new Vector3(0f, 0.20f, -0.05f);
-        var comboLabel = comboLabelGO.GetComponent<TextMeshPro>();
-        comboLabel.text = "x2";
-        comboLabel.color = new Color(0.96f, 0.82f, 0.42f); // gold
-        comboLabel.fontSize = 0.72f;
-        comboLabel.fontStyle = FontStyles.Bold;
-        comboLabel.alignment = TextAlignmentOptions.Center;
-
-        comboVisualGO.SetActive(false); // hidden until a combo fires
-
-        var comboMeter = comboRootGO.AddComponent<ComboMeter3D>();
-        SetField(comboMeter, "_root", comboVisualGO);
-        SetField(comboMeter, "_fill", comboFillGO.transform);
-        SetField(comboMeter, "_label", comboLabel);
-        SetField(comboMeter, "_gameController", gameController);
-        SetFieldFloat(comboMeter, "_trackWidth", ComboTrackWidth);
-        SetFieldFloat(comboMeter, "_fillHeight", ComboFillHeight);
+        // Combo meter geometry is deferred: with the tray restored to this band
+        // it would overlap. The ComboMeter3D component + GameController.ComboChanged
+        // event remain for a later dedicated combo pass; match feedback for now is
+        // the MatchCelebrationController burst on each tray pair.
 
         // Back / menu chrome flanking the top bar - visual-only for now (no
         // navigation wired), matching the reference's top-bar layout. Same
@@ -388,29 +342,85 @@ public static class GameSceneBuilder3D
             b.transform.localScale = Vector3.one * 0.62f;
 
         // ------------------
-        // Board vertical bias
+        // Tray - row of fixed 3D slots in front of the board (restored: the game
+        // uses the tray-collection mechanic per the corrected master plan). Sizing
+        // consts (TraySlotCount/Size/Spacing, trayContainerWidth/trayFrameHeight)
+        // are declared earlier near the progress bar so the bar matches its width.
+        // Materials are jade+gold (Pass C): gold border, dark-jade body/recess.
         // ------------------
-        // The tray row that used to sit here (a row of tile-collection slots)
-        // was removed with the revert to on-board pair matching. The freed
-        // vertical band is left to the board for now; the visual re-theme
-        // (sub-project #2) will decide what, if anything, reclaims it.
-        //
-        // BoardView3D.FitCameraToBoard centres the board on its own bounding box
-        // (viewport Y=0.5) by default - correct only if the space above and
-        // below the board is symmetric. It isn't: the topbar/progress cluster
-        // occupies more of the top of the screen than the button row occupies at
-        // the bottom, so compute the midpoint of the actual available band
-        // (progress bar's bottom edge down to the button row's top edge) and hand
-        // BoardView3D the delta from screen-centre so it grows into the freed
-        // space instead of leaving it empty.
+        var trayRootGO = new GameObject("TrayRoot", typeof(TrayView3D));
+        var trayView = trayRootGO.GetComponent<TrayView3D>();
+        const float TrayDistance = 7.35f; // 9 * 0.8175, same FOV-compensation ratio as HudDistance
         float progressBottomEdge = progressBarY - progressHalfHeight;
-        const float ButtonFaceWorldDiameter = 0.99f * 0.62f; // CreateHudButton3D's Face scale (0.99) * the button-root scale-down applied above (0.62)
+        float trayHalfHeight = ScreenHalfHeightFrac(camera, trayFrameHeight, TrayDistance);
+        float trayY = progressBottomEdge - HudRowGap - trayHalfHeight;
+        PositionInFrontOfCamera(trayRootGO.transform, camera, new Vector2(0.5f, trayY), TrayDistance);
+        trayRootGO.transform.localScale = Vector3.one * (TrayDistance / HudDistance);
+
+        // Board vertical bias: centre the board in the band between the tray's
+        // bottom edge and the button row's top edge (the top cluster eats more
+        // screen than the bottom row, so a screen-centred board leaves a bigger
+        // gap below - this shifts it to fill the space).
+        const float ButtonFaceWorldDiameter = 0.99f * 0.62f;
         float buttonHalfHeight = ScreenHalfHeightFrac(camera, ButtonFaceWorldDiameter, HudDistance);
-        float bandTop = progressBottomEdge - HudRowGap; // board's top edge now lands just below the progress bar
+        float bandTop = trayY - trayHalfHeight - HudRowGap;
         float bandBottom = BottomButtonRowY + buttonHalfHeight + HudRowGap;
         float desiredBoardCenterY = (bandTop + bandBottom) * 0.5f;
-        float verticalBiasFrac = 0.5f - desiredBoardCenterY; // positive = shift the board's rendered position DOWN the screen
+        float verticalBiasFrac = 0.5f - desiredBoardCenterY;
         SetFieldFloat(boardView, "_verticalBiasViewportFrac", verticalBiasFrac);
+
+        // Soft drop shadow behind the whole tray.
+        var traySlotShadowMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/TileShadow.mat");
+        RequireNotNull(traySlotShadowMaterial, "Assets/Materials/TileShadow.mat (run TileMaterialGenerator first)");
+        var trayShadowGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        trayShadowGO.name = "Shadow";
+        Object.DestroyImmediate(trayShadowGO.GetComponent<Collider>());
+        trayShadowGO.transform.SetParent(trayRootGO.transform, false);
+        trayShadowGO.transform.localPosition = new Vector3(0.05f, -0.07f, 0.09f);
+        trayShadowGO.transform.localScale = new Vector3(trayContainerWidth * 1.15f, trayFrameHeight * 1.4f, 1f);
+        trayShadowGO.GetComponent<MeshRenderer>().sharedMaterial = traySlotShadowMaterial;
+        trayShadowGO.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+
+        // Gold border frame behind the slots (trayBorderMaterial uses AmberChrome,
+        // now gold after Pass C).
+        float containerWidth = trayContainerWidth;
+        float frameHeight = trayFrameHeight;
+        var frameMesh = SaveRoundedTrayMesh("Assets/Meshes/TrayFrame.asset", containerWidth, frameHeight, 0.12f, 0.14f);
+        var trayContainerGO = new GameObject("TrayContainer", typeof(MeshFilter), typeof(MeshRenderer));
+        trayContainerGO.transform.SetParent(trayRootGO.transform, false);
+        trayContainerGO.transform.localPosition = new Vector3(0f, 0f, 0.06f);
+        trayContainerGO.GetComponent<MeshFilter>().sharedMesh = frameMesh;
+        trayContainerGO.GetComponent<MeshRenderer>().sharedMaterial = trayBorderMaterial;
+
+        // Dark-jade body inset within the gold frame (TrayBody, jade after Pass C+).
+        var trayBodyMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/TrayBody.mat");
+        RequireNotNull(trayBodyMaterial, "Assets/Materials/TrayBody.mat (run WoodUiGenerator first)");
+        const float TrayBorderThickness = 0.07f;
+        var trayBodyMesh = SaveRoundedTrayMesh("Assets/Meshes/TrayBody.asset",
+            containerWidth - TrayBorderThickness * 2f, frameHeight - TrayBorderThickness * 2f, 0.12f, 0.11f);
+        var trayBodyGO = new GameObject("TrayBody", typeof(MeshFilter), typeof(MeshRenderer));
+        trayBodyGO.transform.SetParent(trayRootGO.transform, false);
+        trayBodyGO.transform.localPosition = new Vector3(0f, 0f, 0.04f);
+        trayBodyGO.GetComponent<MeshFilter>().sharedMesh = trayBodyMesh;
+        trayBodyGO.GetComponent<MeshRenderer>().sharedMaterial = trayBodyMaterial;
+
+        var anchors = new Transform[TraySlotCount];
+        float startX = -(TraySlotCount - 1) * TraySlotSpacing / 2f;
+        for (int i = 0; i < TraySlotCount; i++)
+        {
+            var anchorGO = new GameObject("Slot" + i);
+            anchorGO.transform.SetParent(trayRootGO.transform, false);
+            anchorGO.transform.localPosition = new Vector3(startX + i * TraySlotSpacing, 0f, 0f);
+            anchors[i] = anchorGO.transform;
+        }
+
+        var recessMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/TrayRecess.mat");
+        RequireNotNull(recessMaterial, "Assets/Materials/TrayRecess.mat (run WoodUiGenerator first)");
+        var traySlotPrefab = BuildTraySlotPrefab(recessMaterial, TraySlotSize);
+        SetField(trayView, "traySlotPrefab", traySlotPrefab);
+        SetField(trayView, "tileSet", tileSet);
+        SetFieldArray(trayView, "slotAnchors", anchors);
+        SetField(gameController, "_trayView", trayView);
 
         // ------------------
         // Game over popup
@@ -472,7 +482,7 @@ public static class GameSceneBuilder3D
         // ------------------
         var hudObjects = new[]
         {
-            scoreRootGO, backButtonGO, menuButtonGO,
+            scoreRootGO, trayRootGO, backButtonGO, menuButtonGO,
             shuffleButtonGO, hintButtonGO, undoButtonGO,
         };
         BuildLevelStartScreen(camera, gameController, hudObjects, hintIcon, undoIcon, shuffleIcon, hudButtonFaceMaterial);
