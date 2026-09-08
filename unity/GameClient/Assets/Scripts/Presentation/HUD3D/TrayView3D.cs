@@ -45,6 +45,24 @@ namespace GameClient.Presentation.HUD3D
 
         public Vector3 GetSlotWorldPosition(int index) => _slots[index].transform.position;
 
+        // Re-render every slot from the current tray state (used after Undo pops a
+        // tile back to the board). Slots beyond the tray count show empty.
+        public void RenderTray(List<string> trayTileIds, BoardState board)
+        {
+            for (int i = 0; i < _slots.Count; i++)
+            {
+                if (i < trayTileIds.Count)
+                {
+                    var value = board.Cells[trayTileIds[i]].Value;
+                    _slots[i].SetFilled(TileVisual.FoodModelFor(tileSet, value));
+                }
+                else
+                {
+                    _slots[i].SetEmpty();
+                }
+            }
+        }
+
         public void PlayArrivalPopIn(int index, GameObject foodModelPrefab)
         {
             if (index < 0 || index >= _slots.Count) return;

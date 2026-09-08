@@ -28,6 +28,7 @@ namespace GameClient.Presentation
         private const double ComboWindowSeconds = 3.0;
         private DateTime? _lastMatchTime;
         private int _comboCount;
+        private readonly System.Random _random = new System.Random();
 
         private BoardState _board;
         private List<TileSlot> _shape;
@@ -84,7 +85,7 @@ namespace GameClient.Presentation
 
             // Pair-match tray: values come in pairs so two identical tiles
             // collected in the tray clear together.
-            _board = BoardGenerator.Generate(level, new System.Random());
+            _board = BoardGenerator.Generate(level, _random);
             _lastMatchTime = null;
             _comboCount = 0;
 
@@ -183,14 +184,42 @@ namespace GameClient.Presentation
                 _gameOverPopup?.ShowLose(this);
         }
 
-        // Powerups remain deferred for the tray mechanic (the pair-based
-        // HintFinder/UndoStack/ShuffleService need re-adapting to tray state).
-        // Left inert so the buttons do nothing until re-wired.
-        public void OnHintRequested() { }
+        // Hint: highlight a free board tile that completes a tray pair (or a free
+        // same-value pair on the board), consuming a hint charge.
+        public void OnHintRequested()
+        {
+            if (IsInputLocked || _board.IsGameOver) return;
+            if (_board.HintsRemaining <= 0) return;
+            var (a, b) = TrayHintFinder.FindHint(_board, _slotsById);
+            if (a == null) return;
+            _board.HintsRemaining -= 1;
+            _boardView.GetTileView(a)?.Highlight();
+            if (b != null) _boardView.GetTileView(b)?.Highlight();
+            NotifyUsesChanged();
+        }
 
-        public void OnUndoRequested() { }
+        // Undo: return the most-recently-collected tile from the tray to the
+        // board, consuming an undo charge.
+        public void OnUndoRequested()
+        {
+            if (IsInputLocked || _board.IsGameOver) return;
+            var popped = TrayUndo.TryUndo(_board);
+            if (popped == null) return;
+            _boardView.RestoreTiles(new[] { popped }, _board);
+            if (_trayView != null) _trayView.RenderTray(_board.TrayTileIds, _board);
+            _boardView.RefreshFreeStates(_board);
+            NotifyUsesChanged();
+        }
 
-        public void OnShuffleRequested() { }
+        // Shuffle: reshuffle the on-board tile values, consuming a shuffle charge.
+        public void OnShuffleRequested()
+        {
+            if (IsInputLocked || _board.IsGameOver) return;
+            var ids = TrayShuffle.Shuffle(_board, _random);
+            if (ids == null) return;
+            _boardView.RefreshTileValues(ids, _board);
+            NotifyUsesChanged();
+        }
 
         private void NotifyUsesChanged()
         {
