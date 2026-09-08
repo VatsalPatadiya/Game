@@ -16,6 +16,10 @@ namespace GameClient.Presentation.Board3D
         // made the whole board look washed out.)
         [SerializeField] private Color _blockedCardColor = new Color(0.969f, 0.957f, 0.922f, 1f);
         [SerializeField] private Color _highlightEmission = new Color(1f, 0.85f, 0.2f, 1f);
+        // Very subtle resting glow on free/selectable tiles so they read as
+        // available at a glance without dimming the covered tiles (guidelines s5;
+        // the prior grey-out of blocked tiles was rejected as washing out the board).
+        [SerializeField] private Color _freeIdleEmission = new Color(0.09f, 0.075f, 0.02f, 1f);
 
         private const float DragLiftDistance = 1.5f; // pulled toward the camera, in front of every layer
         private const float DragSnapBackDuration = 0.18f;
@@ -24,6 +28,15 @@ namespace GameClient.Presentation.Board3D
         private MeshRendererTint[] _iconTints = new MeshRendererTint[0];
         private MeshRendererTint _emissionTint;
         private Vector3 _originalLocalPos;
+
+        // Stack-height drop shadow (guidelines s5: higher tiles cast a larger,
+        // softer, more-offset shadow). Cached from the "DropShadow" child.
+        private Transform _dropShadow;
+        private Vector3 _shadowBaseScale;
+        private Vector3 _shadowBasePos;
+
+        private bool _isFree;
+        private bool _isSelected;
         private Coroutine _shakeCoroutine;
         private Coroutine _clearCoroutine;
         private Coroutine _fadeCoroutine;
@@ -49,6 +62,18 @@ namespace GameClient.Presentation.Board3D
 
             _originalLocalPos = transform.localPosition;
             transform.localScale = Vector3.one;
+            _isSelected = false;
+
+            if (_dropShadow == null)
+            {
+                _dropShadow = transform.Find("DropShadow");
+                if (_dropShadow != null)
+                {
+                    _shadowBaseScale = _dropShadow.localScale;
+                    _shadowBasePos = _dropShadow.localPosition;
+                }
+            }
+            ApplyStackShadow(layer);
 
             _iconTints = new MeshRendererTint[0];
             if (_foodAnchor != null)
@@ -78,11 +103,24 @@ namespace GameClient.Presentation.Board3D
             RefreshCardColor(true);
         }
 
-        public void SetFree(bool isFree) => RefreshCardColor(isFree);
+        public void SetFree(bool isFree)
+        {
+            _isFree = isFree;
+            RefreshCardColor(isFree);
+            ApplyRestingEmission();
+        }
 
         private void RefreshCardColor(bool isFree)
         {
             _bodyTint.Color = isFree ? _freeCardColor : _blockedCardColor;
+        }
+
+        // The resting emission for a tile that isn't currently selected/hinted:
+        // a faint idle glow on free tiles, none on blocked tiles.
+        private void ApplyRestingEmission()
+        {
+            if (_isSelected) return; // selection glow wins until deselected
+            _emissionTint.Color = _isFree ? _freeIdleEmission : Color.black;
         }
 
         public void Highlight()
@@ -92,13 +130,29 @@ namespace GameClient.Presentation.Board3D
 
         private const float SelectLift = 0.35f; // toward the camera, so a picked tile pops forward
 
-        // No-tray mahjong selection feedback: glow + a small forward lift.
+        // On-board mahjong selection feedback: bright glow + a small forward lift.
+        // Deselecting falls back to the resting idle glow (if the tile is free).
         public void SetSelected(bool selected)
         {
-            _emissionTint.Color = selected ? _highlightEmission : Color.black;
+            _isSelected = selected;
+            if (selected)
+                _emissionTint.Color = _highlightEmission;
+            else
+                ApplyRestingEmission();
             transform.localPosition = selected
                 ? _originalLocalPos + new Vector3(0f, 0f, -SelectLift)
                 : _originalLocalPos;
+        }
+
+        // Scale/offset the drop shadow by stack height so upper tiles read as
+        // floating higher above the ones they cover (guidelines s5).
+        private void ApplyStackShadow(int layer)
+        {
+            if (_dropShadow == null) return;
+            float grow = 1f + 0.10f * layer;      // larger with height
+            float off = 0.045f * layer;           // more offset with height
+            _dropShadow.localScale = new Vector3(_shadowBaseScale.x * grow, _shadowBaseScale.y * grow, 1f);
+            _dropShadow.localPosition = new Vector3(_shadowBasePos.x + off, _shadowBasePos.y - off, _shadowBasePos.z);
         }
 
         public void PlayDealIn(float delaySeconds, System.Action onComplete)
