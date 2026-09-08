@@ -26,7 +26,13 @@ namespace GameClient.Presentation.Board3D
         [SerializeField] private float _cellHeight = 0.46f;
         [SerializeField] private float _layerHeight = 0.28f; // real Z step per layer (stacked layers read as depth via the straddle + shadow + tilt)
         [SerializeField] private float _layerStraddle = 0f;  // NO fake render offset: the half-tile straddle now lives in the slot coordinates, so rendered overlap == domain coverage (a tile that looks covered really is covered/non-free)
-        [SerializeField] private float _cameraMargin = 0.3f; // leaves felt margins top/bottom for the HUD, tiles still large (0.02 filled the whole screen and hid the HUD)
+        // 0.3 -> 0.15: the board's WIDTH (not height) was the binding fit
+        // constraint on this portrait screen (6-column layer 0 vs a narrow
+        // horizontal FOV), so the old 0.3 margin (0.6 total) pushed the
+        // camera back much farther than needed and left a large unused
+        // vertical gap between the tray and the bottom buttons. Paired with
+        // the wider FOV below.
+        [SerializeField] private float _cameraMargin = 0.15f;
         [SerializeField] private float _cameraTiltDegrees = 14f; // pitch so the stacked layers read as 3D depth (30 skewed the board into a parallelogram)
         [SerializeField] private float _tiltDistancePadding = 1.05f; // barely-tilted view needs almost no extra distance (was 1.35 for the 30-degree pitch)
         [SerializeField] private float _tileJitterAmount = 0f; // clean aligned grid (premium mahjong look); was 0.07 loose-pile scatter
@@ -40,6 +46,20 @@ namespace GameClient.Presentation.Board3D
         // entirely. Clamping the fit distance to at least this value guarantees the
         // HUD always clears the board, regardless of how the board's size changes.
         [SerializeField] private float _minDistanceForHud = 0f; // 0 = no floor; GameSceneBuilder3D sets this to HudDistance
+
+        // FitCameraToBoard below aims the camera dead-centre on the board's
+        // own bounding box (viewport Y=0.5) - correct only if the usable
+        // band above and below the board is symmetric. It isn't: the
+        // topbar+progress+tray cluster eats far more of the top of the
+        // screen than the 3-button row eats at the bottom, so a
+        // screen-centred board leaves excess empty felt between its bottom
+        // edge and the buttons (measured on-device: ~12% of screen height,
+        // vs ~2% at the top). GameSceneBuilder3D computes this from the
+        // real HUD anchor positions (SetFieldFloat, alongside
+        // _minDistanceForHud) and sets it here: positive shifts the board's
+        // rendered position DOWN the screen (toward the buttons) by this
+        // many viewport-height units at the board's own distance.
+        [SerializeField] private float _verticalBiasViewportFrac = 0f;
 
 
 
@@ -165,7 +185,17 @@ namespace GameClient.Presentation.Board3D
 
             var rotation = Quaternion.Euler(_cameraTiltDegrees, 0f, 0f);
             _camera.transform.rotation = rotation;
-            _camera.transform.position = boardCenter - (rotation * Vector3.forward) * distance;
+
+            // Panning the AIM point up (positive world Y) shifts the whole
+            // rendered scene down on screen, so a positive
+            // _verticalBiasViewportFrac (defined as "shift board down") maps
+            // to a positive worldYOffset added here - the camera still faces
+            // the same direction, it just isn't centred on boardCenter
+            // itself anymore.
+            float frustumHeightAtDistance = 2f * distance * Mathf.Tan(verticalFovRad * 0.5f);
+            float worldYOffset = _verticalBiasViewportFrac * frustumHeightAtDistance;
+            var aimPoint = boardCenter + new Vector3(0f, worldYOffset, 0f);
+            _camera.transform.position = aimPoint - (rotation * Vector3.forward) * distance;
         }
 
         // Deterministic per-tile scatter (position x/y, rotation z) seeded by

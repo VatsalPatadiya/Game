@@ -147,7 +147,7 @@ namespace GameClient.Presentation
             var flight = _trayView.SpawnFlightCard(foodModel, startPos);
             Vector3 slotPos = _trayView.GetSlotWorldPosition(landingIndex);
             yield return CardAnimator.MoveTransform(flight.transform, startPos, slotPos, 0.22f);
-            Destroy(flight);
+            _trayView.ReleaseFlightCard(flight);
             _trayView.PlayArrivalPopIn(landingIndex, foodModel);
 
             // A triple cleared if the tray ended up shorter than "old + this one".

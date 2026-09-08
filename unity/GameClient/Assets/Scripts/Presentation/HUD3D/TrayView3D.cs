@@ -18,6 +18,14 @@ namespace GameClient.Presentation.HUD3D
 
         private List<TraySlotView3D> _slots = new List<TraySlotView3D>();
 
+        // Flight cards (the visual that flies from a tapped board tile into a
+        // tray slot, and the ones used for reflow-after-match) are pooled -
+        // rented on demand, returned (deactivated, not destroyed) when the
+        // flight ends. See TraySlotView3D's own food-model pool for why:
+        // Instantiate/Destroy on this path was the actual cause of animation
+        // hitching, not the movement easing itself.
+        private readonly Stack<TraySlotView3D> _flightCardPool = new Stack<TraySlotView3D>();
+
         public int SlotCount => _slots.Count;
 
         public void Initialize(int maxTraySize)
@@ -45,10 +53,32 @@ namespace GameClient.Presentation.HUD3D
 
         public GameObject SpawnFlightCard(GameObject foodModelPrefab, Vector3 startWorldPosition)
         {
-            var flightCard = Instantiate(traySlotPrefab, startWorldPosition, Quaternion.identity);
-            var flightSlotView = flightCard.GetComponent<TraySlotView3D>();
+            TraySlotView3D flightSlotView;
+            if (_flightCardPool.Count > 0)
+            {
+                flightSlotView = _flightCardPool.Pop();
+                flightSlotView.transform.SetPositionAndRotation(startWorldPosition, Quaternion.identity);
+                flightSlotView.gameObject.SetActive(true);
+            }
+            else
+            {
+                var flightCardGO = Instantiate(traySlotPrefab, startWorldPosition, Quaternion.identity);
+                flightSlotView = flightCardGO.GetComponent<TraySlotView3D>();
+            }
             flightSlotView.SetFilled(foodModelPrefab);
-            return flightCard;
+            flightSlotView.SetFlightTrailEnabled(true);
+            return flightSlotView.gameObject;
+        }
+
+        // Returns a flight card to the pool instead of destroying it - callers
+        // that used to Destroy(flight) after a MoveTransform coroutine should
+        // call this instead.
+        public void ReleaseFlightCard(GameObject flightCard)
+        {
+            if (flightCard == null) return;
+            flightCard.GetComponent<TraySlotView3D>()?.SetFlightTrailEnabled(false);
+            flightCard.SetActive(false);
+            _flightCardPool.Push(flightCard.GetComponent<TraySlotView3D>());
         }
 
         public IEnumerator ResolveAfterPush(
@@ -97,7 +127,7 @@ namespace GameClient.Presentation.HUD3D
 
             var flightCard = SpawnFlightCard(foodModel, fromPos);
             yield return CardAnimator.MoveTransform(flightCard.transform, fromPos, toPos, ReflowDuration);
-            Destroy(flightCard);
+            ReleaseFlightCard(flightCard);
 
             _slots[toIndex].SetFilled(foodModel);
         }

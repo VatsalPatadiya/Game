@@ -16,20 +16,17 @@ public static class GameSceneBuilder3D
     private static readonly Color MutedIconTint = new Color(0.541f, 0.502f, 0.447f, 1f); // #8A8072 - mockup's .chrome-btn.is-locked svg stroke
     private static readonly Color GoldIconTint = new Color(0.95f, 0.78f, 0.30f, 1f); // hint's lightbulb is colored gold, unlike the other buttons' white/cream glyphs
 
-    // BoardView3D.FitCameraToBoard measures ~13.6 world units for the current
-    // fixed board layout (confirmed via a runtime diagnostic) - HudDistance
-    // must stay safely LESS than that so HUD elements (parented to the camera
-    // at this fixed local Z) render in FRONT of the board instead of behind
-    // it. This used to be 18, calibrated against a since-changed, larger
-    // board size; leaving it at 18 forced BoardView3D._minDistanceForHud to
-    // push the camera back further than this board actually needs, which
-    // visibly shrank the tiles as an unintended side effect. 11 leaves a
-    // ~2.6-unit margin against the measured 13.6 without oversizing it.
+    // BoardView3D.FitCameraToBoard's natural fit distance for the current
+    // board layout (6-column layer 0, portrait screen, width is the binding
+    // axis) is ~10.4 world units at the wider 48deg FOV set below (was ~13.6
+    // at the old 40deg FOV/0.3 margin) - HudDistance must stay safely LESS
+    // than that so HUD elements (parented to the camera at this fixed local
+    // Z) render in FRONT of the board instead of behind it.
     // NOTE: if the board layout ever becomes variable-sized again, a static
     // margin like this is fragile - re-derive HudDistance dynamically from
     // BoardView3D's actual fit distance instead of hardcoding it here.
-    private const float HudDistance = 11f;
-    private const float PopupDistance = 9f; // closer than HudDistance so the modal reads larger, in front of the board
+    private const float HudDistance = 9f;
+    private const float PopupDistance = 7.35f; // closer than HudDistance so the modal reads larger, in front of the board (also scaled by the same 0.8175 ratio)
 
     public static void Build()
     {
@@ -38,7 +35,14 @@ public static class GameSceneBuilder3D
         var cameraGO = new GameObject("Main Camera", typeof(Camera));
         var camera = cameraGO.GetComponent<Camera>();
         camera.orthographic = false;
-        camera.fieldOfView = 40f;
+        // 40 -> 48: the board's width (6 columns on a narrow portrait FOV) was
+        // the binding fit constraint, forcing the camera much farther back
+        // than its height needed - a wider FOV lets the board fit at a closer
+        // distance (bigger, less dead space) without reshaping the board.
+        // HudDistance/TrayDistance/PopupDistance below are scaled by the same
+        // tan(20deg)/tan(24deg) ratio so every HUD element's apparent screen
+        // size is unchanged despite the wider lens - only the board grows.
+        camera.fieldOfView = 48f;
         camera.clearFlags = CameraClearFlags.SolidColor;
         camera.backgroundColor = new Color(0.098f, 0.184f, 0.145f); // dark felt edge, in case the felt quad doesn't reach a frame corner
         cameraGO.tag = "MainCamera";
@@ -83,22 +87,26 @@ public static class GameSceneBuilder3D
         RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
         RenderSettings.ambientLight = new Color(0.52f, 0.5f, 0.45f);
 
-        // Felt-table backdrop: a large quad behind the board (a bit past the
-        // deepest tile layer) so the board sits on a warm, vignetted table
-        // instead of floating in the flat camera colour. Double-sided material
-        // (Felt.mat _Cull=0), so the runtime camera tilt never culls it.
-        var feltMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Felt.mat");
-        RequireNotNull(feltMat, "Assets/Materials/Felt.mat as Material (run FeltBackgroundGenerator first)");
-        var feltGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
-        feltGO.name = "FeltBackground";
-        Object.DestroyImmediate(feltGO.GetComponent<Collider>());
-        feltGO.transform.position = new Vector3(0f, 0f, 9f); // well behind the HUD (~z3-4) so it never occludes the score bar / buttons
-        feltGO.transform.rotation = Quaternion.identity;
-        feltGO.transform.localScale = new Vector3(60f, 60f, 1f);
-        var feltRenderer = feltGO.GetComponent<MeshRenderer>();
-        feltRenderer.sharedMaterial = feltMat;
-        feltRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-        feltRenderer.receiveShadows = true;
+        // Felt-table backdrop: was a large FIXED WORLD-SPACE quad (scale 60,
+        // Lit) behind the board - at that scale the camera only ever saw the
+        // texture's near-uniform centre (the radial spotlight glow never
+        // showed), and the Lit shader let scene ambient wash out its dark
+        // vignette into a flat green wash. Switched to the same technique the
+        // level-start screen already uses successfully: a camera-PARENTED
+        // quad sized to exactly fill the viewport (so the bake maps
+        // screen-to-texture regardless of where BoardView3D later moves the
+        // camera) with an Unlit material (so the baked darks survive scene
+        // ambient). GameBackdropDistance (12) sits beyond both the HUD plane
+        // (HudDistance=9) and the farthest board tile (~10.1 at this FOV/
+        // board size), so it always renders behind everything.
+        const float GameBackdropDistance = 13f;
+        var feltScreenMat = GetOrCreateFeltScreenMaterial();
+        BuildScreenFillingBackdrop(camera, camera.transform, GameBackdropDistance, feltScreenMat, "FeltBackground");
+        // Between the backdrop (13) and the farthest board tile (~10.1, plus
+        // margin for the untilted-camera approximation that estimate uses) /
+        // HUD plane (9), so leaves sit behind all HUD/board content, matching
+        // the mockup's DOM order (leaves painted before .hud).
+        BuildLeafDecoration(camera, camera.transform, 11.5f);
 
         var cardMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/CardBody.mat");
         RequireNotNull(cardMaterial, "Assets/Materials/CardBody.mat as Material");
@@ -157,11 +165,26 @@ public static class GameSceneBuilder3D
         const float TrackHeight = 0.34f;
         const float ProgressMaxScore = 2000f; // matches ProgressBar3D._maxScore default
 
+        // Computed from the topbar's own bottom EDGE (not a guessed centre-Y
+        // gap - see ScreenHalfHeightFrac) so this row can never overlap the
+        // back/menu discs regardless of either row's height.
+        const float HudRowGap = 0.02f; // consistent edge-to-edge gap between every stacked HUD row below
+        const float TopbarFaceDiameter = 0.55f; // CreateVisualIconButton3D's face scale, must match its own call below
+        // 0.92 -> 0.94: lifts the whole topbar/progress/tray cluster together
+        // (everything below is computed FROM this anchor) to free up more
+        // clearance before the board starts - the tray's bottom edge was
+        // landing directly against the board's top row with no felt gap,
+        // reading as the tray sitting on/overlapping the pyramid. (First
+        // attempt at 0.96 fixed the gap but pushed the topbar discs to
+        // clip against the very top of frame - confirmed via a live-editor
+        // capture. 0.94 is a smaller lift, re-verify the gap is still real.)
+        const float TopbarY = 0.94f;
+        float topbarBottomEdge = TopbarY - ScreenHalfHeightFrac(camera, TopbarFaceDiameter, HudDistance);
+        float progressHalfHeight = ScreenHalfHeightFrac(camera, TrackHeight + 0.12f, HudDistance);
+        float progressBarY = topbarBottomEdge - HudRowGap - progressHalfHeight;
+
         var scoreRootGO = new GameObject("ProgressBar");
-        // 0.875, not 0.92: the mockup puts back/menu on their OWN top row,
-        // with the progress bar row below it (CSS .topbar then .progress-row
-        // with margin-top:6%) - previously both sat on the same y=0.92 line.
-        PositionInFrontOfCamera(scoreRootGO.transform, camera, new Vector2(0.5f, 0.86f), HudDistance);
+        PositionInFrontOfCamera(scoreRootGO.transform, camera, new Vector2(0.5f, progressBarY), HudDistance);
 
         // Rounded wood border with a vertical light/dark gradient bake (not a
         // flat colour - see WoodUiGenerator.ApplyVerticalGradientPanel) and a
@@ -213,21 +236,34 @@ public static class GameSceneBuilder3D
         progressBackgroundGO.GetComponent<MeshFilter>().sharedMesh = progressBackgroundMesh;
         progressBackgroundGO.GetComponent<MeshRenderer>().sharedMaterial = progressBackgroundMaterial;
 
-        // gold fill (left-anchored, grown by ProgressBar3D) - Z tightened to
-        // 0.04 (was -0.02, a 0.08 gap from Border) for the same off-center
-        // parallax reason as Background above.
+        // gold fill (left-anchored, grown by ProgressBar3D). Z pulled out to
+        // -0.05 (was 0.04, only a 0.01 gap from Background's 0.05) - at
+        // HudDistance=9 that 0.01 gap silently lost the depth test against
+        // Background (confirmed live: forcing Fill to z=-1 made it instantly
+        // visible; perspective Z-buffers concentrate precision near the
+        // camera, so a gap this small this far out can fall below the
+        // buffer's effective resolution). Fill and Background overlap in
+        // most of their screen pixels (Fill grows to cover the same area),
+        // unlike Border vs Background which barely overlap (frame vs inset)
+        // and never showed this problem despite an equally small 0.01 gap.
+        // 0.10 is a comfortable margin, not a tuned minimum.
         var barFillGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
         barFillGO.name = "Fill";
         barFillGO.transform.SetParent(scoreRootGO.transform, false);
-        barFillGO.transform.localPosition = new Vector3(-TrackWidth * 0.5f, 0f, 0.04f);
+        barFillGO.transform.localPosition = new Vector3(-TrackWidth * 0.5f, 0f, -0.05f);
         barFillGO.transform.localScale = new Vector3(0f, TrackHeight * 0.72f, 1f);
         Object.DestroyImmediate(barFillGO.GetComponent<Collider>());
-        barFillGO.GetComponent<MeshRenderer>().sharedMaterial =
-            AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Gold.mat");
+        // Gold.mat, not this - see GetOrCreateNonEmissiveGoldMaterial's
+        // comment at the Play button below: Gold.mat's emission never
+        // actually renders (color set, keyword never enabled), so the fill
+        // was rendering as an all-but-invisible plain quad against the dark
+        // wood track. Confirmed via a live-editor capture with a nonzero
+        // score - literally nothing visible where a gold bar should be.
+        barFillGO.GetComponent<MeshRenderer>().sharedMaterial = GetOrCreateNonEmissiveGoldMaterial(alwaysOnTop: true);
 
         var scoreGO = new GameObject("ScoreText", typeof(TextMeshPro));
         scoreGO.transform.SetParent(scoreRootGO.transform, false);
-        scoreGO.transform.localPosition = new Vector3(0f, 0f, 0.03f); // was -0.08, same tightening as Fill/Background above
+        scoreGO.transform.localPosition = new Vector3(0f, 0f, -0.15f); // pulled forward with Fill above so the score number stays in front of it, not behind
         var scoreText = scoreGO.GetComponent<TextMeshPro>();
         scoreText.text = "0";
         scoreText.color = CreamHudText;
@@ -259,8 +295,8 @@ public static class GameSceneBuilder3D
         // of the HUD. One consistent button chrome across all five buttons.
         // y=0.92, not 0.965: leaves a top margin clear of the status-bar area
         // so the discs aren't jammed against the very top edge of the screen.
-        var backButtonGO = CreateVisualIconButton3D(camera, hudButtonFaceMaterial, new Vector2(0.09f, 0.92f), "BackButton", backIcon);
-        var menuButtonGO = CreateVisualIconButton3D(camera, hudButtonFaceMaterial, new Vector2(0.91f, 0.92f), "MenuButton", menuIcon);
+        var backButtonGO = CreateVisualIconButton3D(camera, hudButtonFaceMaterial, new Vector2(0.09f, TopbarY), "BackButton", backIcon);
+        var menuButtonGO = CreateVisualIconButton3D(camera, hudButtonFaceMaterial, new Vector2(0.91f, TopbarY), "MenuButton", menuIcon);
 
         // ------------------
         // Control bar (hint/undo/shuffle)
@@ -289,11 +325,12 @@ public static class GameSceneBuilder3D
         // x = 0.17 / 0.5 / 0.83 so the outer buttons' edges line up with the
         // progress bar / tray edges - consistent left/right margins across the
         // whole HUD (they were at 0.2/0.8, a bit narrower than the tray).
-        var shuffleButtonGO = CreateHudButton3D(camera, hudButtonFaceMaterial, badgeMaterial, new Vector2(0.17f, 0.15f), gameController, typeof(ShuffleButton3D), shuffleIcon,
+        const float BottomButtonRowY = 0.15f;
+        var shuffleButtonGO = CreateHudButton3D(camera, hudButtonFaceMaterial, badgeMaterial, new Vector2(0.17f, BottomButtonRowY), gameController, typeof(ShuffleButton3D), shuffleIcon,
             locked: true, lockedFaceMaterial: hudButtonFaceLockedMaterial, lockedLabel: "Lv. 6");
-        var hintButtonGO = CreateHudButton3D(camera, hudButtonFaceMaterial, badgeMaterial, new Vector2(0.5f, 0.15f), gameController, typeof(HintButton3D), hintIcon,
+        var hintButtonGO = CreateHudButton3D(camera, hudButtonFaceMaterial, badgeMaterial, new Vector2(0.5f, BottomButtonRowY), gameController, typeof(HintButton3D), hintIcon,
             iconColorOverride: GoldIconTint);
-        var undoButtonGO = CreateHudButton3D(camera, hudButtonFaceMaterial, badgeMaterial, new Vector2(0.83f, 0.15f), gameController, typeof(UndoButton3D), undoIcon);
+        var undoButtonGO = CreateHudButton3D(camera, hudButtonFaceMaterial, badgeMaterial, new Vector2(0.83f, BottomButtonRowY), gameController, typeof(UndoButton3D), undoIcon);
         // The control buttons were built at full size (~2.2x) and ran off the
         // screen edges (undo's badge was clipped). Scale the whole button root
         // (face + icon + badge + caption together) down to a mockup-sized disc
@@ -313,9 +350,41 @@ public static class GameSceneBuilder3D
         // board's fit distance) so it draws in FRONT of the stack instead of
         // being occluded by the tiles. Scaled down by TrayDistance/HudDistance
         // so its on-screen size is unchanged despite the nearer placement.
-        const float TrayDistance = 9f;
-        PositionInFrontOfCamera(trayRootGO.transform, camera, new Vector2(0.5f, 0.75f), TrayDistance);
+        const float TrayDistance = 7.35f; // 9 * 0.8175, same FOV-compensation ratio as HudDistance/PopupDistance above
+        // Computed from the progress bar's own bottom EDGE, same reasoning as
+        // progressBarY above. A prior fix (0.75->0.80) used a flat centre-Y
+        // gap copied from the topbar/progress spacing, without accounting for
+        // the tray being a MUCH taller element (~14% of screen height at its
+        // distance vs the progress bar's ~6%) - that pushed the tray's top
+        // edge straight through the progress bar's bottom edge, confirmed
+        // both mathematically and via a live-editor screenshot showing the
+        // tray's amber frame overlapping the wood track above it.
+        float progressBottomEdge = progressBarY - progressHalfHeight;
+        float trayHalfHeight = ScreenHalfHeightFrac(camera, trayFrameHeight, TrayDistance);
+        float trayY = progressBottomEdge - HudRowGap - trayHalfHeight;
+        PositionInFrontOfCamera(trayRootGO.transform, camera, new Vector2(0.5f, trayY), TrayDistance);
         trayRootGO.transform.localScale = Vector3.one * (TrayDistance / HudDistance);
+
+        // BoardView3D.FitCameraToBoard centres the board on its own bounding
+        // box (viewport Y=0.5) by default - correct only if the space above
+        // and below the board is symmetric. It isn't: the topbar/progress/
+        // tray cluster occupies far more of the top of the screen than the
+        // button row occupies at the bottom, so a screen-centred board
+        // leaves a visibly bigger gap at the bottom than the top (measured
+        // on-device: ~12% of screen height at the bottom vs ~2% at the top,
+        // after the tray-to-board gap fix above). Compute where the board's
+        // vertical centre SHOULD sit - the midpoint of the actual available
+        // band between the tray's bottom edge and the button row's top edge
+        // - and hand BoardView3D the delta from screen-centre so it can
+        // shift its camera aim to match, growing the board into the unused
+        // space instead of leaving it empty.
+        const float ButtonFaceWorldDiameter = 0.99f * 0.62f; // CreateHudButton3D's Face scale (0.99) * the button-root scale-down applied above (0.62)
+        float buttonHalfHeight = ScreenHalfHeightFrac(camera, ButtonFaceWorldDiameter, HudDistance);
+        float bandTop = trayY - trayHalfHeight - HudRowGap; // where the board's top edge already lands, undisturbed by this bias
+        float bandBottom = BottomButtonRowY + buttonHalfHeight + HudRowGap;
+        float desiredBoardCenterY = (bandTop + bandBottom) * 0.5f;
+        float verticalBiasFrac = 0.5f - desiredBoardCenterY; // positive = shift the board's rendered position DOWN the screen
+        SetFieldFloat(boardView, "_verticalBiasViewportFrac", verticalBiasFrac);
 
         // Soft drop shadow (reuses the board tiles' TileShadow.mat) behind the
         // whole tray, so it reads as sitting raised above the felt.
@@ -461,6 +530,116 @@ public static class GameSceneBuilder3D
         target.SetParent(camera.transform, true);
     }
 
+    // Screen-space HALF-height (as a viewport fraction) that a `worldHeight`
+    // element subtends at `distance` in front of this camera. Used to lay
+    // out stacked HUD rows by their actual EDGES instead of guessing a
+    // centre-Y gap - guessing silently overlaps two rows whenever they
+    // differ enough in height, which is exactly what happened here: the
+    // tray (screen height ~14% at its distance) got moved up by the same
+    // centre-Y gap that separates the much-shorter progress bar (~6%) from
+    // the topbar, driving its top edge straight through the progress bar's
+    // bottom edge. Confirmed both mathematically and via a live-editor
+    // screenshot before landing this fix.
+    private static float ScreenHalfHeightFrac(Camera camera, float worldHeight, float distance)
+    {
+        float frustumHeight = 2f * distance * Mathf.Tan(camera.fieldOfView * 0.5f * Mathf.Deg2Rad);
+        return (worldHeight / frustumHeight) * 0.5f;
+    }
+
+    // Loads the shared Unlit felt-gradient material used as a full-screen
+    // backdrop (both the level-start screen and the game HUD screen), or
+    // creates it if this is the first call. Unlit (not Felt.mat's Lit
+    // shader) so the baked radial-glow darks aren't washed out by
+    // RenderSettings.ambientLight.
+    private static Material GetOrCreateFeltScreenMaterial()
+    {
+        var feltTex = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/Felt.png");
+        RequireNotNull(feltTex, "Assets/Textures/Felt.png (run FeltBackgroundGenerator first)");
+        var mat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/FeltScreen.mat");
+        if (mat == null)
+        {
+            mat = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
+            AssetDatabase.CreateAsset(mat, "Assets/Materials/FeltScreen.mat");
+        }
+        mat.SetTexture("_BaseMap", feltTex);
+        mat.SetColor("_BaseColor", Color.white);
+        EditorUtility.SetDirty(mat);
+        return mat;
+    }
+
+    // Shared non-emissive gold material (used by the Play button and the
+    // progress bar's fill) - see the callers' comments for why this exists
+    // instead of just loading Assets/Materials/Gold.mat directly.
+    private static Material GetOrCreateNonEmissiveGoldMaterial(bool alwaysOnTop = false)
+    {
+        // Separate asset per variant, not one material with alwaysOnTop
+        // toggled at each call site - SetAlwaysOnTop mutates the material
+        // asset itself, so sharing one instance between the Play button and
+        // the fill would silently force ZTest:Always onto whichever caller
+        // ran second.
+        string path = alwaysOnTop ? "Assets/Materials/ProgressFillGold.mat" : "Assets/Materials/PlayGold.mat";
+        // Unlit, not Lit, when alwaysOnTop is requested - removes the
+        // ORIGINAL cause of the fill's invisibility: a Lit material's gold
+        // only shows via specular response to scene lighting, and this
+        // thin, off-centre bar was catching that light too poorly to read
+        // as anything but near-black. (Tried pairing this with
+        // URPMaterialUtil.SetTransparent+SetAlwaysOnTop to also fix the
+        // separate Z-fighting cause below, on both Lit and Unlit - both
+        // threw "doesn't have a float or range property '_ZTest'" from
+        // Material.GetFloat, meaning URP 17's shaders here don't expose
+        // _ZTest as a material property at all, so SetAlwaysOnTop's
+        // SetInt("_ZTest",...) has silently been a no-op absolutely
+        // everywhere it's called in this codebase, not just here. Left
+        // that alone rather than chase a real fix for an unrelated
+        // pre-existing helper - the actual Z-fighting fix is the wider
+        // gap at the Fill's placement site below, not a material trick.)
+        var shader = Shader.Find(alwaysOnTop ? "Universal Render Pipeline/Unlit" : "Universal Render Pipeline/Lit");
+        var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+        if (mat == null)
+        {
+            mat = new Material(shader);
+            AssetDatabase.CreateAsset(mat, path);
+        }
+        else
+        {
+            mat.shader = shader;
+        }
+        mat.SetTexture("_BaseMap", AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/Gold.png"));
+        mat.SetColor("_BaseColor", Color.white);
+        if (!alwaysOnTop)
+        {
+            mat.SetFloat("_Smoothness", 0.35f);
+            mat.SetFloat("_Metallic", 0f);
+        }
+        EditorUtility.SetDirty(mat);
+        return mat;
+    }
+
+    // A quad parented to (and facing) the camera, sized to exactly fill the
+    // viewport at `distance` - so a baked full-screen texture (the felt
+    // radial glow) maps screen-to-texture correctly regardless of the
+    // camera's later position/orientation, unlike a fixed-scale world-space
+    // quad which only shows whatever portion of the texture its bounds
+    // happen to cover from wherever the camera ends up.
+    private static GameObject BuildScreenFillingBackdrop(
+        Camera camera, Transform parent, float distance, Material material, string name)
+    {
+        var go = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        go.name = name;
+        Object.DestroyImmediate(go.GetComponent<Collider>());
+        go.transform.position = camera.ViewportToWorldPoint(new Vector3(0.5f, 0.5f, distance));
+        go.transform.rotation = camera.transform.rotation;
+        go.transform.SetParent(parent, true);
+        float h = 2f * distance * Mathf.Tan(camera.fieldOfView * 0.5f * Mathf.Deg2Rad);
+        float w = h * camera.aspect;
+        go.transform.localScale = new Vector3(w * 1.06f, h * 1.06f, 1f); // slight overscan to guarantee full coverage
+        var renderer = go.GetComponent<MeshRenderer>();
+        renderer.sharedMaterial = material;
+        renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        renderer.receiveShadows = false;
+        return go;
+    }
+
     // Soft drop shadow (reuses the board tiles' TileShadow.mat) behind a
     // button, sized relative to its own Face scale - shared by
     // CreateHudButton3D and CreateVisualIconButton3D so every button in the
@@ -574,27 +753,27 @@ public static class GameSceneBuilder3D
             var badgeBgGO = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             badgeBgGO.name = "BadgeBackground";
             badgeBgGO.transform.SetParent(buttonGO.transform, false);
-            badgeBgGO.transform.localPosition = new Vector3(0.40f, 0.40f, -0.72f); // pulled in from the naive 0.32*2.2=0.70 so the badge overlaps the disc rim like the reference, instead of floating detached from it
+            // Position 0.40->0.35, scale 0.37->0.32: measured against the
+            // mockup's own numbers (badge 22px / button ~69px = 32% diameter
+            // ratio; badge centre sits ~71% of the button's radius from
+            // centre, from its top:-1.5%/right:-2% offsets) - ours was both
+            // a bit bigger (37%) and sitting further out toward the corner
+            // (81%) than the mockup, reading as slightly oversized/detached.
+            badgeBgGO.transform.localPosition = new Vector3(0.35f, 0.35f, -0.72f);
             badgeBgGO.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
-            badgeBgGO.transform.localScale = new Vector3(0.37f, 0.11f, 0.37f); // 0.17/0.05 * 2.2
+            badgeBgGO.transform.localScale = new Vector3(0.32f, 0.095f, 0.32f);
             Object.DestroyImmediate(badgeBgGO.GetComponent<Collider>());
             badgeBgGO.GetComponent<MeshRenderer>().sharedMaterial = badgeMaterial;
 
             var badgeGO = new GameObject("BadgeText", typeof(TextMeshPro));
             badgeGO.transform.SetParent(buttonGO.transform, false);
-            // -0.87, not exactly -0.72: needs to clear BadgeBackground's own
-            // front face. Cylinder height scale is 0.11 (default height 2 ->
-            // half-height 0.11 after rotation becomes the Z-depth), so its
-            // front face sits at -0.72-0.11=-0.83, not -0.72 - missing this
-            // by enlarging the badge without correspondingly moving the text
-            // is exactly what embedded the "3" behind the now-thicker opaque
-            // disc (confirmed on-device: badge showed a bare circle, no
-            // digit, right after the button-enlarge pass). -0.87 clears the
-            // front face with the same ~0.04 margin used before enlarging.
-            badgeGO.transform.localPosition = new Vector3(0.40f, 0.40f, -0.87f);
+            // -0.87 clears BadgeBackground's own front face (-0.72-0.095=
+            // -0.815) with a small margin, same reasoning as before just
+            // re-checked against the new, slightly thinner 0.095 scale.
+            badgeGO.transform.localPosition = new Vector3(0.35f, 0.35f, -0.87f);
             badgeText = badgeGO.GetComponent<TextMeshPro>();
             badgeText.text = "3";
-            badgeText.fontSize = 1.1f; // 0.5 * 2.2
+            badgeText.fontSize = 0.95f; // scaled down with the badge (was 1.1 at the old 0.37 badge size)
             badgeText.color = Color.white; // sits on the red BadgeBackground circle now, not the button face
             badgeText.alignment = TextAlignmentOptions.Center;
         }
@@ -681,33 +860,22 @@ public static class GameSceneBuilder3D
         Camera camera, GameController gameController, GameObject[] hudObjects,
         Sprite hintIcon, Sprite undoIcon, Sprite shuffleIcon, Material discFaceMaterial)
     {
-        const float D = 7f; // nearer than the felt backdrop (world z=9) so it renders in front
+        // 7 -> 5.72: this screen's own elements (badge/stars/chips/Play button)
+        // are all sized in fixed world units at this fixed distance D,
+        // independent of the game HUD's HudDistance - so the FOV change in
+        // Build() (40->48, for the board spacing fix) would shrink them too
+        // unless D is scaled by the same tan(20deg)/tan(24deg)=0.8175 ratio.
+        const float D = 7f * 0.8175f;
 
         var root = new GameObject("LevelStartScreen");
         PositionInFrontOfCamera(root.transform, camera, new Vector2(0.5f, 0.5f), D);
 
-        // Full-screen radial-felt backdrop for this screen, parented to the
-        // camera and sized to exactly fill the viewport so the baked glow +
-        // vignette map screen-to-texture. The shared world felt quad can't do
-        // this: it's scale-60, so the camera only ever sees its near-uniform
-        // centre, and it's Lit (scene ambient lifts its dark vignette to a flat
-        // mid-green). This one is Unlit so the baked darks survive.
-        const float BgD = 8f; // behind the content plane (D=7), in front of the world felt (z=9)
-        var bgGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
-        bgGO.name = "Backdrop";
-        Object.DestroyImmediate(bgGO.GetComponent<Collider>());
-        bgGO.transform.position = camera.ViewportToWorldPoint(new Vector3(0.5f, 0.5f, BgD));
-        bgGO.transform.rotation = camera.transform.rotation;
-        bgGO.transform.SetParent(root.transform, true);
-        float bgH = 2f * BgD * Mathf.Tan(camera.fieldOfView * 0.5f * Mathf.Deg2Rad);
-        float bgW = bgH * camera.aspect;
-        bgGO.transform.localScale = new Vector3(bgW * 1.06f, bgH * 1.06f, 1f); // slight overscan to guarantee full coverage
-        var feltTex = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/Felt.png");
-        var bgMat = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
-        bgMat.SetTexture("_BaseMap", feltTex);
-        bgMat.SetColor("_BaseColor", Color.white);
-        AssetDatabase.CreateAsset(bgMat, "Assets/Materials/FeltScreen.mat");
-        bgGO.GetComponent<MeshRenderer>().sharedMaterial = bgMat;
+        // Full-screen radial-felt backdrop for this screen - see
+        // BuildScreenFillingBackdrop/GetOrCreateFeltScreenMaterial (shared
+        // with the game HUD screen's own backdrop, below in Build()).
+        const float BgD = 8f * 0.8175f; // behind the content plane, same compensation ratio as D above
+        BuildScreenFillingBackdrop(camera, root.transform, BgD, GetOrCreateFeltScreenMaterial(), "Backdrop");
+        BuildLeafDecoration(camera, root.transform, 7.7f * 0.8175f); // between the content plane and the backdrop
 
         var creamDim = new Color(0.796f, 0.749f, 0.643f); // #CBBFA4 (mockup --cream-dim)
         var inkDim = new Color(0.604f, 0.573f, 0.494f);   // #9A927E (mockup --ink-dim)
@@ -779,15 +947,16 @@ public static class GameSceneBuilder3D
         var playGO = new GameObject("PlayButton", typeof(MeshFilter), typeof(MeshRenderer));
         Place(playGO, new Vector2(0.5f, 0.145f));
         playGO.GetComponent<MeshFilter>().sharedMesh = playMesh;
-        // Dedicated non-emissive gold (Gold.mat glows via _EMISSION, which blew
-        // the button out to a flat bright yellow) so it reads as the mockup's
-        // gradient gold pill.
-        var playGold = new Material(Shader.Find("Universal Render Pipeline/Lit"));
-        playGold.SetTexture("_BaseMap", AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/Gold.png"));
-        playGold.SetColor("_BaseColor", Color.white);
-        playGold.SetFloat("_Smoothness", 0.35f);
-        playGold.SetFloat("_Metallic", 0f);
-        AssetDatabase.CreateAsset(playGold, "Assets/Materials/PlayGold.mat");
+        // Dedicated non-emissive gold (see GetOrCreateNonEmissiveGoldMaterial -
+        // Gold.mat's _EmissionColor is set but its _EMISSION keyword is never
+        // enabled, a classic Unity gotcha: setting the color property alone
+        // does not turn emission rendering on. Depending on when that was
+        // last true, Gold.mat has either always silently rendered as its
+        // plain, unlit-looking base texture, or the keyword got dropped on a
+        // later regeneration - either way, this dedicated material is the
+        // one confirmed to actually render the gold gradient) so it reads as
+        // the mockup's gradient gold pill.
+        var playGold = GetOrCreateNonEmissiveGoldMaterial();
         playGO.GetComponent<MeshRenderer>().sharedMaterial = playGold;
         var playCollider = playGO.AddComponent<BoxCollider>();
         playCollider.size = new Vector3(1.75f, 0.3f, 0.3f);
@@ -882,6 +1051,72 @@ public static class GameSceneBuilder3D
         }
     }
 
+    // Three faint corner leaf silhouettes (mockup's `.leaf.l1/.l2/.l3`), at
+    // 7% white opacity. Viewport fractions are the leaf's CENTER (Unity
+    // positions a quad by its centre), converted from the mockup's CSS,
+    // which anchors by top-left/right/bottom EDGE, not centre - e.g. l1's
+    // `left:-38px` is where its edge sits, so the centre is at
+    // left+width/2, not at -38px itself. Also measured against the
+    // `.screen` box (362x817, phone 390x845 minus the .phone element's own
+    // 14px padding on each side), not the outer phone frame - both of these
+    // were wrong in the first pass, which placed the centres far enough
+    // off-screen (up to -0.10/1.02) that the whole shape missed the visible
+    // viewport entirely (confirmed via an in-editor Game view capture, whose
+    // wider aspect showed the letterboxed margins where they were actually
+    // landing).
+    // WidthFrac bumped ~1.5x over the literal CSS-px conversion in an
+    // earlier pass (measuring the user's own annotated mockup screenshot
+    // against its phone screen gave ~50%/44%/39% of screen width for
+    // l1/l2/l3, vs the ~41%/30%/25% the raw CSS px values converted to), then
+    // bumped again here per explicit follow-up feedback that it still read
+    // too small - another ~1.3x on top of that first pass.
+    private static readonly (Vector2 Viewport, float WidthFrac, float RotationDeg)[] LeafSpecs =
+    {
+        (new Vector2(0.102f, 0.894f), 0.80f, 18f),   // l1: top-left
+        (new Vector2(0.931f, 0.241f), 0.60f, -150f), // l2: right edge, lower third
+        (new Vector2(0.086f, 0.065f), 0.48f, 58f),   // l3: bottom-left
+    };
+
+    private static void BuildLeafDecoration(Camera camera, Transform parent, float distance)
+    {
+        var leafSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Textures/Decor/leaf.png");
+        RequireNotNull(leafSprite, "Assets/Textures/Decor/leaf.png as Sprite (run DecorIconGenerator first)");
+
+        var leafMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/LeafDecor.mat");
+        if (leafMat == null)
+        {
+            leafMat = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
+            AssetDatabase.CreateAsset(leafMat, "Assets/Materials/LeafDecor.mat");
+        }
+        URPMaterialUtil.SetTransparent(leafMat);
+        URPMaterialUtil.SetAlwaysOnTop(leafMat); // without this the quad depth-tests against nearby opaque geometry (same fix every other camera-facing glyph in this file already relies on) and can be fully occluded
+        leafMat.SetTexture("_BaseMap", leafSprite.texture);
+        leafMat.SetColor("_BaseColor", new Color(1f, 1f, 1f, 0.07f)); // mockup: opacity:.07, fill:#fff
+        EditorUtility.SetDirty(leafMat);
+
+        var leafRoot = new GameObject("LeafDecoration");
+        leafRoot.transform.position = camera.ViewportToWorldPoint(new Vector3(0.5f, 0.5f, distance));
+        leafRoot.transform.rotation = camera.transform.rotation;
+        leafRoot.transform.SetParent(parent, true);
+
+        float frustumHeight = 2f * distance * Mathf.Tan(camera.fieldOfView * 0.5f * Mathf.Deg2Rad);
+        float frustumWidth = frustumHeight * camera.aspect;
+
+        for (int i = 0; i < LeafSpecs.Length; i++)
+        {
+            var (vp, widthFrac, rotationDeg) = LeafSpecs[i];
+            var go = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            go.name = "Leaf" + i;
+            Object.DestroyImmediate(go.GetComponent<Collider>());
+            go.transform.position = camera.ViewportToWorldPoint(new Vector3(vp.x, vp.y, distance));
+            go.transform.rotation = camera.transform.rotation * Quaternion.Euler(0f, 0f, rotationDeg);
+            go.transform.SetParent(leafRoot.transform, true);
+            float worldWidth = widthFrac * frustumWidth;
+            go.transform.localScale = new Vector3(worldWidth, worldWidth, 1f); // leaf.png's own SDF is already ~1.5:1 tall, no extra stretch needed
+            go.GetComponent<MeshRenderer>().sharedMaterial = leafMat;
+        }
+    }
+
     // Bakes a filled 5-point white star (alpha-shaped) once, as a Sprite so
     // the alpha survives Android compression (same settings the icon glyphs use).
     private static Sprite GetStarSprite()
@@ -973,12 +1208,52 @@ public static class GameSceneBuilder3D
         var tileFaceMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/TileBody.mat");
         RequireNotNull(tileFaceMaterial, "Assets/Materials/TileBody.mat (run TileMaterialGenerator first)");
 
+        // Motion-blur trail (mockup reference: a fast-flying collected tile
+        // trails a soft warm blur) - built onto every tray slot instance but
+        // disabled by default (TraySlotView3D.SetFlightTrailEnabled), so only
+        // the pooled flight-card instances TrayView3D reuses ever show one;
+        // the 4 static tray slots never call SetFlightTrailEnabled(true).
+        var trailGO = new GameObject("FlightTrail");
+        trailGO.transform.SetParent(content.transform, false);
+        var trail = trailGO.AddComponent<TrailRenderer>();
+        trail.time = 0.18f;
+        trail.startWidth = size * 0.55f;
+        trail.endWidth = 0.01f;
+        trail.minVertexDistance = 0.01f;
+        trail.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        trail.receiveShadows = false;
+        trail.textureMode = LineTextureMode.Stretch;
+        var trailShader = Shader.Find("Universal Render Pipeline/Particles/Unlit")
+                           ?? Shader.Find("Universal Render Pipeline/Unlit");
+        var trailMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/FlightTrail.mat");
+        if (trailMat == null)
+        {
+            trailMat = new Material(trailShader);
+            AssetDatabase.CreateAsset(trailMat, "Assets/Materials/FlightTrail.mat");
+        }
+        else
+        {
+            trailMat.shader = trailShader;
+        }
+        URPMaterialUtil.SetTransparent(trailMat);
+        trailMat.SetColor("_BaseColor", new Color(1f, 0.85f, 0.55f, 0.5f)); // warm gold, matches the ivory/amber tile chrome
+        EditorUtility.SetDirty(trailMat);
+        trail.sharedMaterial = trailMat;
+        var trailGradient = new Gradient();
+        trailGradient.SetKeys(
+            new[] { new GradientColorKey(new Color(1f, 0.85f, 0.55f), 0f), new GradientColorKey(new Color(1f, 0.85f, 0.55f), 1f) },
+            new[] { new GradientAlphaKey(0.5f, 0f), new GradientAlphaKey(0f, 1f) });
+        trail.colorGradient = trailGradient;
+        trail.emitting = false;
+        trail.enabled = false;
+
         var slotView = root.AddComponent<TraySlotView3D>();
         SetField(slotView, "_content", content.transform);
         SetField(slotView, "_bodyRenderer", body.GetComponent<MeshRenderer>());
         SetField(slotView, "_foodAnchor", foodAnchorGO.transform);
         SetField(slotView, "_emptyMaterial", cardMaterial);
         SetField(slotView, "_filledMaterial", tileFaceMaterial);
+        SetField(slotView, "_flightTrail", trail);
 
         Directory.CreateDirectory("Assets/Prefabs");
         var prefab = PrefabUtility.SaveAsPrefabAsset(root, "Assets/Prefabs/TraySlot3D.prefab");

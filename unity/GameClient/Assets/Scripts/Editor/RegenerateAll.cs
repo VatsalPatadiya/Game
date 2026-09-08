@@ -7,6 +7,7 @@ public static class RegenerateAll
         URPSetup.Configure();
         TileIconGenerator.Generate();
         HudIconGenerator.Generate();
+        DecorIconGenerator.Generate();
         CardSpriteGenerator.Generate();
         CardNormalMapGenerator.Generate();
         CardMaterialGenerator.Generate();
