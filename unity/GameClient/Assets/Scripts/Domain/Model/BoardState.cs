@@ -15,6 +15,8 @@ namespace GameDomain.Model
         public int Score;
         public int ComboCount;
 
+        public int MovesRemaining; // set from LevelDefinition.MovesBudget at generation; <= 0 (negative) means unlimited
+
         public int HintsRemaining = 3;
         public int UndosRemaining = 3;
         public int ShufflesRemaining = 3;

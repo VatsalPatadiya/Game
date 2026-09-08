@@ -23,6 +23,7 @@ namespace GameDomain.Generation
                 var board = new BoardState
                 {
                     LevelId = level.LevelId,
+                    MovesRemaining = level.MovesBudget,
                     Cells = new Dictionary<string, TileCell>()
                 };
 
