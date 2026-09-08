@@ -53,26 +53,35 @@ namespace GameClient.Presentation
         // can't land mid-animation and desync the board from what's visible.
         public bool IsInputLocked { get; private set; }
 
+        private void Awake()
+        {
+            // Load progress in Awake so it's ready before other components'
+            // OnEnable (the level-select screen reads it there to show lock/stars).
+            _progress = SaveSystem.Load();
+            _currentLevelId = Mathf.Clamp(_progress.HighestUnlockedLevelId, 1,
+                LevelCatalog.Levels[LevelCatalog.Levels.Count - 1].LevelId);
+        }
+
         private void Start()
         {
             // vSyncCount must be 0 for targetFrameRate to take effect at all -
             // otherwise Unity ignores it and locks to (display refresh /
             // vSyncCount). Requesting 120 only actually renders at 120 on a
             // device whose display supports it (paired with
-            // PlayerSettings.Android.optimizedFramePacing in AndroidBuilder,
-            // which asks Android for the higher display mode); on a 60Hz-only
-            // panel this same code just runs at that panel's 60Hz ceiling.
+            // PlayerSettings.Android.optimizedFramePacing in AndroidBuilder).
             QualitySettings.vSyncCount = 0;
             Application.targetFrameRate = 120;
 
-            // Load saved progress and start on the furthest unlocked level.
-            _progress = SaveSystem.Load();
-            _currentLevelId = Mathf.Clamp(_progress.HighestUnlockedLevelId, 1,
-                LevelCatalog.Levels[LevelCatalog.Levels.Count - 1].LevelId);
+            // The board no longer deals in on scene load - the level-select then
+            // level-start screens are shown first; BeginLevel() deals it in on Play.
+        }
 
-            // The board no longer deals in on scene load - the level-start
-            // screen (LevelStartScreen3D) is shown first and calls BeginLevel()
-            // when the player taps Play.
+        // Chosen from the level-select screen. Only unlocked levels are accepted.
+        public void SelectLevel(int levelId)
+        {
+            if (_progress == null) _progress = SaveSystem.Load();
+            if (_progress.IsUnlocked(levelId))
+                _currentLevelId = levelId;
         }
 
         // Entry point from the level-start screen's Play button.

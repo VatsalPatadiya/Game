@@ -495,7 +495,9 @@ public static class GameSceneBuilder3D
             scoreRootGO, trayRootGO, backButtonGO, menuButtonGO,
             shuffleButtonGO, hintButtonGO, undoButtonGO,
         };
-        BuildLevelStartScreen(camera, gameController, hudObjects, hintIcon, undoIcon, shuffleIcon, hudButtonFaceMaterial);
+        var levelStartRoot = BuildLevelStartScreen(camera, gameController, hudObjects, hintIcon, undoIcon, shuffleIcon, hudButtonFaceMaterial);
+        BuildLevelSelectScreen(camera, gameController, hudObjects, levelStartRoot, hudButtonFaceMaterial, hudButtonFaceLockedMaterial);
+        levelStartRoot.SetActive(false); // the level-select screen shows first
 
         Directory.CreateDirectory("Assets/Scenes");
         EditorSceneManager.SaveScene(scene, "Assets/Scenes/Game.unity");
@@ -844,7 +846,7 @@ public static class GameSceneBuilder3D
     // background, matching the mockup's felt screen. LevelStartScreen3D hides
     // the passed-in hudObjects until Play is tapped, then reveals them and
     // calls GameController.BeginLevel.
-    private static void BuildLevelStartScreen(
+    private static GameObject BuildLevelStartScreen(
         Camera camera, GameController gameController, GameObject[] hudObjects,
         Sprite hintIcon, Sprite undoIcon, Sprite shuffleIcon, Material discFaceMaterial)
     {
@@ -914,7 +916,7 @@ public static class GameSceneBuilder3D
         var badgeNum = Label("BadgeNum", new Vector2(0.5f, 0.55f), "6", 1.6f, CreamHudText, FontStyles.Bold);
         badgeNum.transform.localPosition += new Vector3(0f, 0f, -0.05f); // toward camera, in front of the disc face
 
-        Label("Title", new Vector2(0.5f, 0.478f), "Level 6", 1.15f, CreamHudText, FontStyles.Bold);
+        var titleLabel = Label("Title", new Vector2(0.5f, 0.478f), "Level 6", 1.15f, CreamHudText, FontStyles.Bold);
 
         // Two filled gold stars + one muted (unearned) star - real generated
         // star sprites, NOT ★/☆ glyphs (LiberationSans, the only font in the
@@ -959,6 +961,86 @@ public static class GameSceneBuilder3D
         SetField(levelStart, "_playButton", playButton);
         SetField(levelStart, "_gameController", gameController);
         SetFieldArray(levelStart, "_gameHudObjects", hudObjects);
+        SetField(levelStart, "_titleText", titleLabel);
+        SetField(levelStart, "_badgeText", badgeNum);
+        return root;
+    }
+
+    // Level-select screen (sub-project #4B): a centered row of level tokens
+    // (jade+gold disc + number + star pips), shown before the level-start screen.
+    private static void BuildLevelSelectScreen(
+        Camera camera, GameController gameController, GameObject[] hudObjects,
+        GameObject levelStartRoot, Material discFaceMaterial, Material discLockedMaterial)
+    {
+        const float D = 7f * 0.8175f;
+        var root = new GameObject("LevelSelectScreen");
+        PositionInFrontOfCamera(root.transform, camera, new Vector2(0.5f, 0.5f), D);
+
+        const float BgD = 8f * 0.8175f;
+        BuildScreenFillingBackdrop(camera, root.transform, BgD, GetOrCreateFeltScreenMaterial(), "Backdrop");
+        BuildLeafDecoration(camera, root.transform, 7.7f * 0.8175f);
+
+        Transform Place(GameObject go, Vector2 vp)
+        {
+            go.transform.position = camera.ViewportToWorldPoint(new Vector3(vp.x, vp.y, D));
+            go.transform.rotation = camera.transform.rotation;
+            go.transform.SetParent(root.transform, true);
+            return go.transform;
+        }
+        TextMeshPro Label(string name, Vector2 vp, string text, float size, Color color)
+        {
+            var go = new GameObject(name, typeof(TextMeshPro));
+            Place(go, vp);
+            var t = go.GetComponent<TextMeshPro>();
+            t.text = text; t.fontSize = size; t.color = color;
+            t.alignment = TextAlignmentOptions.Center;
+            if (DisplayFont != null) t.font = DisplayFont;
+            return t;
+        }
+
+        Label("SelectTitle", new Vector2(0.5f, 0.72f), "SELECT LEVEL", 0.72f, CreamHudText);
+
+        var levels = GameDomain.Progression.LevelCatalog.Levels;
+        int n = levels.Count;
+        var buttons = new PressScaleButton3D[n];
+        var ids = new int[n];
+        var starTexts = new TextMeshPro[n];
+        var numberTexts = new TextMeshPro[n];
+
+        const float spacing = 0.17f;
+        float x0 = 0.5f - (n - 1) * 0.5f * spacing;
+        for (int i = 0; i < n; i++)
+        {
+            float vx = x0 + i * spacing;
+            ids[i] = levels[i].LevelId;
+
+            var disc = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            disc.name = "LevelToken_" + levels[i].LevelId;
+            Place(disc, new Vector2(vx, 0.5f));
+            disc.transform.localScale = new Vector3(0.55f, 0.55f, 1f);
+            disc.GetComponent<MeshRenderer>().sharedMaterial = discFaceMaterial;
+            Object.DestroyImmediate(disc.GetComponent<Collider>());
+            disc.AddComponent<BoxCollider>();
+            var btn = disc.AddComponent<PressScaleButton3D>();
+            SetField(btn, "_targetCamera", camera);
+            buttons[i] = btn;
+
+            numberTexts[i] = Label("LevelNum_" + levels[i].LevelId, new Vector2(vx, 0.5f),
+                levels[i].LevelId.ToString(), 0.85f, CreamHudText);
+            numberTexts[i].transform.localPosition += new Vector3(0f, 0f, -0.05f); // in front of the disc
+
+            starTexts[i] = Label("LevelStars_" + levels[i].LevelId, new Vector2(vx, 0.42f),
+                "...", 0.4f, new Color(0.96f, 0.82f, 0.42f));
+        }
+
+        var select = root.AddComponent<LevelSelectScreen3D>();
+        SetFieldArray(select, "_levelButtons", buttons);
+        SetFieldIntArray(select, "_levelIds", ids);
+        SetFieldArray(select, "_starTexts", starTexts);
+        SetFieldArray(select, "_numberTexts", numberTexts);
+        SetField(select, "_levelStartScreen", levelStartRoot);
+        SetFieldArray(select, "_gameHudObjects", hudObjects);
+        SetField(select, "_gameController", gameController);
     }
 
     // One carryover chip on the level-start screen: a small dark disc with a
@@ -1274,6 +1356,17 @@ public static class GameSceneBuilder3D
         var property = serialized.FindProperty(fieldName);
         RequireNotNull(property, target.GetType().Name + "." + fieldName);
         property.floatValue = value;
+        serialized.ApplyModifiedPropertiesWithoutUndo();
+    }
+
+    private static void SetFieldIntArray(Object target, string fieldName, int[] values)
+    {
+        var serialized = new SerializedObject(target);
+        var property = serialized.FindProperty(fieldName);
+        RequireNotNull(property, target.GetType().Name + "." + fieldName);
+        property.arraySize = values.Length;
+        for (int i = 0; i < values.Length; i++)
+            property.GetArrayElementAtIndex(i).intValue = values[i];
         serialized.ApplyModifiedPropertiesWithoutUndo();
     }
 
