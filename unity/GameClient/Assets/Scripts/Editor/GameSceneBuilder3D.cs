@@ -161,9 +161,14 @@ public static class GameSceneBuilder3D
         const int TraySlotCount = 4;    // pair-match tray: 4 slots (matches BoardState.MaxTraySize)
         const float TraySlotWidth = 0.52f;
         float TraySlotHeight = TraySlotWidth / CardStyle.CardAspectRatio; // portrait, ~0.76
-        const float TraySlotSpacing = 0.64f; // slot width + a small gap
-        float trayContainerWidth = (TraySlotCount - 1) * TraySlotSpacing + TraySlotWidth + 0.46f;
-        float trayFrameHeight = TraySlotHeight + 0.14f;
+        // Tight, even spacing (fix spec section 5): the inter-slot gap and the
+        // left/right frame padding are both small and roughly equal, so the 4
+        // slots fill the container as one strip instead of floating with slack.
+        const float TraySlotGap = 0.05f;
+        const float TraySlotSpacing = TraySlotWidth + TraySlotGap;
+        const float TrayEdgePad = 0.07f; // frame -> first/last slot, ~= the inter-slot gap
+        float trayContainerWidth = (TraySlotCount - 1) * TraySlotSpacing + TraySlotWidth + TrayEdgePad * 2f;
+        float trayFrameHeight = TraySlotHeight + TrayEdgePad * 2f;
 
         // ------------------
         // Progress bar - simplified to just the bar (border/background/fill),
@@ -260,7 +265,9 @@ public static class GameSceneBuilder3D
         barFillGO.name = "Fill";
         barFillGO.transform.SetParent(scoreRootGO.transform, false);
         barFillGO.transform.localPosition = new Vector3(-TrackWidth * 0.5f, 0f, -0.05f);
-        barFillGO.transform.localScale = new Vector3(0f, TrackHeight * 0.72f, 1f);
+        // Fill spans the inner height edge-to-edge (only the border as margin) so
+        // there's no dark gap above/below the gold fill (fix spec section 4).
+        barFillGO.transform.localScale = new Vector3(0f, TrackHeight + 0.12f - ProgressBorderThickness * 2f, 1f);
         Object.DestroyImmediate(barFillGO.GetComponent<Collider>());
         // Gold.mat, not this - see GetOrCreateNonEmissiveGoldMaterial's
         // comment at the Play button below: Gold.mat's emission never
@@ -289,7 +296,8 @@ public static class GameSceneBuilder3D
         // to the tray's width, not the component's 2.6 default) or the fill's
         // grow-to-the-right math would size itself against the wrong track.
         SetFieldFloat(progressBar, "_trackWidth", TrackWidth);
-        // _maxScore (2000) and _fillHeight (0.24) still use the component's
+        SetFieldFloat(progressBar, "_fillHeight", TrackHeight + 0.12f - ProgressBorderThickness * 2f); // edge-to-edge fill (fix spec section 4)
+        // _maxScore (2000) still uses the component's
         // serialized defaults.
 
         // Combo meter geometry is deferred: with the tray restored to this band
