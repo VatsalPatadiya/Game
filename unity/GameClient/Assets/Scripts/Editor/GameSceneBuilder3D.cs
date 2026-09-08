@@ -146,15 +146,13 @@ public static class GameSceneBuilder3D
         SetField(inputController, "_targetCamera", camera);
         SetField(inputController, "_gameController", gameController);
 
-        // Tray sizing, computed early so the progress bar (below) can match its
-        // width exactly - "exact over the tile 4 tile box" per the reference.
-        // See the Tray section further down for where these are actually used
-        // to build the tray itself.
-        const int TraySlotCount = 4;    // pair-match tray: 4 slots (matches BoardState.MaxTraySize)
-        const float TraySlotSize = 0.65f;
-        const float TraySlotSpacing = 0.66f; // snug tiles like the reference (was 0.72, too gappy)
-        float trayContainerWidth = (TraySlotCount - 1) * TraySlotSpacing + TraySlotSize + 0.34f;
-        float trayFrameHeight = TraySlotSize + 0.26f;
+        // Progress-bar width reference. Retained from the (now removed) tray row
+        // so the bar keeps the same width it had when the two sat as one aligned
+        // unit; the visual re-theme (sub-project #2) can revisit this.
+        const int ProgressWidthSlotCount = 4;
+        const float ProgressWidthSlotSize = 0.65f;
+        const float ProgressWidthSlotSpacing = 0.66f;
+        float trayContainerWidth = (ProgressWidthSlotCount - 1) * ProgressWidthSlotSpacing + ProgressWidthSlotSize + 0.34f;
 
         // ------------------
         // Progress bar - simplified to just the bar (border/background/fill),
@@ -339,110 +337,29 @@ public static class GameSceneBuilder3D
             b.transform.localScale = Vector3.one * 0.62f;
 
         // ------------------
-        // Tray - row of fixed 3D slots in front of the board. Sizing consts
-        // (TraySlotCount/TraySlotSize/TraySlotSpacing) and the derived
-        // trayContainerWidth/trayFrameHeight are declared earlier, near the
-        // progress bar, so the bar's width can match this tray exactly.
+        // Board vertical bias
         // ------------------
-        var trayRootGO = new GameObject("TrayRoot", typeof(TrayView3D));
-        var trayView = trayRootGO.GetComponent<TrayView3D>();
-        // Tray sits CLOSER to the camera than the board (TrayDistance < the
-        // board's fit distance) so it draws in FRONT of the stack instead of
-        // being occluded by the tiles. Scaled down by TrayDistance/HudDistance
-        // so its on-screen size is unchanged despite the nearer placement.
-        const float TrayDistance = 7.35f; // 9 * 0.8175, same FOV-compensation ratio as HudDistance/PopupDistance above
-        // Computed from the progress bar's own bottom EDGE, same reasoning as
-        // progressBarY above. A prior fix (0.75->0.80) used a flat centre-Y
-        // gap copied from the topbar/progress spacing, without accounting for
-        // the tray being a MUCH taller element (~14% of screen height at its
-        // distance vs the progress bar's ~6%) - that pushed the tray's top
-        // edge straight through the progress bar's bottom edge, confirmed
-        // both mathematically and via a live-editor screenshot showing the
-        // tray's amber frame overlapping the wood track above it.
-        float progressBottomEdge = progressBarY - progressHalfHeight;
-        float trayHalfHeight = ScreenHalfHeightFrac(camera, trayFrameHeight, TrayDistance);
-        float trayY = progressBottomEdge - HudRowGap - trayHalfHeight;
-        PositionInFrontOfCamera(trayRootGO.transform, camera, new Vector2(0.5f, trayY), TrayDistance);
-        trayRootGO.transform.localScale = Vector3.one * (TrayDistance / HudDistance);
-
-        // BoardView3D.FitCameraToBoard centres the board on its own bounding
-        // box (viewport Y=0.5) by default - correct only if the space above
-        // and below the board is symmetric. It isn't: the topbar/progress/
-        // tray cluster occupies far more of the top of the screen than the
-        // button row occupies at the bottom, so a screen-centred board
-        // leaves a visibly bigger gap at the bottom than the top (measured
-        // on-device: ~12% of screen height at the bottom vs ~2% at the top,
-        // after the tray-to-board gap fix above). Compute where the board's
-        // vertical centre SHOULD sit - the midpoint of the actual available
-        // band between the tray's bottom edge and the button row's top edge
-        // - and hand BoardView3D the delta from screen-centre so it can
-        // shift its camera aim to match, growing the board into the unused
+        // The tray row that used to sit here (a row of tile-collection slots)
+        // was removed with the revert to on-board pair matching. The freed
+        // vertical band is left to the board for now; the visual re-theme
+        // (sub-project #2) will decide what, if anything, reclaims it.
+        //
+        // BoardView3D.FitCameraToBoard centres the board on its own bounding box
+        // (viewport Y=0.5) by default - correct only if the space above and
+        // below the board is symmetric. It isn't: the topbar/progress cluster
+        // occupies more of the top of the screen than the button row occupies at
+        // the bottom, so compute the midpoint of the actual available band
+        // (progress bar's bottom edge down to the button row's top edge) and hand
+        // BoardView3D the delta from screen-centre so it grows into the freed
         // space instead of leaving it empty.
+        float progressBottomEdge = progressBarY - progressHalfHeight;
         const float ButtonFaceWorldDiameter = 0.99f * 0.62f; // CreateHudButton3D's Face scale (0.99) * the button-root scale-down applied above (0.62)
         float buttonHalfHeight = ScreenHalfHeightFrac(camera, ButtonFaceWorldDiameter, HudDistance);
-        float bandTop = trayY - trayHalfHeight - HudRowGap; // where the board's top edge already lands, undisturbed by this bias
+        float bandTop = progressBottomEdge - HudRowGap; // board's top edge now lands just below the progress bar
         float bandBottom = BottomButtonRowY + buttonHalfHeight + HudRowGap;
         float desiredBoardCenterY = (bandTop + bandBottom) * 0.5f;
         float verticalBiasFrac = 0.5f - desiredBoardCenterY; // positive = shift the board's rendered position DOWN the screen
         SetFieldFloat(boardView, "_verticalBiasViewportFrac", verticalBiasFrac);
-
-        // Soft drop shadow (reuses the board tiles' TileShadow.mat) behind the
-        // whole tray, so it reads as sitting raised above the felt.
-        var traySlotShadowMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/TileShadow.mat");
-        RequireNotNull(traySlotShadowMaterial, "Assets/Materials/TileShadow.mat (run TileMaterialGenerator first)");
-        var trayShadowGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
-        trayShadowGO.name = "Shadow";
-        Object.DestroyImmediate(trayShadowGO.GetComponent<Collider>());
-        trayShadowGO.transform.SetParent(trayRootGO.transform, false);
-        trayShadowGO.transform.localPosition = new Vector3(0.05f, -0.07f, 0.09f);
-        trayShadowGO.transform.localScale = new Vector3(trayContainerWidth * 1.15f, trayFrameHeight * 1.4f, 1f);
-        trayShadowGO.GetComponent<MeshRenderer>().sharedMaterial = traySlotShadowMaterial;
-        trayShadowGO.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-
-        // Rounded wood frame behind the slots (matches the reference's rounded
-        // tray corners). The 4 slots sit on it as warm recessed parts.
-        float containerWidth = trayContainerWidth;
-        float frameHeight = trayFrameHeight;
-        var frameMesh = SaveRoundedTrayMesh("Assets/Meshes/TrayFrame.asset", containerWidth, frameHeight, 0.12f, 0.14f);
-        var trayContainerGO = new GameObject("TrayContainer", typeof(MeshFilter), typeof(MeshRenderer));
-        trayContainerGO.transform.SetParent(trayRootGO.transform, false);
-        trayContainerGO.transform.localPosition = new Vector3(0f, 0f, 0.06f); // behind the slots (+Z, away from camera)
-        trayContainerGO.GetComponent<MeshFilter>().sharedMesh = frameMesh;
-        trayContainerGO.GetComponent<MeshRenderer>().sharedMaterial = trayBorderMaterial; // amber border - shows as a ring around the smaller dark body below
-
-        // Dark body inset within the amber frame above (smaller + nearer camera,
-        // so the amber only shows as a border) - matches the reference's flat
-        // dark tray with a colored edge, instead of a uniform wood-grain plank.
-        // (recessMaterial is loaded again below for the individual slot cells -
-        // loaded here too since this runs before that later declaration.)
-        var trayBodyMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/TrayBody.mat");
-        RequireNotNull(trayBodyMaterial, "Assets/Materials/TrayBody.mat (run WoodUiGenerator first)");
-        const float TrayBorderThickness = 0.07f;
-        var trayBodyMesh = SaveRoundedTrayMesh("Assets/Meshes/TrayBody.asset",
-            containerWidth - TrayBorderThickness * 2f, frameHeight - TrayBorderThickness * 2f, 0.12f, 0.11f);
-        var trayBodyGO = new GameObject("TrayBody", typeof(MeshFilter), typeof(MeshRenderer));
-        trayBodyGO.transform.SetParent(trayRootGO.transform, false);
-        trayBodyGO.transform.localPosition = new Vector3(0f, 0f, 0.04f); // between the amber frame (0.06) and the slots (~0)
-        trayBodyGO.GetComponent<MeshFilter>().sharedMesh = trayBodyMesh;
-        trayBodyGO.GetComponent<MeshRenderer>().sharedMaterial = trayBodyMaterial;
-
-        var anchors = new Transform[TraySlotCount];
-        float startX = -(TraySlotCount - 1) * TraySlotSpacing / 2f;
-        for (int i = 0; i < TraySlotCount; i++)
-        {
-            var anchorGO = new GameObject("Slot" + i);
-            anchorGO.transform.SetParent(trayRootGO.transform, false);
-            anchorGO.transform.localPosition = new Vector3(startX + i * TraySlotSpacing, 0f, 0f);
-            anchors[i] = anchorGO.transform;
-        }
-
-        var recessMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/TrayRecess.mat");
-        RequireNotNull(recessMaterial, "Assets/Materials/TrayRecess.mat (run WoodUiGenerator first)");
-        var traySlotPrefab = BuildTraySlotPrefab(recessMaterial, TraySlotSize);
-        SetField(trayView, "traySlotPrefab", traySlotPrefab);
-        SetField(trayView, "tileSet", tileSet);
-        SetFieldArray(trayView, "slotAnchors", anchors);
-        SetField(gameController, "_trayView", trayView);
 
         // ------------------
         // Game over popup
@@ -504,7 +421,7 @@ public static class GameSceneBuilder3D
         // ------------------
         var hudObjects = new[]
         {
-            scoreRootGO, trayRootGO, backButtonGO, menuButtonGO,
+            scoreRootGO, backButtonGO, menuButtonGO,
             shuffleButtonGO, hintButtonGO, undoButtonGO,
         };
         BuildLevelStartScreen(camera, gameController, hudObjects, hintIcon, undoIcon, shuffleIcon, hudButtonFaceMaterial);
