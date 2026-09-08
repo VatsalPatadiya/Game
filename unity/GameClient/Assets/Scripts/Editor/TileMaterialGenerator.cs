@@ -26,8 +26,12 @@ public static class TileMaterialGenerator
         // trim line flush with the silhouette. Fractions of tile WIDTH.
         const int texW = 512;
         int texH = Mathf.RoundToInt(texW / CardStyle.CardAspectRatio);
+        // bevelStrength/sheenStrength give the face a raised lacquered edge + a
+        // soft top-left specular pool (premium re-theme Pass B, guidelines s5).
+        // Approved as candidate "diagonal + bevel rim" (scratchpad/tile_face.py).
         var tex = TileFaceTexture.Build(texW, texH, IvoryTop, IvoryBottom, Jade,
-            framePadding: 0.045f, frameThickness: 0.018f, cornerRadius: 0.15f);
+            framePadding: 0.045f, frameThickness: 0.018f, cornerRadius: 0.15f,
+            bevelStrength: 0.5f, sheenStrength: 0.06f);
         File.WriteAllBytes("Assets/Textures/TileFace.png", tex.EncodeToPNG());
         Object.DestroyImmediate(tex);
         AssetDatabase.ImportAsset("Assets/Textures/TileFace.png");
