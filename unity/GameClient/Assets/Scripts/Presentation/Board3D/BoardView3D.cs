@@ -114,13 +114,7 @@ namespace GameClient.Presentation.Board3D
                 var kv = orderedCells[i];
                 var slot = slotsById[kv.Key];
                 var view = Instantiate(_tilePrefab, transform);
-                var jitter = JitterFor(slot.Id);
-                var layerOffset = LayerRenderOffset(slot.Layer);
-                view.transform.localPosition = new Vector3(
-                    slot.X * _cellWidth + jitter.x + layerOffset.x,
-                    slot.Y * _cellHeight + jitter.y + layerOffset.y,
-                    -slot.Layer * _layerHeight);
-                view.transform.localRotation = Quaternion.Euler(0f, 0f, jitter.z);
+                PlaceTileView(view, slot);
                 view.Initialize(slot.Id, slot.Layer, TileVisual.FoodModelFor(_tileSet, kv.Value.Value));
                 _tileViews[kv.Key] = view;
 
@@ -210,6 +204,19 @@ namespace GameClient.Presentation.Board3D
             -layer * _layerStraddle * _cellWidth,
              layer * _layerStraddle * _cellHeight);
 
+        // Shared tile placement (position + rotation jitter + layer straddle) so
+        // Build() and RestoreTiles() lay a tile down the exact same way.
+        private void PlaceTileView(TileView3D view, TileSlot slot)
+        {
+            var jitter = JitterFor(slot.Id);
+            var layerOffset = LayerRenderOffset(slot.Layer);
+            view.transform.localPosition = new Vector3(
+                slot.X * _cellWidth + jitter.x + layerOffset.x,
+                slot.Y * _cellHeight + jitter.y + layerOffset.y,
+                -slot.Layer * _layerHeight);
+            view.transform.localRotation = Quaternion.Euler(0f, 0f, jitter.z);
+        }
+
         private Vector3 JitterFor(string slotId)
         {
             int hash = slotId.GetHashCode();
@@ -257,5 +264,38 @@ namespace GameClient.Presentation.Board3D
 
         public TileView3D GetTileView(string slotId) =>
             _tileViews.TryGetValue(slotId, out var view) ? view : null;
+
+        // Re-materialize tiles that Undo un-cleared, placing them back at their
+        // original layer/position and fading them in.
+        public void RestoreTiles(IEnumerable<string> slotIds, BoardState board)
+        {
+            foreach (var id in slotIds)
+            {
+                if (_tileViews.ContainsKey(id)) continue;
+                if (!_slotsById.TryGetValue(id, out var slot)) continue;
+                if (!board.Cells.TryGetValue(id, out var cell)) continue;
+
+                var view = Instantiate(_tilePrefab, transform);
+                PlaceTileView(view, slot);
+                view.Initialize(slot.Id, slot.Layer, TileVisual.FoodModelFor(_tileSet, cell.Value));
+                view.PlayFadeInOnly();
+                _tileViews[id] = view;
+            }
+            RefreshFreeStates(board);
+        }
+
+        // Swap the face/food-model of existing tile views to match the board's
+        // (post-shuffle) values without destroying the GameObjects.
+        public void RefreshTileValues(IEnumerable<string> slotIds, BoardState board)
+        {
+            foreach (var id in slotIds)
+            {
+                if (!_tileViews.TryGetValue(id, out var view)) continue;
+                if (!_slotsById.TryGetValue(id, out var slot)) continue;
+                if (!board.Cells.TryGetValue(id, out var cell)) continue;
+                view.Initialize(slot.Id, slot.Layer, TileVisual.FoodModelFor(_tileSet, cell.Value));
+            }
+            RefreshFreeStates(board);
+        }
     }
 }
