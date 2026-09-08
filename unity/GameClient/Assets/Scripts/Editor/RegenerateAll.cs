@@ -18,6 +18,7 @@ public static class RegenerateAll
         DataAssetGenerator.Generate();
         FeltBackgroundGenerator.Generate();
         WoodUiGenerator.Generate();
+        PremiumFontGenerator.Generate();
         GameSceneBuilder3D.Build();
         Debug.Log("REGENERATE_ALL_DONE");
     }

@@ -48,6 +48,15 @@ public static class PremiumFontGenerator
         if (fontAsset.material != null)
         {
             fontAsset.material.name = "Cinzel SDF Material";
+            // Soft drop-shadow underlay so light display text stays legible on
+            // the jade background (guidelines s7: light text needs a dark
+            // shadow/glow behind it, never low-contrast on a busy gradient).
+            var mat = fontAsset.material;
+            mat.EnableKeyword("UNDERLAY_ON");
+            mat.SetColor("_UnderlayColor", new Color(0f, 0f, 0f, 0.6f));
+            mat.SetFloat("_UnderlayOffsetX", 0.5f);
+            mat.SetFloat("_UnderlayOffsetY", -0.5f);
+            mat.SetFloat("_UnderlaySoftness", 0.35f);
             if (!AssetDatabase.Contains(fontAsset.material))
                 AssetDatabase.AddObjectToAsset(fontAsset.material, fontAsset);
         }

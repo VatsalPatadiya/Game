@@ -13,6 +13,13 @@ public static class GameSceneBuilder3D
     private static readonly Color BoardGreen = new Color(42f / 255f, 61f / 255f, 48f / 255f, 1f);
     private static readonly Color DarkHudText = new Color(40f / 255f, 46f / 255f, 36f / 255f, 1f);
     private static readonly Color CreamHudText = new Color(0.96f, 0.93f, 0.84f, 1f); // light text on wood/bronze chrome
+
+    // Premium display font (Cinzel OFL, Pass E) for headings/numbers - LEVEL,
+    // score, PLAY. Body text keeps LiberationSans (TMP default).
+    private static TMPro.TMP_FontAsset _displayFont;
+    private static TMPro.TMP_FontAsset DisplayFont =>
+        _displayFont != null ? _displayFont
+        : (_displayFont = AssetDatabase.LoadAssetAtPath<TMPro.TMP_FontAsset>("Assets/Fonts/Cinzel SDF.asset"));
     private static readonly Color MutedIconTint = new Color(0.541f, 0.502f, 0.447f, 1f); // #8A8072 - mockup's .chrome-btn.is-locked svg stroke
     private static readonly Color GoldIconTint = new Color(0.95f, 0.78f, 0.30f, 1f); // hint's lightbulb is colored gold, unlike the other buttons' white/cream glyphs
 
@@ -268,6 +275,7 @@ public static class GameSceneBuilder3D
         scoreText.fontSize = 1.05f; // was 0.9 - larger so it reads clearly centered on the dark track, like the mockup
         scoreText.fontStyle = FontStyles.Bold;
         scoreText.alignment = TextAlignmentOptions.Center;
+        if (DisplayFont != null) scoreText.font = DisplayFont; // Cinzel for the score number
 
         var progressBar = scoreRootGO.AddComponent<ProgressBar3D>();
         SetField(progressBar, "_fill", barFillGO.transform);
@@ -442,6 +450,7 @@ public static class GameSceneBuilder3D
         titleText.fontSize = 1.1f;
         titleText.alignment = TextAlignmentOptions.Center;
         titleText.color = CreamHudText;
+        if (DisplayFont != null) titleText.font = DisplayFont; // Cinzel for the win/lose title
 
         var messageGO = new GameObject("Message", typeof(TextMeshPro));
         messageGO.transform.SetParent(popupGO.transform, false);
@@ -467,6 +476,7 @@ public static class GameSceneBuilder3D
         restartText.text = "Restart";
         restartText.fontSize = 0.66f;
         restartText.alignment = TextAlignmentOptions.Center;
+        if (DisplayFont != null) restartText.font = DisplayFont; // Cinzel
         restartText.color = CreamHudText; // cream on the bronze restart button
 
         var gameOverPopup = popupGO.GetComponent<GameOverPopup3D>();
@@ -869,7 +879,7 @@ public static class GameSceneBuilder3D
             return go.transform;
         }
 
-        TextMeshPro Label(string labelName, Vector2 vp, string text, float size, Color color, FontStyles style)
+        TextMeshPro Label(string labelName, Vector2 vp, string text, float size, Color color, FontStyles style, bool display = true)
         {
             var go = new GameObject(labelName, typeof(TextMeshPro));
             Place(go, vp);
@@ -880,6 +890,7 @@ public static class GameSceneBuilder3D
             t.fontStyle = style;
             t.alignment = TextAlignmentOptions.Center;
             t.richText = true;
+            if (display && DisplayFont != null) t.font = DisplayFont; // Cinzel for headings/numbers
             return t;
         }
 
@@ -910,7 +921,7 @@ public static class GameSceneBuilder3D
         // project, has no star glyph so those render as tofu boxes).
         BuildStars(camera, root.transform, D, new Vector2(0.5f, 0.43f));
 
-        var goal = Label("Goal", new Vector2(0.5f, 0.385f), "Clear every pair on the board before you run out of moves.", 0.55f, inkDim, FontStyles.Normal);
+        var goal = Label("Goal", new Vector2(0.5f, 0.385f), "Collect tiles into the tray and match pairs to clear the board.", 0.55f, inkDim, FontStyles.Normal, display: false);
         goal.enableWordWrapping = true;
         goal.rectTransform.sizeDelta = new Vector2(1.7f, 1f); // ~2 wrapped lines like the mockup (was 4.5, wider than the screen so it never wrapped)
 
