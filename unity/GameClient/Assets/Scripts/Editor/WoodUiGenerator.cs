@@ -9,10 +9,10 @@ public static class WoodUiGenerator
     private static readonly Color WoodBottom = new Color(0.29f, 0.18f, 0.10f); // #4A2E1A
     private static readonly Color WoodTop    = new Color(0.42f, 0.27f, 0.15f); // #6B4526
     private static readonly Color Bronze     = new Color(0.725f, 0.46f, 0.19f); // #B9752F
-    // Warm amber-brown accent shared by back/menu buttons, the bottom
-    // buttons' thin ring, and the tray's border frame - one consistent
-    // accent color across the HUD chrome, matching the reference.
-    private static readonly Color AmberChrome = new Color(0.75f, 0.48f, 0.22f); // #BF7A38
+    // Bright gold accent shared by the back/menu + bottom button rings (premium
+    // re-theme Pass C: jade+gold chrome, replacing the muddy amber-brown so the
+    // rings read as real gold against the jade background). #D8A24A.
+    private static readonly Color AmberChrome = new Color(0.847f, 0.635f, 0.290f); // #D8A24A gold
 
     [MenuItem("Tools/Mahjong/Generate Wood UI")]
     public static void Generate()
@@ -108,10 +108,13 @@ public static class WoodUiGenerator
             return Color.Lerp(face, shadow, (t - 0.46f) / (1f - 0.46f));
         }
 
-        var StyleARing = AmberChrome;                        // var(--amber) #BF7A38
-        var StyleAHighlight = new Color(0.290f, 0.196f, 0.094f); // #4A3218
-        var StyleAFace = new Color(0.122f, 0.082f, 0.051f);      // #1F150D
-        var StyleAShadow = new Color(0.043f, 0.027f, 0.016f);    // #0B0704
+        // Jade+gold button face (Pass C): gold ring around a subtly jade-tinted
+        // dark radial gradient, replacing the warm-brown face so the discs tie
+        // into the jade theme instead of reading as bronze/wood.
+        var StyleARing = AmberChrome;                        // gold #D8A24A
+        var StyleAHighlight = new Color(0.086f, 0.220f, 0.169f); // #16382B jade highlight
+        var StyleAFace = new Color(0.047f, 0.141f, 0.106f);      // #0C241B jade face
+        var StyleAShadow = new Color(0.020f, 0.075f, 0.051f);    // #05130D deep jade shadow
         Color HudButtonFaceColorAt(float u, float vv) =>
             RadialDiscColorAt(u, vv, StyleARing, StyleAHighlight, StyleAFace, StyleAShadow);
 
@@ -277,8 +280,10 @@ public static class WoodUiGenerator
         // Same treatment for the progress bar's border/background - built here
         // (not in GameSceneBuilder3D, where they used to be flat SetColor
         // calls) so all HUD panels share this one gradient technique.
+        // Jade frame (Pass C) - was brown wood #4A2E1A; jade #1E5B45 makes the
+        // score bar read as part of the jade/gold theme instead of a wood plank.
         var progressBorder = LoadOrCreate("Assets/Materials/ProgressBorder.mat", shader);
-        ApplyVerticalGradientPanel(progressBorder, "ProgressBorderGradient", new Color(0.29f, 0.18f, 0.10f));
+        ApplyVerticalGradientPanel(progressBorder, "ProgressBorderGradient", new Color(0.118f, 0.357f, 0.271f));
         progressBorder.SetFloat("_Smoothness", 0.2f);
         progressBorder.SetFloat("_Metallic", 0f);
         EditorUtility.SetDirty(progressBorder);
@@ -287,7 +292,7 @@ public static class WoodUiGenerator
         // tint that read as an empty hollow plank) - matches the mockup's
         // .progress-inset, a dark sunken track the gold fill + score sit in.
         var progressBackground = LoadOrCreate("Assets/Materials/ProgressBackground.mat", unlitShader);
-        ApplyVerticalGradientPanel(progressBackground, "ProgressBackgroundGradient", new Color(0.12f, 0.075f, 0.045f));
+        ApplyVerticalGradientPanel(progressBackground, "ProgressBackgroundGradient", new Color(0.031f, 0.090f, 0.071f)); // dark jade recess (Pass C)
         EditorUtility.SetDirty(progressBackground);
 
         // --- gold fill texture for the progress bar (vertical sheen) ---
