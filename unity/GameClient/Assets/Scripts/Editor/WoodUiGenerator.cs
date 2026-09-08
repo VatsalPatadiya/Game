@@ -136,10 +136,16 @@ public static class WoodUiGenerator
         // bar backgrounds) read as cheap/paper-cutout regardless of which
         // color is picked - a subtle gradient is what makes a flat shape read
         // as a physical panel with depth.
-        void ApplyVerticalGradientPanel(Material mat, string texName, Color baseColor, float alpha = 1f)
+        // recessed=true flips the gradient (dark at TOP, lighter at bottom) so an
+        // inset panel reads as sunken - an inner shadow along the top edge + a
+        // faint inner highlight at the bottom, the opposite lighting of a raised
+        // panel (guidelines s6: recessed vs raised must read as physically distinct).
+        void ApplyVerticalGradientPanel(Material mat, string texName, Color baseColor, float alpha = 1f, bool recessed = false)
         {
-            var bottom = new Color(baseColor.r * 0.72f, baseColor.g * 0.72f, baseColor.b * 0.72f, 1f);
-            var top = new Color(Mathf.Clamp01(baseColor.r * 1.35f), Mathf.Clamp01(baseColor.g * 1.35f), Mathf.Clamp01(baseColor.b * 1.35f), 1f);
+            var darker = new Color(baseColor.r * 0.72f, baseColor.g * 0.72f, baseColor.b * 0.72f, 1f);
+            var lighter = new Color(Mathf.Clamp01(baseColor.r * 1.35f), Mathf.Clamp01(baseColor.g * 1.35f), Mathf.Clamp01(baseColor.b * 1.35f), 1f);
+            var bottom = recessed ? lighter : darker;
+            var top = recessed ? darker : lighter;
             const int gw = 8, gh = 128;
             var gtex2 = new Texture2D(gw, gh, TextureFormat.RGBA32, mipChain: false) { name = texName, wrapMode = TextureWrapMode.Clamp };
             for (int y = 0; y < gh; y++)
@@ -292,7 +298,7 @@ public static class WoodUiGenerator
         // tint that read as an empty hollow plank) - matches the mockup's
         // .progress-inset, a dark sunken track the gold fill + score sit in.
         var progressBackground = LoadOrCreate("Assets/Materials/ProgressBackground.mat", unlitShader);
-        ApplyVerticalGradientPanel(progressBackground, "ProgressBackgroundGradient", new Color(0.031f, 0.090f, 0.071f)); // dark jade recess (Pass C)
+        ApplyVerticalGradientPanel(progressBackground, "ProgressBackgroundGradient", new Color(0.031f, 0.090f, 0.071f), recessed: true); // dark jade sunken track (Pass C+D)
         EditorUtility.SetDirty(progressBackground);
 
         // --- gold fill texture for the progress bar (vertical sheen) ---

@@ -280,6 +280,57 @@ public static class GameSceneBuilder3D
         // _maxScore (2000) and _fillHeight (0.24) still use the component's
         // serialized defaults.
 
+        // ------------------
+        // Combo meter (Pass D, guidelines s6) - a small gold drain bar + "xN"
+        // label just under the score bar, hidden until a combo streak. The
+        // ComboMeter3D sits on an ALWAYS-ACTIVE root and toggles a child "Visual"
+        // GO (a component on a self-disabled GO can't re-enable itself), so the
+        // visual is what shows/hides while Update keeps running.
+        const float ComboTrackWidth = 1.4f;
+        const float ComboFillHeight = 0.12f;
+        var comboRootGO = new GameObject("ComboMeter");
+        comboRootGO.transform.SetParent(scoreRootGO.transform, false);
+        comboRootGO.transform.localPosition = new Vector3(0f, -0.42f, 0f);
+
+        var comboVisualGO = new GameObject("Visual");
+        comboVisualGO.transform.SetParent(comboRootGO.transform, false);
+
+        var comboTrackGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        comboTrackGO.name = "Track";
+        Object.DestroyImmediate(comboTrackGO.GetComponent<Collider>());
+        comboTrackGO.transform.SetParent(comboVisualGO.transform, false);
+        comboTrackGO.transform.localPosition = new Vector3(0f, 0f, 0.02f);
+        comboTrackGO.transform.localScale = new Vector3(ComboTrackWidth + 0.08f, ComboFillHeight + 0.06f, 1f);
+        comboTrackGO.GetComponent<MeshRenderer>().sharedMaterial = progressBackgroundMaterial;
+
+        var comboFillGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        comboFillGO.name = "Fill";
+        Object.DestroyImmediate(comboFillGO.GetComponent<Collider>());
+        comboFillGO.transform.SetParent(comboVisualGO.transform, false);
+        comboFillGO.transform.localPosition = new Vector3(-ComboTrackWidth * 0.5f, 0f, -0.02f);
+        comboFillGO.transform.localScale = new Vector3(ComboTrackWidth, ComboFillHeight, 1f);
+        comboFillGO.GetComponent<MeshRenderer>().sharedMaterial = GetOrCreateNonEmissiveGoldMaterial(alwaysOnTop: true);
+
+        var comboLabelGO = new GameObject("ComboLabel", typeof(TextMeshPro));
+        comboLabelGO.transform.SetParent(comboVisualGO.transform, false);
+        comboLabelGO.transform.localPosition = new Vector3(0f, 0.20f, -0.05f);
+        var comboLabel = comboLabelGO.GetComponent<TextMeshPro>();
+        comboLabel.text = "x2";
+        comboLabel.color = new Color(0.96f, 0.82f, 0.42f); // gold
+        comboLabel.fontSize = 0.72f;
+        comboLabel.fontStyle = FontStyles.Bold;
+        comboLabel.alignment = TextAlignmentOptions.Center;
+
+        comboVisualGO.SetActive(false); // hidden until a combo fires
+
+        var comboMeter = comboRootGO.AddComponent<ComboMeter3D>();
+        SetField(comboMeter, "_root", comboVisualGO);
+        SetField(comboMeter, "_fill", comboFillGO.transform);
+        SetField(comboMeter, "_label", comboLabel);
+        SetField(comboMeter, "_gameController", gameController);
+        SetFieldFloat(comboMeter, "_trackWidth", ComboTrackWidth);
+        SetFieldFloat(comboMeter, "_fillHeight", ComboFillHeight);
+
         // Back / menu chrome flanking the top bar - visual-only for now (no
         // navigation wired), matching the reference's top-bar layout. Same
         // dark-disc-with-amber-ring style as the bottom control buttons.

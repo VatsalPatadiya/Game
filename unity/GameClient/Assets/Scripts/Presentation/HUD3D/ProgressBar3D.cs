@@ -29,12 +29,22 @@ namespace GameClient.Presentation.HUD3D
         private float _displayedFrac;
         private float _targetFrac;
 
+        // Score number counts up toward the target instead of snapping (s6:
+        // counter changes must animate), with a brief scale-pop on each change.
+        private int _targetScore;
+        private float _displayedScore;
+        private const float ScoreCountRate = 6f;
+        private Vector3 _labelBaseScale = Vector3.one;
+        private float _pulse; // 0..1 decaying, drives the label scale-pop
+
         private void OnEnable()
         {
             if (_gameController != null)
                 _gameController.ScoreChanged += HandleScoreChanged;
+            if (_label != null) _labelBaseScale = _label.transform.localScale;
             HandleScoreChanged(0, 0);
             _displayedFrac = _targetFrac;
+            _displayedScore = _targetScore;
             ApplyFill(_displayedFrac);
         }
 
@@ -46,16 +56,36 @@ namespace GameClient.Presentation.HUD3D
 
         private void Update()
         {
-            if (Mathf.Approximately(_displayedFrac, _targetFrac)) return;
-            _displayedFrac = Mathf.Lerp(_displayedFrac, _targetFrac, 1f - Mathf.Exp(-FillLerpRate * Time.deltaTime));
-            if (Mathf.Abs(_displayedFrac - _targetFrac) < 0.0005f) _displayedFrac = _targetFrac;
-            ApplyFill(_displayedFrac);
+            // Animate the fill.
+            if (!Mathf.Approximately(_displayedFrac, _targetFrac))
+            {
+                _displayedFrac = Mathf.Lerp(_displayedFrac, _targetFrac, 1f - Mathf.Exp(-FillLerpRate * Time.deltaTime));
+                if (Mathf.Abs(_displayedFrac - _targetFrac) < 0.0005f) _displayedFrac = _targetFrac;
+                ApplyFill(_displayedFrac);
+            }
+
+            // Count the score number up toward the target.
+            if (_label != null && !Mathf.Approximately(_displayedScore, _targetScore))
+            {
+                _displayedScore = Mathf.Lerp(_displayedScore, _targetScore, 1f - Mathf.Exp(-ScoreCountRate * Time.deltaTime));
+                if (Mathf.Abs(_displayedScore - _targetScore) < 0.5f) _displayedScore = _targetScore;
+                _label.text = Mathf.RoundToInt(_displayedScore).ToString();
+            }
+
+            // Decay the scale-pop (back-ease overshoot on change).
+            if (_pulse > 0f && _label != null)
+            {
+                _pulse = Mathf.Max(0f, _pulse - Time.deltaTime * 4f);
+                float s = 1f + 0.18f * _pulse;
+                _label.transform.localScale = _labelBaseScale * s;
+            }
         }
 
         private void HandleScoreChanged(int score, int comboCount)
         {
             _targetFrac = _maxScore > 0f ? Mathf.Clamp01(score / _maxScore) : 0f;
-            if (_label != null) _label.text = score.ToString(); // score number snaps immediately, like the mockup
+            if (Mathf.RoundToInt(_displayedScore) != score) _pulse = 1f; // kick the pop
+            _targetScore = score;
         }
 
         private void ApplyFill(float frac)

@@ -33,6 +33,9 @@ namespace GameClient.Presentation
         private Dictionary<string, TileSlot> _slotsById;
         public event Action<int, int> ScoreChanged;
         public event Action<int, int, int> UsesChanged;
+        // Fired on every successful match with the current combo streak count, so
+        // the combo meter can fill/pop and start its drain timer (Pass D).
+        public event Action<int> ComboChanged;
 
         // True while the deal-in animation or a tap's tap-to-tray sequence
         // is still playing, so a second tap (or a hint/undo/shuffle press)
@@ -142,6 +145,7 @@ namespace GameClient.Presentation
                     : _board.MovesRemaining - 1;
 
                 _comboScorer.RegisterMatch(_board, DateTime.UtcNow);
+                ComboChanged?.Invoke(_board.ComboCount);
                 var pos = _boardView.GetTileView(slotId)?.transform.position ?? Vector3.zero;
                 _matchCelebration?.PlayMatchCelebration(pos, _board.ComboCount > 1);
 
