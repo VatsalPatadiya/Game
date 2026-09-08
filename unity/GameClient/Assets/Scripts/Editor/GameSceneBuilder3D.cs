@@ -155,11 +155,15 @@ public static class GameSceneBuilder3D
 
         // Tray sizing, computed early so the progress bar (below) can match its
         // width exactly. Also used further down to build the tray row itself.
+        // Slots are PORTRAIT, matching the real board tile aspect
+        // (CardStyle.CardAspectRatio) so a collected tile looks like the same
+        // object on the board and in the tray (fix spec section 2).
         const int TraySlotCount = 4;    // pair-match tray: 4 slots (matches BoardState.MaxTraySize)
-        const float TraySlotSize = 0.65f;
-        const float TraySlotSpacing = 0.66f;
-        float trayContainerWidth = (TraySlotCount - 1) * TraySlotSpacing + TraySlotSize + 0.34f;
-        float trayFrameHeight = TraySlotSize + 0.26f;
+        const float TraySlotWidth = 0.52f;
+        float TraySlotHeight = TraySlotWidth / CardStyle.CardAspectRatio; // portrait, ~0.76
+        const float TraySlotSpacing = 0.64f; // slot width + a small gap
+        float trayContainerWidth = (TraySlotCount - 1) * TraySlotSpacing + TraySlotWidth + 0.46f;
+        float trayFrameHeight = TraySlotHeight + 0.14f;
 
         // ------------------
         // Progress bar - simplified to just the bar (border/background/fill),
@@ -167,7 +171,7 @@ public static class GameSceneBuilder3D
         // the two sit as one aligned unit.
         // ------------------
         float TrackWidth = trayContainerWidth;
-        const float TrackHeight = 0.34f;
+        const float TrackHeight = 0.22f; // slimmer/flatter to match the mockup (fix spec section 3)
         const float ProgressMaxScore = 2000f; // matches ProgressBar3D._maxScore default
 
         // Computed from the topbar's own bottom EDGE (not a guessed centre-Y
@@ -199,7 +203,7 @@ public static class GameSceneBuilder3D
         // front of both. A soft drop shadow (reusing the board tiles'
         // TileShadow.mat) sits behind everything so the whole bar reads as
         // raised off the felt instead of painted flat onto it.
-        const float ProgressBorderThickness = 0.06f;
+        const float ProgressBorderThickness = 0.018f; // thin crisp rim, shared border language with the tray (fix spec)
         var progressBorderMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/ProgressBorder.mat");
         RequireNotNull(progressBorderMaterial, "Assets/Materials/ProgressBorder.mat (run WoodUiGenerator first)");
         var progressBackgroundMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/ProgressBackground.mat");
@@ -403,7 +407,7 @@ public static class GameSceneBuilder3D
         // Dark-jade body inset within the gold frame (TrayBody, jade after Pass C+).
         var trayBodyMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/TrayBody.mat");
         RequireNotNull(trayBodyMaterial, "Assets/Materials/TrayBody.mat (run WoodUiGenerator first)");
-        const float TrayBorderThickness = 0.07f;
+        const float TrayBorderThickness = 0.013f; // ~3px crisp gold rim, no thick glowing band (fix spec section 1)
         var trayBodyMesh = SaveRoundedTrayMesh("Assets/Meshes/TrayBody.asset",
             containerWidth - TrayBorderThickness * 2f, frameHeight - TrayBorderThickness * 2f, 0.12f, 0.11f);
         var trayBodyGO = new GameObject("TrayBody", typeof(MeshFilter), typeof(MeshRenderer));
@@ -424,7 +428,7 @@ public static class GameSceneBuilder3D
 
         var recessMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/TrayRecess.mat");
         RequireNotNull(recessMaterial, "Assets/Materials/TrayRecess.mat (run WoodUiGenerator first)");
-        var traySlotPrefab = BuildTraySlotPrefab(recessMaterial, TraySlotSize);
+        var traySlotPrefab = BuildTraySlotPrefab(recessMaterial, TraySlotWidth, TraySlotHeight);
         SetField(trayView, "traySlotPrefab", traySlotPrefab);
         SetField(trayView, "tileSet", tileSet);
         SetFieldArray(trayView, "slotAnchors", anchors);
@@ -1251,15 +1255,16 @@ public static class GameSceneBuilder3D
         return AssetDatabase.LoadAssetAtPath<Mesh>(path);
     }
 
-    private static GameObject BuildTraySlotPrefab(Material cardMaterial, float size)
+    private static GameObject BuildTraySlotPrefab(Material cardMaterial, float width, float height)
     {
         var root = new GameObject("TraySlot3D");
         var content = new GameObject("Content");
         content.transform.SetParent(root.transform, false);
 
-        // Rounded slot body (rounded corners like the reference); empty = warm
-        // recess (cardMaterial), filled swaps to the ivory tile face.
-        var slotMesh = SaveRoundedTrayMesh("Assets/Meshes/TraySlot.asset", size * 0.9f, size * 0.9f, 0.05f, size * 0.16f);
+        // Rounded PORTRAIT slot body matching the board tile aspect, with tight
+        // padding (0.96 fill) so the tile sits snugly (fix spec section 2); empty =
+        // warm recess (cardMaterial), filled swaps to the ivory tile face.
+        var slotMesh = SaveRoundedTrayMesh("Assets/Meshes/TraySlot.asset", width * 0.96f, height * 0.96f, 0.05f, width * 0.16f);
         var body = new GameObject("Body", typeof(MeshFilter), typeof(MeshRenderer));
         body.transform.SetParent(content.transform, false);
         body.transform.localPosition = new Vector3(0f, 0f, -0.03f); // slightly toward camera, inset within the tray container
@@ -1288,7 +1293,7 @@ public static class GameSceneBuilder3D
         trailGO.transform.SetParent(content.transform, false);
         var trail = trailGO.AddComponent<TrailRenderer>();
         trail.time = 0.18f;
-        trail.startWidth = size * 0.55f;
+        trail.startWidth = width * 0.55f;
         trail.endWidth = 0.01f;
         trail.minVertexDistance = 0.01f;
         trail.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;

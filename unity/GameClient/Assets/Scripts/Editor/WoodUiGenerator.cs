@@ -279,7 +279,7 @@ public static class WoodUiGenerator
         // as a border ring around the edge.
         var trayBorder = LoadOrCreate("Assets/Materials/TrayBorder.mat", shader);
         ApplyVerticalGradientPanel(trayBorder, "TrayBorderGradient", AmberChrome);
-        trayBorder.SetFloat("_Smoothness", 0.15f);
+        trayBorder.SetFloat("_Smoothness", 0f); // flat matte gold - no specular sheen that reads as glow (fix spec)
         trayBorder.SetFloat("_Metallic", 0f);
         EditorUtility.SetDirty(trayBorder);
 
@@ -290,7 +290,7 @@ public static class WoodUiGenerator
         // score bar read as part of the jade/gold theme instead of a wood plank.
         var progressBorder = LoadOrCreate("Assets/Materials/ProgressBorder.mat", shader);
         ApplyVerticalGradientPanel(progressBorder, "ProgressBorderGradient", new Color(0.118f, 0.357f, 0.271f));
-        progressBorder.SetFloat("_Smoothness", 0.2f);
+        progressBorder.SetFloat("_Smoothness", 0f); // flat crisp rim, consistent with the tray border (fix spec)
         progressBorder.SetFloat("_Metallic", 0f);
         EditorUtility.SetDirty(progressBorder);
 
