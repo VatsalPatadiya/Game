@@ -100,7 +100,9 @@ namespace GameClient.Presentation
 
         private void LoadLevel()
         {
-            _shape = TurtleShapeBuilder.Build();
+            // Board size scales with the level's difficulty (sub-project #7).
+            var levelData = LevelCatalog.Get(_currentLevelId) ?? LevelCatalog.Levels[0];
+            _shape = TurtleShapeBuilder.BuildForDifficulty(levelData.Difficulty);
             _slotsById = _shape.ToDictionary(s => s.Id);
 
             var level = new LevelDefinition
