@@ -16,13 +16,13 @@ public static class FeltBackgroundGenerator
     // Two-stage falloff (bloom core -> deep jade -> near-black edge) instead of
     // one flat lerp - a single-stage gradient reads as a tinted flat colour with
     // no depth. The bloom simulates an overhead spotlight pool on the table.
-    private static readonly Color FeltHighlight = new Color(0.118f, 0.357f, 0.271f); // #1E5B45 jade bloom core
-    private static readonly Color FeltCentre = new Color(0.071f, 0.239f, 0.180f); // #123D2E dominant deep jade
-    private static readonly Color FeltEdge   = new Color(0.020f, 0.086f, 0.059f); // #05160F near-black jade edge
+    private static readonly Color FeltHighlight = new Color(0.18f, 0.38f, 0.22f); // warmer green bloom core
+    private static readonly Color FeltCentre = new Color(0.09f, 0.24f, 0.14f); // rich dark green
+    private static readonly Color FeltEdge   = new Color(0.03f, 0.10f, 0.05f); // near-black green edge
 
     // Faint diagonal lattice tint (traditional motif) - kept low enough to read
     // as material texture, never as a visible pattern.
-    private static readonly Color LatticeTint = new Color(0.15f, 0.40f, 0.28f);
+    private static readonly Color LatticeTint = new Color(0.18f, 0.42f, 0.24f);
 
     [MenuItem("Tools/Mahjong/Generate Felt Background")]
     public static void Generate()

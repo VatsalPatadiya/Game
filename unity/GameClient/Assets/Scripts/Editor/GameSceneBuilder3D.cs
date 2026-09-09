@@ -13,6 +13,9 @@ public static class GameSceneBuilder3D
     private static readonly Color BoardGreen = new Color(42f / 255f, 61f / 255f, 48f / 255f, 1f);
     private static readonly Color DarkHudText = new Color(40f / 255f, 46f / 255f, 36f / 255f, 1f);
     private static readonly Color CreamHudText = new Color(0.96f, 0.93f, 0.84f, 1f); // light text on wood/bronze chrome
+    private static readonly Color GoldChrome = new Color(0.85f, 0.65f, 0.25f, 1f); // amber/gold border
+    private static readonly Color DarkWood = new Color(0.18f, 0.10f, 0.05f, 1f); // dark wood interior
+    private static readonly Color BadgeRed = new Color(0.80f, 0.20f, 0.20f, 1f); // notification badge
 
     // Premium display font (Cinzel OFL, Pass E) for headings/numbers - LEVEL,
     // score, PLAY. Body text keeps LiberationSans (TMP default).
@@ -245,7 +248,7 @@ public static class GameSceneBuilder3D
         progressBorderGO.GetComponent<MeshRenderer>().sharedMaterial = progressBorderMaterial;
 
         var progressBackgroundMesh = SaveRoundedTrayMesh("Assets/Meshes/ProgressBackground.asset",
-            TrackWidth + 0.12f - ProgressBorderThickness * 2f, TrackHeight + 0.12f - ProgressBorderThickness * 2f, 0.1f, 0.12f);
+            TrackWidth + 0.12f - ProgressBorderThickness * 2f, TrackHeight + 0.12f - ProgressBorderThickness * 2f, 0.1f, 0.16f - ProgressBorderThickness);
         var progressBackgroundGO = new GameObject("Background", typeof(MeshFilter), typeof(MeshRenderer));
         progressBackgroundGO.transform.SetParent(scoreRootGO.transform, false);
         // 0.05, not the previous 0.04: tightened together with Border/Fill/Text
@@ -287,7 +290,10 @@ public static class GameSceneBuilder3D
         // background no longer writes depth (transparent), so this small gap can't
         // fail a depth test, and 0.02 is small enough that tilt-parallax is
         // negligible - so the full-height fill stays inside the border (round-2 fix 1).
-        barFillGO.transform.localPosition = new Vector3(-progInnerW * 0.5f, 0f, 0.03f);
+        float progFillRadius = 0.16f - ProgressBorderThickness;
+        float progUsableW = progInnerW - progFillRadius; // leave the pill's right rounded end dark
+        // Shift left by half the radius difference so the left edge is perfectly flush with the background track
+        barFillGO.transform.localPosition = new Vector3(-progFillRadius * 0.5f, 0f, 0.03f);
         // Height is BAKED INTO the fill mesh (1.0 wide x progInnerH tall, radius =
         // progInnerH/2 = horizontal capsule). ProgressBar3D scales ONLY the X
         // (width), leaving Y=1, so the fill is ALWAYS full inner height with
@@ -299,17 +305,15 @@ public static class GameSceneBuilder3D
         // At 100% it's a perfect capsule; at lower fills a smaller rounded fill.
         // The rounded mesh faces the camera (unlike a Quad primitive, which faced
         // away and wouldn't render). Definitive fix for the recurring shape bug.
-        float progFillRadius = progInnerH * 0.5f;
-        float progUsableW = progInnerW - progFillRadius; // leave the pill's right rounded end dark
         Object.DestroyImmediate(barFillGO.GetComponent<Collider>());
         barFillGO.GetComponent<MeshFilter>().sharedMesh =
             SaveRoundedTrayMesh("Assets/Meshes/ProgressFill.asset", progUsableW, progInnerH, 0.05f, progFillRadius);
-        barFillGO.transform.localScale = new Vector3(0f, 1f, 1f);
+        barFillGO.transform.localScale = Vector3.one;
         barFillGO.GetComponent<MeshRenderer>().sharedMaterial = GetOrCreateNonEmissiveGoldMaterial(alwaysOnTop: true);
 
         var scoreGO = new GameObject("ScoreText", typeof(TextMeshPro));
         scoreGO.transform.SetParent(scoreRootGO.transform, false);
-        scoreGO.transform.localPosition = new Vector3(0f, 0f, -0.15f); // pulled well in FRONT of the fill/background; centered text has no visible parallax, and this removes the transparent-sort ambiguity that dropped it when coplanar
+        scoreGO.transform.localPosition = new Vector3(0f, -0.06f, -0.15f); // pulled well in FRONT of the fill/background; centered text has no visible parallax, and this removes the transparent-sort ambiguity that dropped it when coplanar
         var scoreText = scoreGO.GetComponent<TextMeshPro>();
         scoreText.text = "0";
         scoreText.color = CreamHudText;
@@ -319,7 +323,7 @@ public static class GameSceneBuilder3D
         if (DisplayFont != null) scoreText.font = DisplayFont; // Cinzel for the score number
 
         var progressBar = scoreRootGO.AddComponent<ProgressBar3D>();
-        SetField(progressBar, "_fill", barFillGO.transform);
+        SetField(progressBar, "_fillFilter", barFillGO.GetComponent<MeshFilter>());
         SetField(progressBar, "_label", scoreText);
         SetField(progressBar, "_gameController", gameController);
         // Capsule fill scaled DOWN by fraction. _trackWidth is the full usable
@@ -457,9 +461,9 @@ public static class GameSceneBuilder3D
         RequireNotNull(trayBodyMaterial, "Assets/Materials/TrayBody.mat (run WoodUiGenerator first)");
         // 0.03 = frame radius (0.14) - body radius (0.11), so the gold stroke is
         // uniform at the corners (no notch) and ~2.3x the old hairline (round-2 fix 2).
-        const float TrayBorderThickness = 0.03f;
+        const float TrayBorderThickness = 0.035f;
         var trayBodyMesh = SaveRoundedTrayMesh("Assets/Meshes/TrayBody.asset",
-            containerWidth - TrayBorderThickness * 2f, frameHeight - TrayBorderThickness * 2f, 0.12f, 0.11f);
+            containerWidth - TrayBorderThickness * 2f, frameHeight - TrayBorderThickness * 2f, 0.12f, 0.14f - TrayBorderThickness);
         var trayBodyGO = new GameObject("TrayBody", typeof(MeshFilter), typeof(MeshRenderer));
         trayBodyGO.transform.SetParent(trayRootGO.transform, false);
         trayBodyGO.transform.localPosition = new Vector3(0f, 0f, 0.02f);
@@ -692,19 +696,14 @@ public static class GameSceneBuilder3D
     private static GameObject BuildScreenFillingBackdrop(
         Camera camera, Transform parent, float distance, Material material, string name)
     {
-        var go = GameObject.CreatePrimitive(PrimitiveType.Quad);
-        go.name = name;
-        Object.DestroyImmediate(go.GetComponent<Collider>());
-        go.transform.position = camera.ViewportToWorldPoint(new Vector3(0.5f, 0.5f, distance));
-        go.transform.rotation = camera.transform.rotation;
-        go.transform.SetParent(parent, true);
-        float h = 2f * distance * Mathf.Tan(camera.fieldOfView * 0.5f * Mathf.Deg2Rad);
-        float w = h * camera.aspect;
-        go.transform.localScale = new Vector3(w * 1.06f, h * 1.06f, 1f); // slight overscan to guarantee full coverage
-        var renderer = go.GetComponent<MeshRenderer>();
-        renderer.sharedMaterial = material;
-        renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-        renderer.receiveShadows = false;
+        var go = new GameObject(name, typeof(MeshFilter), typeof(MeshRenderer));
+        var radial = go.AddComponent<BackgroundRadial3D>();
+        radial.targetCamera = camera;
+        radial.distance = distance;
+        // Felt.png gradient colors (approx):
+        radial.innerColor = new Color(0.18f, 0.40f, 0.28f, 1f); // Lighter Jade
+        radial.outerColor = new Color(0.04f, 0.12f, 0.08f, 1f); // Darker Jade
+        go.transform.SetParent(parent, false);
         return go;
     }
 
@@ -761,59 +760,18 @@ public static class GameSceneBuilder3D
         buttonCollider.size = new Vector3(0.99f, 0.99f, 0.33f);
         SetField(pressButton, "_targetCamera", camera);
 
-        var iconGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
-        iconGO.name = "Icon";
+        var iconGO = new GameObject("Icon");
         iconGO.transform.SetParent(buttonGO.transform, false);
-        Object.DestroyImmediate(iconGO.GetComponent<MeshCollider>());
-        // Real root cause of the whole icon-sizing saga: these buttons sit
-        // near the BOTTOM of the screen, far from viewport center - at that
-        // far-off-center position, perspective projection
-        // means a child positioned at a different local Z than its parent
-        // shifts noticeably in screen-space (parallax), not just toward/away
-        // from camera. Even the small -0.6 offset used here previously was
-        // enough to shift the icon down far enough that its top portion
-        // landed outside/below the disc face instead of centered on it -
-        // confirmed by deliberately exaggerating the offset to -3 and
-        // watching the icon visibly slide down the screen. Zero offset (same
-        // Z as the face) removes the parallax entirely; draw-order is instead
-        // guaranteed by SetAlwaysOnTop below, not by an actual depth gap.
-        // Locked buttons show a "Lv. N" caption inside the same disc, below the
-        // icon (see the locked label block below) - shift the icon up a bit so
-        // it doesn't collide with that text. Y-only, same Z as the face, so
-        // this doesn't reintroduce the Z-parallax bug described above.
-        iconGO.transform.localPosition = Vector3.zero; // "Lv. N" now sits below the disc, not inside it (see the locked label block below) - icon no longer needs to make room for it
-        // Real root cause of every earlier size/visibility mismatch: this quad
-        // used a uniform Vector3.one*scale (including Z), unlike every other
-        // working flat quad in this file (e.g. Face), which
-        // use (x, y, 1) - a Quad mesh has no Z-extent, but scaling Z to
-        // anything other than 1 here visibly clipped off the half of the
-        // quad farther from the local origin (confirmed by isolating a
-        // solid-color, no-texture version of this material and watching it
-        // render as a half-height rectangle instead of a full square, even
-        // though Transform/renderer bounds reported the full, correctly
-        // centered size). Reference icons fill ~66% of the disc's diameter,
-        // and this icon's own PNG content fills ~67% of its own quad, so the
-        // quad should be almost the same size as the disc itself.
-        // 0.62, not 0.97: the icon glyph fills ~67% of its own PNG, so at 0.97
-        // it nearly filled the whole disc (read as "too huge"). At 0.62 the
-        // glyph sits ~42% of the disc diameter with padding around it, like the
-        // mockup's small line icons inside the button.
-        iconGO.transform.localScale = new Vector3(1.0f, 1.0f, 1f); // glyph ~70% of the disc (28/40), centered (round-2 fix 4)
-        var iconMaterial = new Material(Shader.Find("Universal Render Pipeline/Unlit")); // unlit: see Bronze.mat comment above
-        URPMaterialUtil.SetTransparent(iconMaterial);
-        URPMaterialUtil.SetAlwaysOnTop(iconMaterial);
-        iconMaterial.SetTexture("_BaseMap", iconSprite.texture);
+        // Position slightly in front of the disc face (-0.05 on Z) to prevent Z-fighting
+        // since we are no longer using SetAlwaysOnTop.
+        iconGO.transform.localPosition = new Vector3(0f, 0f, -0.05f); 
+        iconGO.transform.localScale = new Vector3(0.7f, 0.7f, 1f);
+        
+        var spriteRenderer = iconGO.AddComponent<SpriteRenderer>();
+        spriteRenderer.sprite = iconSprite;
         var iconTintColor = locked ? MutedIconTint : (iconColorOverride ?? CreamHudText);
-        iconMaterial.SetColor("_BaseColor", iconTintColor); // the glyph pixels are opaque white with alpha shaping - untinted, they're invisible against the dark button face. ControlButtonUsesDisplay3D seeds its MeshRendererTint with the same color so this doesn't get reset to white on the first SetRemaining() call.
-        // Must be saved as a real asset, like TileMeshGenerator's TileIcon.mat -
-        // a transparent material that only ever exists embedded in the scene
-        // (never an AssetDatabase asset) renders its alpha-cutout shape as a
-        // solid opaque quad on-device, even though it looks correct in the
-        // Editor (confirmed by comparison: TileIcon.mat's glyphs render fine,
-        // this one didn't until saved the same way).
-        Directory.CreateDirectory("Assets/Materials");
-        AssetDatabase.CreateAsset(iconMaterial, "Assets/Materials/HudIcon_" + hudComponentType.Name + ".mat");
-        iconGO.GetComponent<MeshRenderer>().material = iconMaterial;
+        spriteRenderer.color = iconTintColor;
+        spriteRenderer.sortingOrder = 10; // ensure it sorts above the button face
 
         TextMeshPro badgeText = null;
         if (!locked)
@@ -1408,7 +1366,7 @@ public static class GameSceneBuilder3D
     // in-scene frame and the slot prefab reference a real asset, not a runtime mesh).
     private static Mesh SaveRoundedTrayMesh(string path, float w, float h, float thickness, float radius)
     {
-        var mesh = RoundedTileMesh.Build(w, h, thickness, radius, cornerSegments: 6);
+        var mesh = RoundedTileMesh.Build(w, h, thickness, radius, cornerSegments: 24);
         mesh.name = System.IO.Path.GetFileNameWithoutExtension(path);
         System.IO.Directory.CreateDirectory("Assets/Meshes");
         if (AssetDatabase.LoadAssetAtPath<Mesh>(path) != null)

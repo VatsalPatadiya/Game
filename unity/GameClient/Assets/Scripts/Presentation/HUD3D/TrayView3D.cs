@@ -36,7 +36,11 @@ namespace GameClient.Presentation.HUD3D
 
             for (int i = 0; i < maxTraySize; i++)
             {
-                var slotGO = Instantiate(traySlotPrefab, slotAnchors[i].position, Quaternion.identity, transform);
+                var slotGO = Instantiate(traySlotPrefab, transform);
+                slotGO.transform.position = slotAnchors[i].position;
+                slotGO.transform.rotation = Quaternion.identity;
+                // Force local scale to 1 to prevent Unity from adjusting it based on the parent's world scale
+                slotGO.transform.localScale = Vector3.one;
                 var slotView = slotGO.GetComponent<TraySlotView3D>();
                 _slots.Add(slotView);
                 slotView.SetEmpty();

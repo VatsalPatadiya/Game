@@ -108,13 +108,11 @@ public static class WoodUiGenerator
             return Color.Lerp(face, shadow, (t - 0.46f) / (1f - 0.46f));
         }
 
-        // Jade+gold button face (Pass C): gold ring around a subtly jade-tinted
-        // dark radial gradient, replacing the warm-brown face so the discs tie
-        // into the jade theme instead of reading as bronze/wood.
-        var StyleARing = AmberChrome;                        // gold #D8A24A
-        var StyleAHighlight = new Color(0.086f, 0.220f, 0.169f); // #16382B jade highlight
-        var StyleAFace = new Color(0.047f, 0.141f, 0.106f);      // #0C241B jade face
-        var StyleAShadow = new Color(0.020f, 0.075f, 0.051f);    // #05130D deep jade shadow
+        // Wood+gold button face: gold ring around a subtly warm-tinted dark radial gradient.
+        var StyleARing = AmberChrome;                        // gold
+        var StyleAHighlight = new Color(0.20f, 0.13f, 0.08f); // warm wood highlight
+        var StyleAFace = new Color(0.12f, 0.08f, 0.05f);      // dark wood face
+        var StyleAShadow = new Color(0.06f, 0.04f, 0.02f);    // deep wood shadow
         Color HudButtonFaceColorAt(float u, float vv) =>
             RadialDiscColorAt(u, vv, StyleARing, StyleAHighlight, StyleAFace, StyleAShadow);
 
@@ -265,7 +263,9 @@ public static class WoodUiGenerator
         // it was a colour collision, not geometry; the slot mesh is 80% of the
         // container, centered, confirmed by runtime bounds).
         var recess = LoadOrCreate("Assets/Materials/TrayRecess.mat", shader);
-        ApplyVerticalGradientPanel(recess, "TrayRecessGradient", new Color(0.012f, 0.04f, 0.03f), recessed: true);
+        recess.SetTexture("_BaseMap", null);
+        recess.SetTexture("_MainTex", null);
+        recess.SetColor("_BaseColor", new Color(0.04f, 0.02f, 0.01f));
         recess.SetFloat("_Smoothness", 0.1f);
         recess.SetFloat("_Metallic", 0f);
         EditorUtility.SetDirty(recess);
@@ -274,7 +274,7 @@ public static class WoodUiGenerator
         // front of the individual slot cutouts) - lighter than TrayRecess
         // above so the slots read as darker pockets set into this panel.
         var trayBody = LoadOrCreate("Assets/Materials/TrayBody.mat", shader);
-        ApplyVerticalGradientPanel(trayBody, "TrayBodyGradient", new Color(0.06f, 0.16f, 0.12f)); // dark jade tray panel (jade+gold theme)
+        ApplyVerticalGradientPanel(trayBody, "TrayBodyGradient", new Color(0.20f, 0.13f, 0.08f)); // dark wood tray panel
         trayBody.SetFloat("_Smoothness", 0.1f);
         trayBody.SetFloat("_Metallic", 0f);
         EditorUtility.SetDirty(trayBody);
@@ -292,10 +292,8 @@ public static class WoodUiGenerator
         // Same treatment for the progress bar's border/background - built here
         // (not in GameSceneBuilder3D, where they used to be flat SetColor
         // calls) so all HUD panels share this one gradient technique.
-        // Jade frame (Pass C) - was brown wood #4A2E1A; jade #1E5B45 makes the
-        // score bar read as part of the jade/gold theme instead of a wood plank.
         var progressBorder = LoadOrCreate("Assets/Materials/ProgressBorder.mat", shader);
-        ApplyVerticalGradientPanel(progressBorder, "ProgressBorderGradient", new Color(0.118f, 0.357f, 0.271f));
+        ApplyVerticalGradientPanel(progressBorder, "ProgressBorderGradient", WoodTop);
         progressBorder.SetFloat("_Smoothness", 0f); // flat crisp rim, consistent with the tray border (fix spec)
         progressBorder.SetFloat("_Metallic", 0f);
         EditorUtility.SetDirty(progressBorder);
@@ -304,7 +302,7 @@ public static class WoodUiGenerator
         // tint that read as an empty hollow plank) - matches the mockup's
         // .progress-inset, a dark sunken track the gold fill + score sit in.
         var progressBackground = LoadOrCreate("Assets/Materials/ProgressBackground.mat", unlitShader);
-        ApplyVerticalGradientPanel(progressBackground, "ProgressBackgroundGradient", new Color(0.031f, 0.090f, 0.071f), recessed: true); // dark jade sunken track (Pass C+D)
+        ApplyVerticalGradientPanel(progressBackground, "ProgressBackgroundGradient", new Color(0.10f, 0.06f, 0.03f), recessed: true); // dark wood sunken track
         EditorUtility.SetDirty(progressBackground);
 
         // --- gold fill texture for the progress bar (vertical sheen) ---

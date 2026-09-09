@@ -46,6 +46,11 @@ namespace GameClient.Presentation.HUD3D
             EnsureTints();
         }
 
+        private void OnDisable()
+        {
+            if (_content != null) _content.localScale = Vector3.one;
+        }
+
         // Lazily create the material tints. TrayView3D.Initialize instantiates a
         // slot and calls SetEmpty in the SAME frame; if the tray GameObject is
         // INACTIVE at that moment (e.g. a retry triggered from the pause menu,

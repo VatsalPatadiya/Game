@@ -1,5 +1,7 @@
 {
+  "enableReleasePreviewPackages": true,
   "dependencies": {
+    "com.unity.vectorgraphics": "3.0.0-preview.7",
     "com.unity.render-pipelines.universal": "17.0.4",
     "com.unity.ugui": "2.0.0",
     "com.unity.test-framework": "1.4.5",

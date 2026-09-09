@@ -8,7 +8,7 @@ namespace GameClient.Presentation.HUD3D
     // position are driven so its LEFT edge stays pinned while it grows.
     public sealed class ProgressBar3D : MonoBehaviour
     {
-        [SerializeField] private Transform _fill;     // plain-quad rectangle fill (never distorts)
+        [SerializeField] private MeshFilter _fillFilter;     // plain-quad rectangle fill (never distorts)
         [SerializeField] private TextMeshPro _label;
         [SerializeField] private GameController _gameController;
         [SerializeField] private float _maxScore = 2000f;
@@ -36,6 +36,20 @@ namespace GameClient.Presentation.HUD3D
         private const float ScoreCountRate = 6f;
         private Vector3 _labelBaseScale = Vector3.one;
         private float _pulse; // 0..1 decaying, drives the label scale-pop
+
+        private Mesh _fillMesh;
+        private Vector3[] _baseVertices;
+        private Vector3[] _workingVertices;
+
+        private void Awake()
+        {
+            if (_fillFilter != null)
+            {
+                _fillMesh = _fillFilter.mesh; // Instantiate unique mesh
+                _baseVertices = _fillMesh.vertices;
+                _workingVertices = new Vector3[_baseVertices.Length];
+            }
+        }
 
         private void OnEnable()
         {
@@ -94,13 +108,19 @@ namespace GameClient.Presentation.HUD3D
         // Left edge stays pinned; it grows rightward toward the full capsule at 100%.
         private void ApplyFill(float frac)
         {
-            if (_fill == null) return;
+            if (_fillFilter == null || _fillMesh == null) return;
             float s = Mathf.Clamp01(Mathf.Max(_minVisibleFrac, frac)); // 0..1 fraction
-            _fill.localScale = new Vector3(s, _fillHeight, 1f);
-            float renderedW = _trackWidth * s;
-            var p = _fill.localPosition;
-            p.x = -_trackWidth * 0.5f + renderedW * 0.5f; // pin the left edge
-            _fill.localPosition = p;
+            float targetRightEdgeX = -_trackWidth * 0.5f + _trackWidth * s;
+            
+            for (int i = 0; i < _baseVertices.Length; i++)
+            {
+                Vector3 v = _baseVertices[i];
+                if (v.x > targetRightEdgeX)
+                    v.x = targetRightEdgeX;
+                _workingVertices[i] = v;
+            }
+            _fillMesh.vertices = _workingVertices;
+            _fillMesh.RecalculateBounds();
         }
     }
 }
