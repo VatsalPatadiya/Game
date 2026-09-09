@@ -166,9 +166,10 @@ public static class GameSceneBuilder3D
         // slots fill the container as one strip instead of floating with slack.
         const float TraySlotGap = 0.05f;
         const float TraySlotSpacing = TraySlotWidth + TraySlotGap;
-        const float TrayEdgePad = 0.07f; // frame -> first/last slot, ~= the inter-slot gap
-        float trayContainerWidth = (TraySlotCount - 1) * TraySlotSpacing + TraySlotWidth + TrayEdgePad * 2f;
-        float trayFrameHeight = TraySlotHeight + TrayEdgePad * 2f;
+        const float TrayEdgePadX = 0.07f; // tight left/right, ~= the inter-slot gap (fix 5)
+        const float TrayEdgePadY = 0.075f; // small top/bottom clearance; the tightened Z-stack (below) handles the tilt parallax over the border (fix 7)
+        float trayContainerWidth = (TraySlotCount - 1) * TraySlotSpacing + TraySlotWidth + TrayEdgePadX * 2f;
+        float trayFrameHeight = TraySlotHeight + TrayEdgePadY * 2f;
 
         // ------------------
         // Progress bar - simplified to just the bar (border/background/fill),
@@ -264,11 +265,18 @@ public static class GameSceneBuilder3D
         var barFillGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
         barFillGO.name = "Fill";
         barFillGO.transform.SetParent(scoreRootGO.transform, false);
-        barFillGO.transform.localPosition = new Vector3(-TrackWidth * 0.5f, 0f, -0.05f);
-        // Fill spans the inner height edge-to-edge (only the border as margin) so
-        // there's no dark gap above/below the gold fill (fix spec section 4).
-        barFillGO.transform.localScale = new Vector3(0f, TrackHeight + 0.12f - ProgressBorderThickness * 2f, 1f);
+        barFillGO.transform.localPosition = new Vector3(-TrackWidth * 0.5f, 0f, -0.05f); // in front of the background (0.10 gap needed to win the depth test at this distance)
+        // Fill sits INSIDE the bar with a margin (not full edge-to-edge) so that
+        // even with the tilt-camera parallax shift it stays within the border and
+        // reads as contained, like the target.
+        barFillGO.transform.localScale = new Vector3(0f, (TrackHeight + 0.12f - ProgressBorderThickness * 2f) * 0.6f, 1f);
         Object.DestroyImmediate(barFillGO.GetComponent<Collider>());
+        // Rounded (capsule-ended) unit fill mesh instead of a square quad, so the
+        // fill's ends match the pill's rounded corners and never poke past the
+        // border silhouette at low fill (fix spec section 6). A 1x1 mesh with
+        // radius 0.5 is fully rounded; ProgressBar3D scales it to width x height.
+        barFillGO.GetComponent<MeshFilter>().sharedMesh =
+            SaveRoundedTrayMesh("Assets/Meshes/ProgressFill.asset", 1f, 1f, 0.05f, 0.48f);
         // Gold.mat, not this - see GetOrCreateNonEmissiveGoldMaterial's
         // comment at the Play button below: Gold.mat's emission never
         // actually renders (color set, keyword never enabled), so the fill
@@ -296,7 +304,7 @@ public static class GameSceneBuilder3D
         // to the tray's width, not the component's 2.6 default) or the fill's
         // grow-to-the-right math would size itself against the wrong track.
         SetFieldFloat(progressBar, "_trackWidth", TrackWidth);
-        SetFieldFloat(progressBar, "_fillHeight", TrackHeight + 0.12f - ProgressBorderThickness * 2f); // edge-to-edge fill (fix spec section 4)
+        SetFieldFloat(progressBar, "_fillHeight", (TrackHeight + 0.12f - ProgressBorderThickness * 2f) * 0.6f); // contained inside the bar (accounts for tilt parallax), not poking past the border
         // _maxScore (2000) still uses the component's
         // serialized defaults.
 
@@ -408,7 +416,7 @@ public static class GameSceneBuilder3D
         var frameMesh = SaveRoundedTrayMesh("Assets/Meshes/TrayFrame.asset", containerWidth, frameHeight, 0.12f, 0.14f);
         var trayContainerGO = new GameObject("TrayContainer", typeof(MeshFilter), typeof(MeshRenderer));
         trayContainerGO.transform.SetParent(trayRootGO.transform, false);
-        trayContainerGO.transform.localPosition = new Vector3(0f, 0f, 0.06f);
+        trayContainerGO.transform.localPosition = new Vector3(0f, 0f, 0.03f); // tighter Z stack so slots don't parallax over the border (fix 7)
         trayContainerGO.GetComponent<MeshFilter>().sharedMesh = frameMesh;
         trayContainerGO.GetComponent<MeshRenderer>().sharedMaterial = trayBorderMaterial;
 
@@ -420,7 +428,7 @@ public static class GameSceneBuilder3D
             containerWidth - TrayBorderThickness * 2f, frameHeight - TrayBorderThickness * 2f, 0.12f, 0.11f);
         var trayBodyGO = new GameObject("TrayBody", typeof(MeshFilter), typeof(MeshRenderer));
         trayBodyGO.transform.SetParent(trayRootGO.transform, false);
-        trayBodyGO.transform.localPosition = new Vector3(0f, 0f, 0.04f);
+        trayBodyGO.transform.localPosition = new Vector3(0f, 0f, 0.02f);
         trayBodyGO.GetComponent<MeshFilter>().sharedMesh = trayBodyMesh;
         trayBodyGO.GetComponent<MeshRenderer>().sharedMaterial = trayBodyMaterial;
 
@@ -1275,7 +1283,7 @@ public static class GameSceneBuilder3D
         var slotMesh = SaveRoundedTrayMesh("Assets/Meshes/TraySlot.asset", width * 0.96f, height * 0.96f, 0.05f, width * 0.16f);
         var body = new GameObject("Body", typeof(MeshFilter), typeof(MeshRenderer));
         body.transform.SetParent(content.transform, false);
-        body.transform.localPosition = new Vector3(0f, 0f, -0.03f); // slightly toward camera, inset within the tray container
+        body.transform.localPosition = new Vector3(0f, 0f, -0.015f); // slightly toward camera; small Z offset limits tilt parallax over the border (fix 7)
         body.GetComponent<MeshFilter>().sharedMesh = slotMesh;
         body.GetComponent<MeshRenderer>().sharedMaterial = cardMaterial; // recess material passed in
 
