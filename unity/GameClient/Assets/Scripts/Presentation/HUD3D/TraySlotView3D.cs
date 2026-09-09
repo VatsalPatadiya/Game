@@ -43,12 +43,29 @@ namespace GameClient.Presentation.HUD3D
 
         private void Awake()
         {
-            _bodyTint = new MeshRendererTint(_bodyRenderer, "_BaseColor");
-            _emissionTint = new MeshRendererTint(_bodyRenderer, "_EmissionColor");
+            EnsureTints();
+        }
+
+        // Lazily create the material tints. TrayView3D.Initialize instantiates a
+        // slot and calls SetEmpty in the SAME frame; if the tray GameObject is
+        // INACTIVE at that moment (e.g. a retry triggered from the pause menu,
+        // which hid the HUD), Unity does NOT run the new slot's Awake yet, so the
+        // tints would be null and SetEmpty threw a NullReferenceException -
+        // aborting the slot's size reset and leaving it half-height (the reported
+        // retry bug). Initializing here on first use makes the slot correct
+        // regardless of activation order - one source of truth.
+        private void EnsureTints()
+        {
+            if (_bodyTint == null) _bodyTint = new MeshRendererTint(_bodyRenderer, "_BaseColor");
+            if (_emissionTint == null) _emissionTint = new MeshRendererTint(_bodyRenderer, "_EmissionColor");
         }
 
         public void SetEmpty()
         {
+            EnsureTints();
+            // Always restore full size: PopInRoutine animates _content.localScale,
+            // and on a rebuild/retry a slot must never inherit a partial scale.
+            if (_content != null) _content.localScale = Vector3.one;
             _emissionTint.Color = Color.black;
             // Empty slot shows the warm recess (one of the tray's 4 visible parts).
             if (_bodyRenderer != null)
@@ -67,6 +84,7 @@ namespace GameClient.Presentation.HUD3D
 
         public void SetFilled(GameObject foodModelPrefab)
         {
+            EnsureTints();
             _emissionTint.Color = Color.black;
             if (_bodyRenderer != null)
             {

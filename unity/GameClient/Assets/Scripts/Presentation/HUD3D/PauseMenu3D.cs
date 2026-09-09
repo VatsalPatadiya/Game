@@ -27,6 +27,8 @@ namespace GameClient.Presentation.HUD3D
 
         private SettingsData _settings;
 
+        public bool IsOpen => _overlay != null && _overlay.activeSelf;
+
         private void Awake()
         {
             _settings = SaveSystem.LoadSettings();
@@ -37,7 +39,11 @@ namespace GameClient.Presentation.HUD3D
         {
             if (_menuButton != null) _menuButton.OnClick += Show;
             if (_resumeButton != null) _resumeButton.OnClick += Hide;
-            if (_restartButton != null) _restartButton.OnClick += () => { _gameController?.RestartLevel(); Hide(); };
+            // Hide() FIRST (re-activates the HUD incl. the tray) then RestartLevel:
+            // rebuilding the tray while its GameObject is inactive skips the slots'
+            // Awake and left them half-height (the retry bug). TraySlotView3D is
+            // also defensively lazy-init now, but this keeps the intent clear.
+            if (_restartButton != null) _restartButton.OnClick += () => { Hide(); _gameController?.RestartLevel(); };
             if (_soundToggle != null) _soundToggle.OnClick += () => { _settings.SoundOn = !_settings.SoundOn; Persist(); };
             if (_musicToggle != null) _musicToggle.OnClick += () => { _settings.MusicOn = !_settings.MusicOn; Persist(); };
             RefreshLabels();

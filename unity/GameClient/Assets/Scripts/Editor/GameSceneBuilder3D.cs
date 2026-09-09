@@ -209,11 +209,21 @@ public static class GameSceneBuilder3D
         // front of both. A soft drop shadow (reusing the board tiles'
         // TileShadow.mat) sits behind everything so the whole bar reads as
         // raised off the felt instead of painted flat onto it.
-        const float ProgressBorderThickness = 0.018f; // thin crisp rim, shared border language with the tray (fix spec)
+        // 0.04 = the frame radius (0.16) minus the inner/body radius (0.12), so the
+        // border STROKE is uniform width all the way around including the corners
+        // (a smaller inset than the radius difference left the corners thinner/
+        // broken); also ~2.2x the old hairline, a clean visible line (round-2 fix 1/2).
+        const float ProgressBorderThickness = 0.04f;
         var progressBorderMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/ProgressBorder.mat");
         RequireNotNull(progressBorderMaterial, "Assets/Materials/ProgressBorder.mat (run WoodUiGenerator first)");
         var progressBackgroundMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/ProgressBackground.mat");
         RequireNotNull(progressBackgroundMaterial, "Assets/Materials/ProgressBackground.mat (run WoodUiGenerator first)");
+        // Transparent + ZWrite off (alpha stays 1, so it still reads solid dark
+        // jade): it must NOT write depth, so the coplanar gold fill + score text
+        // aren't occluded by it (depth precision is too poor for a Z gap at this
+        // distance). It still draws over the far board via the transparent queue.
+        URPMaterialUtil.SetTransparent(progressBackgroundMaterial);
+        progressBackgroundMaterial.renderQueue = 2900;
         var tileShadowMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/TileShadow.mat");
         RequireNotNull(tileShadowMaterial, "Assets/Materials/TileShadow.mat (run TileMaterialGenerator first)");
 
@@ -264,12 +274,21 @@ public static class GameSceneBuilder3D
         // 0.10 is a comfortable margin, not a tuned minimum.
         var barFillGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
         barFillGO.name = "Fill";
+        // The fill is COPLANAR with the background (same Z 0.05) and its material
+        // draws after it (render queue) so LEqual depth paints it over - no Z gap,
+        // so no tilt-parallax. It can therefore fill the inner area edge-to-edge
+        // (full inner height, pinned to the inner-left) with no gap/overflow.
+        float progInnerW = TrackWidth + 0.12f - ProgressBorderThickness * 2f;
+        float progInnerH = TrackHeight + 0.12f - ProgressBorderThickness * 2f;
         barFillGO.transform.SetParent(scoreRootGO.transform, false);
-        barFillGO.transform.localPosition = new Vector3(-TrackWidth * 0.5f, 0f, -0.05f); // in front of the background (0.10 gap needed to win the depth test at this distance)
-        // Fill sits INSIDE the bar with a margin (not full edge-to-edge) so that
-        // even with the tilt-camera parallax shift it stays within the border and
-        // reads as contained, like the target.
-        barFillGO.transform.localScale = new Vector3(0f, (TrackHeight + 0.12f - ProgressBorderThickness * 2f) * 0.6f, 1f);
+        // z=0.03: a TINY distinct gap IN FRONT of the background (0.05) - coplanar
+        // transparent elements render unreliably here (proven: a coplanar fill/text
+        // vanished), but a distinct in-front z renders like the HUD icons do. The
+        // background no longer writes depth (transparent), so this small gap can't
+        // fail a depth test, and 0.02 is small enough that tilt-parallax is
+        // negligible - so the full-height fill stays inside the border (round-2 fix 1).
+        barFillGO.transform.localPosition = new Vector3(-progInnerW * 0.5f, 0f, 0.03f);
+        barFillGO.transform.localScale = new Vector3(0f, progInnerH, 1f);
         Object.DestroyImmediate(barFillGO.GetComponent<Collider>());
         // Rounded (capsule-ended) unit fill mesh instead of a square quad, so the
         // fill's ends match the pill's rounded corners and never poke past the
@@ -287,7 +306,7 @@ public static class GameSceneBuilder3D
 
         var scoreGO = new GameObject("ScoreText", typeof(TextMeshPro));
         scoreGO.transform.SetParent(scoreRootGO.transform, false);
-        scoreGO.transform.localPosition = new Vector3(0f, 0f, -0.15f); // pulled forward with Fill above so the score number stays in front of it, not behind
+        scoreGO.transform.localPosition = new Vector3(0f, 0f, -0.15f); // pulled well in FRONT of the fill/background; centered text has no visible parallax, and this removes the transparent-sort ambiguity that dropped it when coplanar
         var scoreText = scoreGO.GetComponent<TextMeshPro>();
         scoreText.text = "0";
         scoreText.color = CreamHudText;
@@ -300,11 +319,10 @@ public static class GameSceneBuilder3D
         SetField(progressBar, "_fill", barFillGO.transform);
         SetField(progressBar, "_label", scoreText);
         SetField(progressBar, "_gameController", gameController);
-        // _trackWidth must match the TrackWidth actually built above (now tied
-        // to the tray's width, not the component's 2.6 default) or the fill's
-        // grow-to-the-right math would size itself against the wrong track.
-        SetFieldFloat(progressBar, "_trackWidth", TrackWidth);
-        SetFieldFloat(progressBar, "_fillHeight", (TrackHeight + 0.12f - ProgressBorderThickness * 2f) * 0.6f); // contained inside the bar (accounts for tilt parallax), not poking past the border
+        // Fill spans the INNER area edge-to-edge: pinned to the inner-left and
+        // full inner height (coplanar => no parallax to overflow the border).
+        SetFieldFloat(progressBar, "_trackWidth", progInnerW);
+        SetFieldFloat(progressBar, "_fillHeight", progInnerH);
         // _maxScore (2000) still uses the component's
         // serialized defaults.
 
@@ -327,6 +345,11 @@ public static class GameSceneBuilder3D
         // y=0.92, not 0.965: leaves a top margin clear of the status-bar area
         // so the discs aren't jammed against the very top edge of the screen.
         var backButtonGO = CreateVisualIconButton3D(camera, hudButtonFaceMaterial, new Vector2(0.09f, TopbarY), "BackButton", backIcon);
+        // Make the back button tappable (routed through BackNavigator, same as hardware back).
+        var backButton = backButtonGO.AddComponent<PressScaleButton3D>();
+        SetField(backButton, "_targetCamera", camera);
+        var backButtonCol = backButtonGO.GetComponent<BoxCollider>();
+        if (backButtonCol != null) backButtonCol.size = new Vector3(0.55f, 0.55f, 0.1f);
         var menuButtonGO = CreateVisualIconButton3D(camera, hudButtonFaceMaterial, new Vector2(0.91f, TopbarY), "MenuButton", menuIcon);
         // Make the menu (hamburger) button tappable so it can open the pause menu.
         var menuButton = menuButtonGO.AddComponent<PressScaleButton3D>();
@@ -428,7 +451,9 @@ public static class GameSceneBuilder3D
         // Dark-jade body inset within the gold frame (TrayBody, jade after Pass C+).
         var trayBodyMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/TrayBody.mat");
         RequireNotNull(trayBodyMaterial, "Assets/Materials/TrayBody.mat (run WoodUiGenerator first)");
-        const float TrayBorderThickness = 0.013f; // ~3px crisp gold rim, no thick glowing band (fix spec section 1)
+        // 0.03 = frame radius (0.14) - body radius (0.11), so the gold stroke is
+        // uniform at the corners (no notch) and ~2.3x the old hairline (round-2 fix 2).
+        const float TrayBorderThickness = 0.03f;
         var trayBodyMesh = SaveRoundedTrayMesh("Assets/Meshes/TrayBody.asset",
             containerWidth - TrayBorderThickness * 2f, frameHeight - TrayBorderThickness * 2f, 0.12f, 0.11f);
         var trayBodyGO = new GameObject("TrayBody", typeof(MeshFilter), typeof(MeshRenderer));
@@ -521,10 +546,19 @@ public static class GameSceneBuilder3D
             shuffleButtonGO, hintButtonGO, undoButtonGO,
         };
         var levelStartRoot = BuildLevelStartScreen(camera, gameController, hudObjects, hintIcon, undoIcon, shuffleIcon, hudButtonFaceMaterial);
-        BuildLevelSelectScreen(camera, gameController, hudObjects, levelStartRoot, hudButtonFaceMaterial, hudButtonFaceLockedMaterial);
+        var levelSelectRoot = BuildLevelSelectScreen(camera, gameController, hudObjects, levelStartRoot, hudButtonFaceMaterial, hudButtonFaceLockedMaterial);
         levelStartRoot.SetActive(false); // the level-select screen shows first
 
-        BuildPauseMenu(camera, gameController, hudObjects, menuButton, hudButtonFaceMaterial);
+        var pauseMenu = BuildPauseMenu(camera, gameController, hudObjects, menuButton, hudButtonFaceMaterial);
+
+        // Shared back navigation (hardware/gesture back + on-screen back button).
+        var backNavGO = new GameObject("BackNavigator");
+        var backNav = backNavGO.AddComponent<BackNavigator>();
+        SetField(backNav, "_levelSelectScreen", levelSelectRoot);
+        SetField(backNav, "_levelStartScreen", levelStartRoot);
+        SetFieldArray(backNav, "_gameHudObjects", hudObjects);
+        SetField(backNav, "_pauseMenu", pauseMenu);
+        SetField(backNav, "_backButton", backButton);
 
         Directory.CreateDirectory("Assets/Scenes");
         EditorSceneManager.SaveScene(scene, "Assets/Scenes/Game.unity");
@@ -627,6 +661,18 @@ public static class GameSceneBuilder3D
         {
             mat.SetFloat("_Smoothness", 0.35f);
             mat.SetFloat("_Metallic", 0f);
+        }
+        else
+        {
+            // Transparent + ZWrite off so it doesn't depth-test against the (also
+            // ZWrite-off) bar background: layering is purely by render queue, so
+            // the fill can be COPLANAR with the background (zero Z gap => zero
+            // tilt-parallax) and still paint over it, filling the inner area
+            // edge-to-edge with no overflow (round-2 fix 1). Alpha stays 1 (solid
+            // gold). Depth precision at this camera distance is too poor for a
+            // small Z gap to work, so we remove the depth dependency entirely.
+            URPMaterialUtil.SetTransparent(mat);
+            mat.renderQueue = 3000; // after the background (2900), before the text
         }
         EditorUtility.SetDirty(mat);
         return mat;
@@ -747,7 +793,7 @@ public static class GameSceneBuilder3D
         // it nearly filled the whole disc (read as "too huge"). At 0.62 the
         // glyph sits ~42% of the disc diameter with padding around it, like the
         // mockup's small line icons inside the button.
-        iconGO.transform.localScale = new Vector3(0.62f, 0.62f, 1f);
+        iconGO.transform.localScale = new Vector3(1.0f, 1.0f, 1f); // glyph ~70% of the disc (28/40), centered (round-2 fix 4)
         var iconMaterial = new Material(Shader.Find("Universal Render Pipeline/Unlit")); // unlit: see Bronze.mat comment above
         URPMaterialUtil.SetTransparent(iconMaterial);
         URPMaterialUtil.SetAlwaysOnTop(iconMaterial);
@@ -854,7 +900,7 @@ public static class GameSceneBuilder3D
         iconGO.transform.SetParent(buttonGO.transform, false);
         Object.DestroyImmediate(iconGO.GetComponent<MeshCollider>());
         iconGO.transform.localPosition = Vector3.zero; // same Z as Face - avoids the parallax bug documented on CreateHudButton3D's Icon
-        iconGO.transform.localScale = new Vector3(0.36f, 0.36f, 1f); // ~65% of the face, matching CreateHudButton3D's icon/face ratio
+        iconGO.transform.localScale = new Vector3(0.58f, 0.58f, 1f); // glyph ~70% of the disc (28/40), consistent with the control buttons (round-2 fix 4)
         var iconMaterial = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
         URPMaterialUtil.SetTransparent(iconMaterial);
         URPMaterialUtil.SetAlwaysOnTop(iconMaterial);
@@ -995,7 +1041,7 @@ public static class GameSceneBuilder3D
 
     // Level-select screen (sub-project #4B): a centered row of level tokens
     // (jade+gold disc + number + star pips), shown before the level-start screen.
-    private static void BuildLevelSelectScreen(
+    private static GameObject BuildLevelSelectScreen(
         Camera camera, GameController gameController, GameObject[] hudObjects,
         GameObject levelStartRoot, Material discFaceMaterial, Material discLockedMaterial)
     {
@@ -1083,12 +1129,13 @@ public static class GameSceneBuilder3D
         SetField(select, "_gameController", gameController);
         SetField(select, "_dailyButton", dailyBtn);
         SetField(select, "_dailyLabel", dailyLabel);
+        return root;
     }
 
     // Pause menu overlay (sub-project #4D): a full jade screen with PAUSED +
     // Resume/Restart and Sound/Music toggles. Built on an always-active root that
     // toggles a child overlay; opened by the top menu button.
-    private static void BuildPauseMenu(
+    private static PauseMenu3D BuildPauseMenu(
         Camera camera, GameController gameController, GameObject[] hudObjects,
         PressScaleButton3D menuButton, Material discFaceMaterial)
     {
@@ -1155,6 +1202,7 @@ public static class GameSceneBuilder3D
         SetField(pause, "_musicLabel", music.lbl);
         SetField(pause, "_gameController", gameController);
         SetFieldArray(pause, "_gameHudObjects", hudObjects);
+        return pause;
     }
 
     // One carryover chip on the level-start screen: a small dark disc with a

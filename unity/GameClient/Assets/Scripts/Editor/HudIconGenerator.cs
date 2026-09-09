@@ -4,7 +4,7 @@ using static ProceduralSpriteGenerator;
 public static class HudIconGenerator
 {
     private const string Directory = "Assets/Textures/HudIcons";
-    private const int Size = 128;
+    private const int Size = 256; // higher res so the SDF glyphs stay crisp at on-screen size (round-2 fix 4)
 
     public static void Generate()
     {

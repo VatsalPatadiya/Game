@@ -40,6 +40,11 @@ public static class FeltBackgroundGenerator
         // Lattice frequency scales with bake resolution so the on-screen cell
         // count matches the approved 480px preview (0.045 per px at 480).
         float latticeFreq = 0.045f * 480f / size;
+        // This square texture is stretched to fill a PORTRAIT screen, which would
+        // make a circular radial read as a vertical ellipse. Amplifying the v term
+        // of the bloom/vignette distance by the screen aspect (h/w) pre-compresses
+        // it vertically so it renders as a proper CIRCLE on-screen (round-2 fix 6).
+        const float ScreenAspectVY = 2340f / 1080f; // target portrait aspect
         for (int y = 0; y < size; y++)
         for (int x = 0; x < size; x++)
         {
@@ -47,15 +52,16 @@ public static class FeltBackgroundGenerator
             float v = y / (float)(size - 1) * 2f - 1f;
             // Unity texture y=0 is the BOTTOM, so +v is toward the top of the
             // final image; the overhead bloom sits in the upper third at v=0.32.
-            float d = Mathf.Sqrt(u * u + (v - 0.32f) * (v - 0.32f));
+            float vy = (v - 0.32f) * ScreenAspectVY;
+            float d = Mathf.Sqrt(u * u + vy * vy);
 
             // Stage 1: bloom core fading to the dominant deep jade by d=0.62.
-            float core = Mathf.Clamp01(d / 0.62f);
+            float core = Mathf.Clamp01(d / 0.9f);
             core = core * core * (3f - 2f * core);
             var baseCol = Color.Lerp(FeltHighlight, FeltCentre, core);
 
             // Stage 2: deep jade fading to the near-black jade edge.
-            float t = Mathf.Clamp01(d / 1.02f);
+            float t = Mathf.Clamp01(d / 1.7f); // wider so the aspect-corrected vertical vignette isn't harsh
             t = t * t * (3f - 2f * t); // smooth vignette
             var c = Color.Lerp(baseCol, FeltEdge, t);
 
