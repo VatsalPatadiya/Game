@@ -328,6 +328,11 @@ public static class GameSceneBuilder3D
         // so the discs aren't jammed against the very top edge of the screen.
         var backButtonGO = CreateVisualIconButton3D(camera, hudButtonFaceMaterial, new Vector2(0.09f, TopbarY), "BackButton", backIcon);
         var menuButtonGO = CreateVisualIconButton3D(camera, hudButtonFaceMaterial, new Vector2(0.91f, TopbarY), "MenuButton", menuIcon);
+        // Make the menu (hamburger) button tappable so it can open the pause menu.
+        var menuButton = menuButtonGO.AddComponent<PressScaleButton3D>();
+        SetField(menuButton, "_targetCamera", camera);
+        var menuButtonCol = menuButtonGO.GetComponent<BoxCollider>();
+        if (menuButtonCol != null) menuButtonCol.size = new Vector3(0.55f, 0.55f, 0.1f);
 
         // ------------------
         // Control bar (hint/undo/shuffle)
@@ -518,6 +523,8 @@ public static class GameSceneBuilder3D
         var levelStartRoot = BuildLevelStartScreen(camera, gameController, hudObjects, hintIcon, undoIcon, shuffleIcon, hudButtonFaceMaterial);
         BuildLevelSelectScreen(camera, gameController, hudObjects, levelStartRoot, hudButtonFaceMaterial, hudButtonFaceLockedMaterial);
         levelStartRoot.SetActive(false); // the level-select screen shows first
+
+        BuildPauseMenu(camera, gameController, hudObjects, menuButton, hudButtonFaceMaterial);
 
         Directory.CreateDirectory("Assets/Scenes");
         EditorSceneManager.SaveScene(scene, "Assets/Scenes/Game.unity");
@@ -1061,6 +1068,78 @@ public static class GameSceneBuilder3D
         SetField(select, "_levelStartScreen", levelStartRoot);
         SetFieldArray(select, "_gameHudObjects", hudObjects);
         SetField(select, "_gameController", gameController);
+    }
+
+    // Pause menu overlay (sub-project #4D): a full jade screen with PAUSED +
+    // Resume/Restart and Sound/Music toggles. Built on an always-active root that
+    // toggles a child overlay; opened by the top menu button.
+    private static void BuildPauseMenu(
+        Camera camera, GameController gameController, GameObject[] hudObjects,
+        PressScaleButton3D menuButton, Material discFaceMaterial)
+    {
+        const float D = 7f * 0.8175f;
+        var root = new GameObject("PauseMenu");
+        PositionInFrontOfCamera(root.transform, camera, new Vector2(0.5f, 0.5f), D);
+
+        var overlay = new GameObject("Overlay");
+        overlay.transform.SetParent(root.transform, false);
+
+        const float BgD = 8f * 0.8175f;
+        BuildScreenFillingBackdrop(camera, overlay.transform, BgD, GetOrCreateFeltScreenMaterial(), "Backdrop");
+
+        Transform Place(GameObject go, Vector2 vp)
+        {
+            go.transform.position = camera.ViewportToWorldPoint(new Vector3(vp.x, vp.y, D));
+            go.transform.rotation = camera.transform.rotation;
+            go.transform.SetParent(overlay.transform, true);
+            return go.transform;
+        }
+        TextMeshPro Label(string name, Vector2 vp, string text, float size, Color color)
+        {
+            var go = new GameObject(name, typeof(TextMeshPro));
+            Place(go, vp);
+            var t = go.GetComponent<TextMeshPro>();
+            t.text = text; t.fontSize = size; t.color = color;
+            t.alignment = TextAlignmentOptions.Center;
+            if (DisplayFont != null) t.font = DisplayFont;
+            return t;
+        }
+        var goldInk = new Color(0.227f, 0.141f, 0.063f);
+        (PressScaleButton3D btn, TextMeshPro lbl) MakeButton(string name, Vector2 vp, string text)
+        {
+            var pill = new GameObject(name, typeof(MeshFilter), typeof(MeshRenderer));
+            Place(pill, vp);
+            pill.GetComponent<MeshFilter>().sharedMesh =
+                SaveRoundedTrayMesh("Assets/Meshes/PauseBtn_" + name + ".asset", 1.7f, 0.34f, 0.1f, 0.16f);
+            pill.GetComponent<MeshRenderer>().sharedMaterial = GetOrCreateNonEmissiveGoldMaterial();
+            var col = pill.AddComponent<BoxCollider>();
+            col.size = new Vector3(1.7f, 0.34f, 0.1f);
+            var b = pill.AddComponent<PressScaleButton3D>();
+            SetField(b, "_targetCamera", camera);
+            var l = Label(name + "Text", vp, text, 0.42f, goldInk);
+            l.transform.localPosition += new Vector3(0f, 0f, -0.06f);
+            return (b, l);
+        }
+
+        Label("PausedTitle", new Vector2(0.5f, 0.66f), "PAUSED", 0.9f, CreamHudText);
+        var resume = MakeButton("Resume", new Vector2(0.5f, 0.54f), "RESUME");
+        var restart = MakeButton("Restart", new Vector2(0.5f, 0.45f), "RESTART");
+        var sound = MakeButton("SoundToggle", new Vector2(0.5f, 0.36f), "Sound: ON");
+        var music = MakeButton("MusicToggle", new Vector2(0.5f, 0.27f), "Music: ON");
+
+        overlay.SetActive(false); // hidden until the menu button is tapped
+
+        var pause = root.AddComponent<PauseMenu3D>();
+        SetField(pause, "_overlay", overlay);
+        SetField(pause, "_menuButton", menuButton);
+        SetField(pause, "_resumeButton", resume.btn);
+        SetField(pause, "_restartButton", restart.btn);
+        SetField(pause, "_soundToggle", sound.btn);
+        SetField(pause, "_musicToggle", music.btn);
+        SetField(pause, "_soundLabel", sound.lbl);
+        SetField(pause, "_musicLabel", music.lbl);
+        SetField(pause, "_gameController", gameController);
+        SetFieldArray(pause, "_gameHudObjects", hudObjects);
     }
 
     // One carryover chip on the level-start screen: a small dark disc with a

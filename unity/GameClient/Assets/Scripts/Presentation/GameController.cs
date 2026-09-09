@@ -53,6 +53,10 @@ namespace GameClient.Presentation
         // can't land mid-animation and desync the board from what's visible.
         public bool IsInputLocked { get; private set; }
 
+        // Set by the pause menu so board taps are ignored while the overlay is up.
+        private bool _paused;
+        public void SetPaused(bool paused) => _paused = paused;
+
         private void Awake()
         {
             // Load progress in Awake so it's ready before other components'
@@ -130,6 +134,7 @@ namespace GameClient.Presentation
         // If the tray fills (4 different tiles) with no match, it's game over.
         public void OnTileTapped(string slotId)
         {
+            if (_paused) return;
             if (IsInputLocked) return;
             if (_board.IsGameOver) return;
             if (_board.Cells.Values.All(c => c.Cleared)) return;

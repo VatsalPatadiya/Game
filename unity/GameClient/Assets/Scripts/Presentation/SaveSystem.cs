@@ -11,6 +11,7 @@ namespace GameClient.Presentation
     public static class SaveSystem
     {
         private static string DefaultPath => Path.Combine(Application.persistentDataPath, "progress.json");
+        private static string SettingsPath => Path.Combine(Application.persistentDataPath, "settings.json");
 
         public static void Save(GameProgress progress, string path = null)
         {
@@ -29,6 +30,26 @@ namespace GameClient.Presentation
             catch
             {
                 return new GameProgress();
+            }
+        }
+
+        public static void SaveSettings(SettingsData settings, string path = null)
+        {
+            File.WriteAllText(path ?? SettingsPath, JsonUtility.ToJson(settings));
+        }
+
+        public static SettingsData LoadSettings(string path = null)
+        {
+            string p = path ?? SettingsPath;
+            if (!File.Exists(p)) return new SettingsData();
+            try
+            {
+                var loaded = JsonUtility.FromJson<SettingsData>(File.ReadAllText(p));
+                return loaded ?? new SettingsData();
+            }
+            catch
+            {
+                return new SettingsData();
             }
         }
     }
