@@ -258,8 +258,14 @@ public static class WoodUiGenerator
         // still read as distinct recessed pockets against the panel behind
         // them - using the same flat color for both (an earlier attempt)
         // made the four slots invisibly blend into one solid black rectangle.
+        // Much darker than TrayBody (0.06,0.16,0.12) across its WHOLE gradient so
+        // the slot recess reads as a full-height dark pocket. The previous recess
+        // was so close to the body colour that each slot's lighter lower half blended
+        // into the body, looking like a HALF-HEIGHT slot (the reported "half box" -
+        // it was a colour collision, not geometry; the slot mesh is 80% of the
+        // container, centered, confirmed by runtime bounds).
         var recess = LoadOrCreate("Assets/Materials/TrayRecess.mat", shader);
-        ApplyVerticalGradientPanel(recess, "TrayRecessGradient", new Color(0.03f, 0.09f, 0.07f), recessed: true); // dark jade sunken slot (jade+gold theme)
+        ApplyVerticalGradientPanel(recess, "TrayRecessGradient", new Color(0.012f, 0.04f, 0.03f), recessed: true);
         recess.SetFloat("_Smoothness", 0.1f);
         recess.SetFloat("_Metallic", 0f);
         EditorUtility.SetDirty(recess);

@@ -167,7 +167,7 @@ public static class GameSceneBuilder3D
         const float TraySlotGap = 0.05f;
         const float TraySlotSpacing = TraySlotWidth + TraySlotGap;
         const float TrayEdgePadX = 0.07f; // tight left/right, ~= the inter-slot gap (fix 5)
-        const float TrayEdgePadY = 0.075f; // small top/bottom clearance; the tightened Z-stack (below) handles the tilt parallax over the border (fix 7)
+        const float TrayEdgePadY = 0.045f; // tight top/bottom so slots fill ~90% of the container height (the tightened Z-stack below handles tilt parallax over the border)
         float trayContainerWidth = (TraySlotCount - 1) * TraySlotSpacing + TraySlotWidth + TrayEdgePadX * 2f;
         float trayFrameHeight = TraySlotHeight + TrayEdgePadY * 2f;
 
@@ -288,14 +288,15 @@ public static class GameSceneBuilder3D
         // fail a depth test, and 0.02 is small enough that tilt-parallax is
         // negligible - so the full-height fill stays inside the border (round-2 fix 1).
         barFillGO.transform.localPosition = new Vector3(-progInnerW * 0.5f, 0f, 0.03f);
-        barFillGO.transform.localScale = new Vector3(0f, progInnerH, 1f);
+        // Height is BAKED INTO the fill mesh (1.0 wide x progInnerH tall, radius =
+        // progInnerH/2 = horizontal capsule). ProgressBar3D scales ONLY the X
+        // (width), leaving Y=1, so the fill is ALWAYS full inner height with
+        // rounded ends - unlike scaling a 1x1 rounded mesh, which produced a
+        // floating ellipse that never touched the top/bottom (the reported bug).
+        barFillGO.transform.localScale = new Vector3(0f, 1f, 1f);
         Object.DestroyImmediate(barFillGO.GetComponent<Collider>());
-        // Rounded (capsule-ended) unit fill mesh instead of a square quad, so the
-        // fill's ends match the pill's rounded corners and never poke past the
-        // border silhouette at low fill (fix spec section 6). A 1x1 mesh with
-        // radius 0.5 is fully rounded; ProgressBar3D scales it to width x height.
         barFillGO.GetComponent<MeshFilter>().sharedMesh =
-            SaveRoundedTrayMesh("Assets/Meshes/ProgressFill.asset", 1f, 1f, 0.05f, 0.48f);
+            SaveRoundedTrayMesh("Assets/Meshes/ProgressFill.asset", 1f, progInnerH, 0.05f, progInnerH * 0.5f);
         // Gold.mat, not this - see GetOrCreateNonEmissiveGoldMaterial's
         // comment at the Play button below: Gold.mat's emission never
         // actually renders (color set, keyword never enabled), so the fill
@@ -319,10 +320,10 @@ public static class GameSceneBuilder3D
         SetField(progressBar, "_fill", barFillGO.transform);
         SetField(progressBar, "_label", scoreText);
         SetField(progressBar, "_gameController", gameController);
-        // Fill spans the INNER area edge-to-edge: pinned to the inner-left and
-        // full inner height (coplanar => no parallax to overflow the border).
+        // Fill height is baked into the mesh, so the Y scale stays 1 (fillHeight=1);
+        // only the width grows with score.
         SetFieldFloat(progressBar, "_trackWidth", progInnerW);
-        SetFieldFloat(progressBar, "_fillHeight", progInnerH);
+        SetFieldFloat(progressBar, "_fillHeight", 1f);
         // _maxScore (2000) still uses the component's
         // serialized defaults.
 
