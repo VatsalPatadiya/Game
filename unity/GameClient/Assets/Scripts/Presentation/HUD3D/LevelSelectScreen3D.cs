@@ -1,3 +1,5 @@
+using System;
+using GameDomain.Progression;
 using TMPro;
 using UnityEngine;
 
@@ -16,6 +18,8 @@ namespace GameClient.Presentation.HUD3D
         [SerializeField] private GameObject _levelStartScreen;
         [SerializeField] private GameObject[] _gameHudObjects;
         [SerializeField] private GameController _gameController;
+        [SerializeField] private PressScaleButton3D _dailyButton;
+        [SerializeField] private TMP_Text _dailyLabel;
 
         private static readonly Color LockedTint = new Color(0.45f, 0.43f, 0.38f, 1f);
         private static readonly Color UnlockedTint = new Color(0.96f, 0.93f, 0.84f, 1f);
@@ -48,6 +52,12 @@ namespace GameClient.Presentation.HUD3D
                 if (_starTexts != null && i < _starTexts.Length && _starTexts[i] != null)
                     _starTexts[i].text = unlocked ? StarString(stars) : "locked";
             }
+
+            if (_dailyLabel != null)
+            {
+                bool done = progress != null && progress.IsDailyDone(DailyChallenge.DateKey(DateTime.Now));
+                _dailyLabel.text = done ? "DAILY  DONE" : "DAILY CHALLENGE";
+            }
         }
 
         private static string StarString(int stars)
@@ -66,6 +76,17 @@ namespace GameClient.Presentation.HUD3D
                 int id = (_levelIds != null && i < _levelIds.Length) ? _levelIds[i] : i + 1;
                 _levelButtons[i].OnClick += () => HandlePick(id);
             }
+            if (_dailyButton != null) _dailyButton.OnClick += HandleDaily;
+        }
+
+        // The daily challenge skips the level-start screen: reveal the HUD and
+        // deal the seeded daily board straight away.
+        private void HandleDaily()
+        {
+            if (_gameController == null) return;
+            SetActiveAll(_gameHudObjects, true);
+            gameObject.SetActive(false);
+            _gameController.BeginDaily();
         }
 
         private void HandlePick(int levelId)

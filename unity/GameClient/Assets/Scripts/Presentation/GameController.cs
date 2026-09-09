@@ -36,6 +36,7 @@ namespace GameClient.Presentation
         private GameProgress _progress;
         private int _currentLevelId = 1;
         private int _aidsUsed;
+        private bool _isDaily; // true while the daily challenge is being played
         public int CurrentLevelId => _currentLevelId;
         public GameProgress Progress => _progress;
 
@@ -89,7 +90,18 @@ namespace GameClient.Presentation
         }
 
         // Entry point from the level-start screen's Play button.
-        public void BeginLevel() => LoadLevel();
+        public void BeginLevel()
+        {
+            _isDaily = false;
+            LoadLevel();
+        }
+
+        // Entry point from the level-select screen's Daily button.
+        public void BeginDaily()
+        {
+            _isDaily = true;
+            LoadLevel();
+        }
 
         public void RestartLevel()
         {
@@ -100,21 +112,35 @@ namespace GameClient.Presentation
 
         private void LoadLevel()
         {
-            // Board size scales with the level's difficulty (sub-project #7).
-            var levelData = LevelCatalog.Get(_currentLevelId) ?? LevelCatalog.Levels[0];
-            _shape = TurtleShapeBuilder.BuildForDifficulty(levelData.Difficulty);
+            // The daily challenge is a fixed-difficulty board seeded by the date
+            // (same for everyone that day); normal levels scale by difficulty and
+            // use the running RNG (sub-projects #5, #7).
+            int difficulty;
+            System.Random rng;
+            if (_isDaily)
+            {
+                difficulty = DailyChallenge.Difficulty;
+                rng = new System.Random(DailyChallenge.SeedFor(DateTime.Now));
+            }
+            else
+            {
+                var levelData = LevelCatalog.Get(_currentLevelId) ?? LevelCatalog.Levels[0];
+                difficulty = levelData.Difficulty;
+                rng = _random;
+            }
+            _shape = TurtleShapeBuilder.BuildForDifficulty(difficulty);
             _slotsById = _shape.ToDictionary(s => s.Id);
 
             var level = new LevelDefinition
             {
-                LevelId = _currentLevelId,
+                LevelId = _isDaily ? -1 : _currentLevelId,
                 Shape = _shape,
                 TileSetId = "default"
             };
 
             // Pair-match tray: values come in pairs so two identical tiles
             // collected in the tray clear together.
-            _board = BoardGenerator.Generate(level, _random);
+            _board = BoardGenerator.Generate(level, rng);
             _lastMatchTime = null;
             _comboCount = 0;
             _aidsUsed = 0;
@@ -203,7 +229,8 @@ namespace GameClient.Presentation
         {
             if (_board.Cells.Values.All(c => c.Cleared))
             {
-                RecordWin();
+                if (_isDaily) RecordDailyWin();
+                else RecordWin();
                 _gameOverPopup?.ShowWin(this, _board.Score);
                 return;
             }
@@ -267,6 +294,15 @@ namespace GameClient.Presentation
             _progress.RecordResult(_currentLevelId, stars, next);
             SaveSystem.Save(_progress);
             _currentLevelId = next;
+        }
+
+        // Daily win: mark today's daily complete and persist; does not touch the
+        // main level progression.
+        private void RecordDailyWin()
+        {
+            if (_progress == null) _progress = new GameProgress();
+            _progress.MarkDailyDone(DailyChallenge.DateKey(DateTime.Now));
+            SaveSystem.Save(_progress);
         }
 
         private void NotifyUsesChanged()

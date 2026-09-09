@@ -1060,6 +1060,19 @@ public static class GameSceneBuilder3D
                 "...", 0.4f, new Color(0.96f, 0.82f, 0.42f));
         }
 
+        // Daily challenge button: a gold pill below the level row.
+        var dailyPill = new GameObject("DailyButton", typeof(MeshFilter), typeof(MeshRenderer));
+        Place(dailyPill, new Vector2(0.5f, 0.30f));
+        dailyPill.GetComponent<MeshFilter>().sharedMesh =
+            SaveRoundedTrayMesh("Assets/Meshes/DailyBtn.asset", 1.7f, 0.34f, 0.1f, 0.16f);
+        dailyPill.GetComponent<MeshRenderer>().sharedMaterial = GetOrCreateNonEmissiveGoldMaterial();
+        var dailyCol = dailyPill.AddComponent<BoxCollider>();
+        dailyCol.size = new Vector3(1.7f, 0.34f, 0.1f);
+        var dailyBtn = dailyPill.AddComponent<PressScaleButton3D>();
+        SetField(dailyBtn, "_targetCamera", camera);
+        var dailyLabel = Label("DailyText", new Vector2(0.5f, 0.30f), "DAILY CHALLENGE", 0.42f, new Color(0.227f, 0.141f, 0.063f));
+        dailyLabel.transform.localPosition += new Vector3(0f, 0f, -0.06f);
+
         var select = root.AddComponent<LevelSelectScreen3D>();
         SetFieldArray(select, "_levelButtons", buttons);
         SetFieldIntArray(select, "_levelIds", ids);
@@ -1068,6 +1081,8 @@ public static class GameSceneBuilder3D
         SetField(select, "_levelStartScreen", levelStartRoot);
         SetFieldArray(select, "_gameHudObjects", hudObjects);
         SetField(select, "_gameController", gameController);
+        SetField(select, "_dailyButton", dailyBtn);
+        SetField(select, "_dailyLabel", dailyLabel);
     }
 
     // Pause menu overlay (sub-project #4D): a full jade screen with PAUSED +
