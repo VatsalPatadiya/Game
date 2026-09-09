@@ -8,11 +8,11 @@ namespace GameClient.Presentation.HUD3D
     // position are driven so its LEFT edge stays pinned while it grows.
     public sealed class ProgressBar3D : MonoBehaviour
     {
-        [SerializeField] private Transform _fill;
+        [SerializeField] private Transform _fill;     // plain-quad rectangle fill (never distorts)
         [SerializeField] private TextMeshPro _label;
         [SerializeField] private GameController _gameController;
         [SerializeField] private float _maxScore = 2000f;
-        [SerializeField] private float _trackWidth = 2.6f;
+        [SerializeField] private float _trackWidth = 2.6f; // USABLE width (pill inner width minus both rounded ends)
         [SerializeField] private float _fillHeight = 0.24f;
         // Mockup's .progress-fill keeps a visible sliver even at 0 score
         // (`width:5%`, and its JS clamps with Math.max(4, ...)). Without this
@@ -88,14 +88,18 @@ namespace GameClient.Presentation.HUD3D
             _targetScore = score;
         }
 
+        // The fill mesh is a capsule built at the FULL usable width; here we scale
+        // it DOWN by the fraction (0..1). Scaling down only compresses it - it can
+        // never balloon (the reported shape bug came from scaling a small mesh UP).
+        // Left edge stays pinned; it grows rightward toward the full capsule at 100%.
         private void ApplyFill(float frac)
         {
             if (_fill == null) return;
-            float w = _trackWidth * Mathf.Max(_minVisibleFrac, frac);
-            _fill.localScale = new Vector3(w, _fillHeight, 1f);
-            // pin the left edge: centre sits at -half + w/2
+            float s = Mathf.Clamp01(Mathf.Max(_minVisibleFrac, frac)); // 0..1 fraction
+            _fill.localScale = new Vector3(s, _fillHeight, 1f);
+            float renderedW = _trackWidth * s;
             var p = _fill.localPosition;
-            p.x = -_trackWidth * 0.5f + w * 0.5f;
+            p.x = -_trackWidth * 0.5f + renderedW * 0.5f; // pin the left edge
             _fill.localPosition = p;
         }
     }

@@ -293,16 +293,18 @@ public static class GameSceneBuilder3D
         // (width), leaving Y=1, so the fill is ALWAYS full inner height with
         // rounded ends - unlike scaling a 1x1 rounded mesh, which produced a
         // floating ellipse that never touched the top/bottom (the reported bug).
-        barFillGO.transform.localScale = new Vector3(0f, 1f, 1f);
+        // Fill = a rounded capsule mesh built at the FULL usable width, scaled only
+        // DOWN (0..1) by the fill fraction. Scaling DOWN compresses - it can never
+        // BALLOON (the reported shape bug was caused by scaling a small mesh UP).
+        // At 100% it's a perfect capsule; at lower fills a smaller rounded fill.
+        // The rounded mesh faces the camera (unlike a Quad primitive, which faced
+        // away and wouldn't render). Definitive fix for the recurring shape bug.
+        float progFillRadius = progInnerH * 0.5f;
+        float progUsableW = progInnerW - progFillRadius; // leave the pill's right rounded end dark
         Object.DestroyImmediate(barFillGO.GetComponent<Collider>());
         barFillGO.GetComponent<MeshFilter>().sharedMesh =
-            SaveRoundedTrayMesh("Assets/Meshes/ProgressFill.asset", 1f, progInnerH, 0.05f, progInnerH * 0.5f);
-        // Gold.mat, not this - see GetOrCreateNonEmissiveGoldMaterial's
-        // comment at the Play button below: Gold.mat's emission never
-        // actually renders (color set, keyword never enabled), so the fill
-        // was rendering as an all-but-invisible plain quad against the dark
-        // wood track. Confirmed via a live-editor capture with a nonzero
-        // score - literally nothing visible where a gold bar should be.
+            SaveRoundedTrayMesh("Assets/Meshes/ProgressFill.asset", progUsableW, progInnerH, 0.05f, progFillRadius);
+        barFillGO.transform.localScale = new Vector3(0f, 1f, 1f);
         barFillGO.GetComponent<MeshRenderer>().sharedMaterial = GetOrCreateNonEmissiveGoldMaterial(alwaysOnTop: true);
 
         var scoreGO = new GameObject("ScoreText", typeof(TextMeshPro));
@@ -320,10 +322,11 @@ public static class GameSceneBuilder3D
         SetField(progressBar, "_fill", barFillGO.transform);
         SetField(progressBar, "_label", scoreText);
         SetField(progressBar, "_gameController", gameController);
-        // Fill height is baked into the mesh, so the Y scale stays 1 (fillHeight=1);
-        // only the width grows with score.
-        SetFieldFloat(progressBar, "_trackWidth", progInnerW);
+        // Capsule fill scaled DOWN by fraction. _trackWidth is the full usable
+        // width (for the left-pin math); _fillHeight=1 (height baked into the mesh).
+        SetFieldFloat(progressBar, "_trackWidth", progUsableW);
         SetFieldFloat(progressBar, "_fillHeight", 1f);
+        SetFieldFloat(progressBar, "_maxScore", 400f); // TEMP: low so testing reaches 100% quickly; revert to 2000
         // _maxScore (2000) still uses the component's
         // serialized defaults.
 
@@ -673,6 +676,7 @@ public static class GameSceneBuilder3D
             // gold). Depth precision at this camera distance is too poor for a
             // small Z gap to work, so we remove the depth dependency entirely.
             URPMaterialUtil.SetTransparent(mat);
+            mat.SetFloat("_Cull", 0f); // double-sided: the plain-quad fill faces +Z (away from camera), so it must render from both sides
             mat.renderQueue = 3000; // after the background (2900), before the text
         }
         EditorUtility.SetDirty(mat);

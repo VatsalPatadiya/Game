@@ -1,0 +1,629 @@
+{
+  "version": 1,
+  "skills": {
+    "build-live-game": {
+      "source": "Unity-Technologies/skills",
+      "sourceType": "github",
+      "skillPath": "skills/build-live-game/SKILL.md",
+      "computedHash": "28d013ac4ac6953558b9a1e369b3361ec6ec6c1cfe3b13e9ee3ff2e033ae5083"
+    },
+    "implement-in-app-purchases": {
+      "source": "Unity-Technologies/skills",
+      "sourceType": "github",
+      "skillPath": "skills/implement-in-app-purchases/SKILL.md",
+      "computedHash": "9f6ba2f3cdd13aaf511e573076d25216a592e51c58d8dfd1c3b5846ae2bdab8f"
+    },
+    "initialize-ai-navigation": {
+      "source": "Unity-Technologies/skills",
+      "sourceType": "github",
+      "skillPath": "skills/initialize-ai-navigation/SKILL.md",
+      "computedHash": "31d9b8eef563d238dd6345272849ac139a41295a608bb573d7eccbd60c5ed90d"
+    },
+    "levelplay-unity-integration": {
+      "source": "Unity-Technologies/skills",
+      "sourceType": "github",
+      "skillPath": "skills/levelplay-unity-integration/SKILL.md",
+      "computedHash": "342e26cfe9147453a93e25337543f360d4720bc8131167655d0afe2c85f54ffc"
+    },
+    "localization": {
+      "source": "Unity-Technologies/skills",
+      "sourceType": "github",
+      "skillPath": "skills/localization/SKILL.md",
+      "computedHash": "26d596c94a5202d5533c6f128ea54bdc055f49101ac178963a1e1cd78c7a2106"
+    },
+    "new-unity-project": {
+      "source": "Unity-Technologies/skills",
+      "sourceType": "github",
+      "skillPath": "skills/new-unity-project/SKILL.md",
+      "computedHash": "4cf79b05c2575a3ed19279fc19a6ceca8faa10a058c6a6ef553339e189bf0bd8"
+    },
+    "optimize-audio": {
+      "source": "Unity-Technologies/skills",
+      "sourceType": "github",
+      "skillPath": "skills/optimize-audio/SKILL.md",
+      "computedHash": "4ddb1632398c08afa7a95e8eb6f4b282435433dcf0a7406413d13a240cfd4cdd"
+    },
+    "optimize-text-mesh-pro": {
+      "source": "Unity-Technologies/skills",
+      "sourceType": "github",
+      "skillPath": "skills/optimize-text-mesh-pro/SKILL.md",
+      "computedHash": "9607b7f876c615e46e8b7f8e1929e669419587245b4849165b2eb9dd23f0324d"
+    },
+    "optimize-web": {
+      "source": "Unity-Technologies/skills",
+      "sourceType": "github",
+      "skillPath": "skills/optimize-web/SKILL.md",
+      "computedHash": "4968ebad3937a19d8cb618541fc1dbfcc50ea8e186d08fba18145e50f6a05c58"
+    },
+    "setup-multiplayer-services": {
+      "source": "Unity-Technologies/skills",
+      "sourceType": "github",
+      "skillPath": "skills/setup-multiplayer-services/SKILL.md",
+      "computedHash": "028891076eb6e0af0e01ff8768ff68508f560cb0207fdd5c87d1d7ae34f12c09"
+    },
+    "setup-vivox-voice-chat": {
+      "source": "Unity-Technologies/skills",
+      "sourceType": "github",
+      "skillPath": "skills/setup-vivox-voice-chat/SKILL.md",
+      "computedHash": "1cb21c51237ea2a478f3576418389a1ddb02b32b94382f87e4d0d9faca521764"
+    },
+    "shader-graph-create-custom-node": {
+      "source": "Unity-Technologies/skills",
+      "sourceType": "github",
+      "skillPath": "skills/shader-graph-create-custom-node/SKILL.md",
+      "computedHash": "b32a392ff7c9d1fd3aaf199f8cd36d8ccab7b5915c33decf280f3a853238494f"
+    },
+    "sprite-editor": {
+      "source": "Unity-Technologies/skills",
+      "sourceType": "github",
+      "skillPath": "skills/sprite-editor/SKILL.md",
+      "computedHash": "e8ee691cd851d04bf0271f052f34ee25444517d6c214cce707d76798f7f1f641"
+    },
+    "ui": {
+      "source": "Unity-Technologies/skills",
+      "sourceType": "github",
+      "skillPath": "skills/ui/SKILL.md",
+      "computedHash": "f223ab889d558d44d9cc9257ecd271e85a2f262d2a1ba548c435d1f8fdfdbafc"
+    },
+    "ui-imgui": {
+      "source": "Unity-Technologies/skills",
+      "sourceType": "github",
+      "skillPath": "skills/ui-imgui/SKILL.md",
+      "computedHash": "11a16a6b73956675a47f0adc63bd9366ea15dd7b0e9f1713284dd435f1c709e8"
+    },
+    "ui-ugui": {
+      "source": "Unity-Technologies/skills",
+      "sourceType": "github",
+      "skillPath": "skills/ui-ugui/SKILL.md",
+      "computedHash": "fa4358ef93958d5532cce2496b97c93a825213859e37162b8ca1c022c8b0aae7"
+    },
+    "ui-uitk": {
+      "source": "Unity-Technologies/skills",
+      "sourceType": "github",
+      "skillPath": "skills/ui-uitk/SKILL.md",
+      "computedHash": "883d97e64697b90ec00512dfc370000113ea7b70b1c16ba992f8c7741c57306a"
+    },
+    "unity-addressables": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/addressables/SKILL.md",
+      "computedHash": "98553f76911a0a0c0487d665452566ac51a230c4458c2cb9662482691331af02"
+    },
+    "unity-addressables-design": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/addressables-design/SKILL.md",
+      "computedHash": "8d293758367ce9a923a012cf7de0cf21269f5bcb5d48939415dc5d81cdf1b687"
+    },
+    "unity-adr": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/adr/SKILL.md",
+      "computedHash": "fc5754420dae2978448415b8ccf3cf016b77286446da3473392eb5e176519b49"
+    },
+    "unity-animator": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/animator/SKILL.md",
+      "computedHash": "f12e70ac15a37569e85904671f8d2110ee6ffdec2b2c0fa0c41950a56d304d4d"
+    },
+    "unity-architecture": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/architecture/SKILL.md",
+      "computedHash": "cdcf06cb893d8fd80e5c7e9da1b3c7acbcf836564d5a1145c8e2af35cdcb941c"
+    },
+    "unity-asmdef": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/asmdef/SKILL.md",
+      "computedHash": "43aff91fea59f4fba73845a2e0190108eed0fd6be9e180835aa674273e48f053"
+    },
+    "unity-asset": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/asset/SKILL.md",
+      "computedHash": "6f8484a77d00ac82f2fcb1213211efdae86793dc9e7ec8ce958aa15e6be6364b"
+    },
+    "unity-async": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/async/SKILL.md",
+      "computedHash": "51f0e6479c45507bcd6ebaf9e64c3a07ea4234fe9984fc8b4808b879bf510985"
+    },
+    "unity-batch": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/batch/SKILL.md",
+      "computedHash": "ef3ff399a45b783cb0e0f77a4241be400071c18170fe5463ef09858091202719"
+    },
+    "unity-behavior": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/behavior/SKILL.md",
+      "computedHash": "b07c406c81da955a0c729d550d57a856173283ebbc36dc17b8c7999ff0ff9e3d"
+    },
+    "unity-blueprints": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/blueprints/SKILL.md",
+      "computedHash": "3a5fe8d0278e83e1b3d18ab581a0727c8f522a60e92b76664b277364b5bf7883"
+    },
+    "unity-bookmark": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/bookmark/SKILL.md",
+      "computedHash": "4c8082bb5e5144de6ecae1cefbd97afe3752efc18b5a0ec4b7e0f375fdd4a10a"
+    },
+    "unity-camera": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/camera/SKILL.md",
+      "computedHash": "e628a856cd71a383d32f641329d0caca5737a779590c5ab704588a22aed0e0c1"
+    },
+    "unity-cinemachine": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/cinemachine/SKILL.md",
+      "computedHash": "aa867c64fab3bfbb4ec971246a38e71ba1f159c0118b7a7832520a17ad785f66"
+    },
+    "unity-cleaner": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/cleaner/SKILL.md",
+      "computedHash": "97a217574ec3ca021db00c99195f8fa2ca92f0898ce232135fe776bef073e617"
+    },
+    "unity-cli": {
+      "source": "Unity-Technologies/skills",
+      "sourceType": "github",
+      "skillPath": "skills/unity-cli/SKILL.md",
+      "computedHash": "5e595e231af13c8d680bd65a9ab525204c7269a2ac29f9fab4cb45961149f80e"
+    },
+    "unity-component": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/component/SKILL.md",
+      "computedHash": "9fe7af10c94d29b5cdd904d707796639b1ec51537094c7c3fb84866e934841be"
+    },
+    "unity-console": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/console/SKILL.md",
+      "computedHash": "86fa08d04f0a8a61a97f14aa8c9ce7375c45cf4e41fbb59c0ee566b3be72e7e7"
+    },
+    "unity-debug": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/debug/SKILL.md",
+      "computedHash": "5476aab554955c9a3061b1440b75d2c546b0d9401cf4be87e7fea7611cecb420"
+    },
+    "unity-decal": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/decal/SKILL.md",
+      "computedHash": "8f15a0208e7315f2b613d4e4c216f104c366b33af22a9213d6a66f723c190d79"
+    },
+    "unity-dotween": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/dotween/SKILL.md",
+      "computedHash": "1149d0f6fff5df1b2c651c1d054cb564d766974686f4c76c4168a9935deede96"
+    },
+    "unity-dotween-design": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/dotween-design/SKILL.md",
+      "computedHash": "3095ee3f10bb16c30fcf33faefa66777313de5c31d5fe527d4ad1bef8e340995"
+    },
+    "unity-editor": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/editor/SKILL.md",
+      "computedHash": "839fe44f3e5b19f76524537d318cb0df3d7398d358abb6f9ce3ca45ce2374d2c"
+    },
+    "unity-event": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/event/SKILL.md",
+      "computedHash": "dd422b7ca529ef0f8c1929200af5e78f4276fdd046825bb9ca122cda38852b91"
+    },
+    "unity-gameobject": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/gameobject/SKILL.md",
+      "computedHash": "33a41b56b4eb2c67355560e62474f4d672e4b089cd0096d6d10345cf14c825f6"
+    },
+    "unity-graphics": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/graphics/SKILL.md",
+      "computedHash": "d0d2d658882a46cf7ac1bb7daddbbca5892fb70f314a18de99ae2aeceff17d13"
+    },
+    "unity-history": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/history/SKILL.md",
+      "computedHash": "a9a99c841b9c8eb4a94ee470b2639dc0edbdc228aa33fe54ff705b1b408736e8"
+    },
+    "unity-hybridclr": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/hybridclr/SKILL.md",
+      "computedHash": "0d557db53f55ff7b21b3e81e625d6fc8f0eafdc0022df2e1a31221feb180b89d"
+    },
+    "unity-importer": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/importer/SKILL.md",
+      "computedHash": "3f45d38db545052de8201475918f48561b163d02eff7d77f552aeed2b6d6d891"
+    },
+    "unity-inspector": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/inspector/SKILL.md",
+      "computedHash": "0658e9fa019a86b2f3b5b9ae10865417051d28d3a90d13420d5d95d3c8a2045c"
+    },
+    "unity-light": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/light/SKILL.md",
+      "computedHash": "f8766716f620812b30f0a4386086f43ab75e9b6df9202f11a941ef3f92bceb53"
+    },
+    "unity-manual-component": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/manual-component/SKILL.md",
+      "computedHash": "f4856e5b999e86296ee4d5cf763c8ec8407877e10d1dde0057d5aecea9b5fbb4"
+    },
+    "unity-manual-gameobject": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/manual-gameobject/SKILL.md",
+      "computedHash": "ee79e222cd8e53dcea383783e3df858736fe166be2994df3ade31609baca2dc5"
+    },
+    "unity-manual-material": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/manual-material/SKILL.md",
+      "computedHash": "ca701237ba36e26950405479779dd061f12edec30b1a68971f08baf09f86eb3a"
+    },
+    "unity-manual-scene": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/manual-scene/SKILL.md",
+      "computedHash": "d3b6040f42b4d64ad6a06e0f8436dbce4026158f0a5470cb467b6aef63c4c3a8"
+    },
+    "unity-material": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/material/SKILL.md",
+      "computedHash": "47e329f23c6e06449d8c0ed9e5baf913bcdd20b340537d7c4dae529c070ddf85"
+    },
+    "unity-navmesh": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/navmesh/SKILL.md",
+      "computedHash": "d8b0b321a6f3bb4c7f572e442e4cfa36fc27840fe7790cd2f2e8b6af14732fa9"
+    },
+    "unity-netcode": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/netcode/SKILL.md",
+      "computedHash": "cbacc505dbfa9d2d0523185e21ab7d2df2777330d52233d08db2769b55f19f28"
+    },
+    "unity-netcode-design": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/netcode-design/SKILL.md",
+      "computedHash": "2e393edd70ec4aee166a216a701dfa48f923ded53dfb26ed31a225721413004b"
+    },
+    "unity-optimization": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/optimization/SKILL.md",
+      "computedHash": "d06be909c010b73cc8ac284c303977553359dc6edb0d17bbfb2a007f6ede354c"
+    },
+    "unity-package": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/package/SKILL.md",
+      "computedHash": "7e2bee0e335f7f5da5f61f975c4043a9d5cf248240fb163da2d983222b941416"
+    },
+    "unity-package-management": {
+      "source": "Unity-Technologies/skills",
+      "sourceType": "github",
+      "skillPath": "skills/unity-package-management/SKILL.md",
+      "computedHash": "039f30ff4978fd8133315895787ce18c6de3b7191a7c5895a451f7c347958453"
+    },
+    "unity-patterns": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/patterns/SKILL.md",
+      "computedHash": "9920f2f5965b8a94ee0c23bcd04546c0576b031d7aa7595c43427eeb03a7c075"
+    },
+    "unity-perception": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/perception/SKILL.md",
+      "computedHash": "6117f89df514851b29414a5188aaecdab19a739e9e71c77431fafbe22598a2ac"
+    },
+    "unity-performance": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/performance/SKILL.md",
+      "computedHash": "617032365ae7498701cb12030753a0e8a1bd0aa026474616a65a5bf06cfab209"
+    },
+    "unity-physics": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/physics/SKILL.md",
+      "computedHash": "a4c9fc64ac85f7ccb9e5ed61944b9e573a61a1cf1d0502e7d9c239bea8a82b4f"
+    },
+    "unity-pico-design": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/pico-design/SKILL.md",
+      "computedHash": "58b3c36fd23e29276989f9bacc0ee0cae1dd78738bb49e10bb1f52e1ffc560c2"
+    },
+    "unity-postprocess": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/postprocess/SKILL.md",
+      "computedHash": "18de36c012832e3893f4837e034dc191b70df132cf21d85fe25202303b65d9fd"
+    },
+    "unity-prefab": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/prefab/SKILL.md",
+      "computedHash": "5bd6bf0506f8081717c3e8f6f837ec0eeacd82e006937ab9fb0608c4431b2f1f"
+    },
+    "unity-primetween": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/primetween/SKILL.md",
+      "computedHash": "bf9def0ffd72aeb9e3b67b4b14fa28dee542cf3f34c4f35c8318ff283239cc58"
+    },
+    "unity-primetween-design": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/primetween-design/SKILL.md",
+      "computedHash": "1dabdbd3408639658fb49ee7d6e10be741b6df05a89f1c27eadf11ab1d8c7b71"
+    },
+    "unity-probuilder": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/probuilder/SKILL.md",
+      "computedHash": "eb3f0d75d79d48c504e3dd005014611f6bdd61b9f19d09bc23abb599c7c45afb"
+    },
+    "unity-profiler": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/profiler/SKILL.md",
+      "computedHash": "542bffd318cf132070eb0586f5cbbf3cf75d70cfbff07fddcc9f06d203038841"
+    },
+    "unity-project": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/project/SKILL.md",
+      "computedHash": "60eed5c7e037107fbc3c270129355819f77a9076ef860505e49dd6e245f747fd"
+    },
+    "unity-project-scout": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/project-scout/SKILL.md",
+      "computedHash": "4a5703beb7d4f24bee73c6d069ea3355b70bb13cc9e61b002c21ea125447d090"
+    },
+    "unity-qframework": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/qframework/SKILL.md",
+      "computedHash": "5d40bdaf712710144365832a788b5abe75f2f6b9cb92bf59af6360128086ad32"
+    },
+    "unity-qframework-design": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/qframework-design/SKILL.md",
+      "computedHash": "15a398e7e14e8f658966f429efc00c8524a9c36efbbcadcc64531a6f21479931"
+    },
+    "unity-sample": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/sample/SKILL.md",
+      "computedHash": "9af7e736990676431c25a2d5ccdec2ac87562b362f3bc5153cdfca9bcc6aa6ac"
+    },
+    "unity-scene": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/scene/SKILL.md",
+      "computedHash": "4a73c2f39abc7db27a390f6203cfab61e599fec0348f8c1e99a856851efa905f"
+    },
+    "unity-scene-contracts": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/scene-contracts/SKILL.md",
+      "computedHash": "a2a0e208841fc1c59ba7a5c6818e99cf02c29ccd0bedf226988890783d97634f"
+    },
+    "unity-script": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/script/SKILL.md",
+      "computedHash": "88ba48e80a50969a31daf92a483c0a980f2c1fb87dd08d17d6b17ed535946d05"
+    },
+    "unity-script-roles": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/script-roles/SKILL.md",
+      "computedHash": "fdb98e02c04c147df54046ce70b8ab57f5bc089c0a1ec335be1517a0716357c9"
+    },
+    "unity-scriptableobject": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/scriptableobject/SKILL.md",
+      "computedHash": "0aa5b1cfe1bb81b99b961333d1d970482af23b80f44bf9df3e34ecd79f4d5ed2"
+    },
+    "unity-scriptdesign": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/scriptdesign/SKILL.md",
+      "computedHash": "453ea26428937416062e20796072c000b2c5d2733ea127870e46e9707b5d0466"
+    },
+    "unity-shader": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/shader/SKILL.md",
+      "computedHash": "726f92e9cf1ea14a7128d75b1e5cd7fbf177fbdc257c3c5d828779b498394bcf"
+    },
+    "unity-shadergraph": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/shadergraph/SKILL.md",
+      "computedHash": "ca4d3c100f6ea21fbb25c6e76920c230ebfec2e1e63c5a528679ad75e6adf1df"
+    },
+    "unity-shadergraph-design": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/shadergraph-design/SKILL.md",
+      "computedHash": "311434de7f123887ac11b67e7599cd6057f9b88485b46dcc2fa165caa573cfb9"
+    },
+    "unity-skills": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/SKILL.md",
+      "computedHash": "4309b7816f3e1be28fbe4d186f6ffbd11dd067d1d0291643d319df984aed40dd"
+    },
+    "unity-skills-index": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/SKILL.md",
+      "computedHash": "0d6aa8601390b9e6642cb3e51cece29c9963ebd2cfb7c3a6ef604d3f7212c054"
+    },
+    "unity-smart": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/smart/SKILL.md",
+      "computedHash": "2c32c9e25dccef75cd290e7706ccfcc6ebdf9d866dcdcda9cb6c33b48fef6fbe"
+    },
+    "unity-terrain": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/terrain/SKILL.md",
+      "computedHash": "e0af634cb361d4bf8b5c81a588881c1b0c14f665a9cd3992eae61863f70e65cb"
+    },
+    "unity-test": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/test/SKILL.md",
+      "computedHash": "81e3b248daa0b9a222289fc1fdf337daddce40f9973a39d5d8f1bf4eacaea914"
+    },
+    "unity-testability": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/testability/SKILL.md",
+      "computedHash": "215d0af7f2c63f1afb2d10f6c76b87c3630881098e45d6b8aeb6adaf4ad9eb7f"
+    },
+    "unity-timeline": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/timeline/SKILL.md",
+      "computedHash": "4d231bcc015d6c9327f95ed6dc4dfff536dbedb49eeca1eaecd523bcd911e25e"
+    },
+    "unity-ui": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/ui/SKILL.md",
+      "computedHash": "22a8158341bfa8078d1daf7a2f813d7b0300906e55d7e1d54748ae546ebea535"
+    },
+    "unity-uitoolkit": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/uitoolkit/SKILL.md",
+      "computedHash": "08ca6542423e7ca3d9107ac50aff234558f4e75bdfcef8b61438bb8e8e5d54dc"
+    },
+    "unity-unitask-design": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/unitask-design/SKILL.md",
+      "computedHash": "d31975082aabdb51ab9053f78de2e5f7a9d5db489529c709f515ced33832f51c"
+    },
+    "unity-urp": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/urp/SKILL.md",
+      "computedHash": "e059f8debc7e9b7c84c61ba01db7683e581a85851966b6d37fe5e60530f5b0bd"
+    },
+    "unity-validation": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/validation/SKILL.md",
+      "computedHash": "9e58b26b0fa23d470c78ce677f89486772f90988321a4af92baac84bc06cbaa1"
+    },
+    "unity-volume": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/volume/SKILL.md",
+      "computedHash": "81b170e639d446cf701af8efc2e9a2aa0a314c2f99b6580aa12f92cdd4127a85"
+    },
+    "unity-workflow": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/workflow/SKILL.md",
+      "computedHash": "fb2470e1c1b9e121a282735e0f9d8f1873907910923ffe7723298414e1c3ddb2"
+    },
+    "unity-xr": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/xr/SKILL.md",
+      "computedHash": "bab723d153413c7d3caf35a90a4288af304e8202224bce298cd8133e32c0b7c7"
+    },
+    "unity-yaml-editing": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/yaml-editing/SKILL.md",
+      "computedHash": "547076c2495276552272d955a5245f3d021f17371ca6aff4daad9bd891e00a6b"
+    },
+    "unity-yooasset": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/yooasset/SKILL.md",
+      "computedHash": "c17a07db2f0dbae112f00617f6ab9902b1a992bf722d053957f4e0e629df0f64"
+    },
+    "unity-yooasset-design": {
+      "source": "Besty0728/Unity-Skills",
+      "sourceType": "github",
+      "skillPath": "SkillsForUnity/unity-skills~/skills/yooasset-design/SKILL.md",
+      "computedHash": "363d54bed10aa27ddab2c2148e1f0ff68dbccb55a36c8b2b985eb71c24b159f2"
+    },
+    "urp-postprocessing": {
+      "source": "Unity-Technologies/skills",
+      "sourceType": "github",
+      "skillPath": "skills/urp-postprocessing/SKILL.md",
+      "computedHash": "f566b71159c0e9940d46b43a531ba1c7df840b1482e1d5432a0c57d61e90bcb3"
+    },
+    "validate-urp-render-graph-renderer-feature": {
+      "source": "Unity-Technologies/skills",
+      "sourceType": "github",
+      "skillPath": "skills/validate-urp-render-graph-renderer-feature/SKILL.md",
+      "computedHash": "f2fcf4996aff640b230abb8dc218dfb96341c1d64a4f4ac0a7926ff2f78d6cde"
+    }
+  }
+}
