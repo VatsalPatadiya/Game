@@ -89,6 +89,14 @@ namespace GameClient.Presentation
                 _currentLevelId = levelId;
         }
 
+        // Tear down the current board's rendered tiles when leaving gameplay (e.g.
+        // pressing Back to the level-select screen), so they don't linger on screen
+        // and show through the next screen. No-op if nothing is dealt.
+        public void ClearBoard()
+        {
+            if (_boardView != null) _boardView.Clear();
+        }
+
         // Entry point from the level-start screen's Play button.
         public void BeginLevel()
         {

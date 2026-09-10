@@ -94,14 +94,22 @@ namespace GameClient.Presentation.Board3D
 
         public TileSetAsset TileSet => _tileSet;
 
+        // Destroy every rendered tile and forget them. Used when leaving gameplay
+        // (e.g. back to level-select) so the old board doesn't linger on screen and
+        // bleed through the next screen. Safe to call when already empty.
+        public void Clear()
+        {
+            foreach (var view in _tileViews.Values)
+                if (view != null) Destroy(view.gameObject);
+            _tileViews.Clear();
+        }
+
         public void Build(
             BoardState board, Dictionary<string, TileSlot> slotsById, bool animateDealIn, Action onDealInComplete = null)
         {
             _slotsById = slotsById;
 
-            foreach (var view in _tileViews.Values)
-                if (view != null) Destroy(view.gameObject);
-            _tileViews.Clear();
+            Clear();
 
             FitCameraToBoard(slotsById);
 

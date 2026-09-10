@@ -32,6 +32,9 @@ namespace GameClient.Presentation.HUD3D
 
         private void OnEnable()
         {
+            // Clear any board left over from a game we just backed out of, so its
+            // tiles don't show through this screen. No-op on the first (fresh) show.
+            if (_gameController != null) _gameController.ClearBoard();
             RefreshTokens();
         }
 

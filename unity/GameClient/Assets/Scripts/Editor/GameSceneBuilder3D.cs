@@ -200,7 +200,7 @@ public static class GameSceneBuilder3D
         // gap - see ScreenHalfHeightFrac) so this row can never overlap the
         // back/menu discs regardless of either row's height.
         const float HudRowGap = 0.02f; // consistent edge-to-edge gap between every stacked HUD row below
-        const float TopbarFaceDiameter = 0.55f; // CreateVisualIconButton3D's face scale, must match its own call below
+        const float TopbarFaceDiameter = 0.42f; // CreateVisualIconButton3D's face scale, must match its own call below (was 0.55 - looked oversized at the current zoom)
         // 0.92 -> 0.94: lifts the whole topbar/progress/tray cluster together
         // (everything below is computed FROM this anchor) to free up more
         // clearance before the board starts - the tray's bottom edge was
@@ -370,13 +370,13 @@ public static class GameSceneBuilder3D
         var backButton = backButtonGO.AddComponent<PressScaleButton3D>();
         SetField(backButton, "_targetCamera", camera);
         var backButtonCol = backButtonGO.GetComponent<BoxCollider>();
-        if (backButtonCol != null) backButtonCol.size = new Vector3(0.55f, 0.55f, 0.1f);
+        if (backButtonCol != null) backButtonCol.size = new Vector3(0.42f, 0.42f, 0.1f);
         var menuButtonGO = CreateVisualIconButton3D(camera, hudButtonFaceMaterial, new Vector2(0.91f, TopbarY), "MenuButton", menuIcon);
         // Make the menu (hamburger) button tappable so it can open the pause menu.
         var menuButton = menuButtonGO.AddComponent<PressScaleButton3D>();
         SetField(menuButton, "_targetCamera", camera);
         var menuButtonCol = menuButtonGO.GetComponent<BoxCollider>();
-        if (menuButtonCol != null) menuButtonCol.size = new Vector3(0.55f, 0.55f, 0.1f);
+        if (menuButtonCol != null) menuButtonCol.size = new Vector3(0.42f, 0.42f, 0.1f);
 
         // ------------------
         // Control bar (hint/undo/shuffle)
@@ -884,12 +884,12 @@ public static class GameSceneBuilder3D
         var buttonGO = new GameObject(name);
         PositionInFrontOfCamera(buttonGO.transform, camera, viewportPos, HudDistance);
 
-        AddButtonDropShadow(buttonGO.transform, faceScale: 0.55f);
+        AddButtonDropShadow(buttonGO.transform, faceScale: 0.42f);
 
         var faceGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
         faceGO.name = "Face";
         faceGO.transform.SetParent(buttonGO.transform, false);
-        faceGO.transform.localScale = new Vector3(0.55f, 0.55f, 1f); // smaller than the 0.99 control-button discs - secondary chrome
+        faceGO.transform.localScale = new Vector3(0.42f, 0.42f, 1f); // smaller than the 0.99 control-button discs - secondary chrome (was 0.55, oversized at the current zoom)
         Object.DestroyImmediate(faceGO.GetComponent<MeshCollider>());
         faceGO.GetComponent<MeshRenderer>().sharedMaterial = faceMaterial;
 
@@ -898,7 +898,7 @@ public static class GameSceneBuilder3D
         iconGO.transform.SetParent(buttonGO.transform, false);
         Object.DestroyImmediate(iconGO.GetComponent<MeshCollider>());
         iconGO.transform.localPosition = Vector3.zero; // same Z as Face - avoids the parallax bug documented on CreateHudButton3D's Icon
-        iconGO.transform.localScale = new Vector3(0.58f, 0.58f, 1f); // glyph ~70% of the disc (28/40), consistent with the control buttons (round-2 fix 4)
+        iconGO.transform.localScale = new Vector3(0.44f, 0.44f, 1f); // glyph ~70% of the disc, scaled with the smaller 0.42 face (was 0.58)
         var iconMaterial = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
         URPMaterialUtil.SetTransparent(iconMaterial);
         URPMaterialUtil.SetAlwaysOnTop(iconMaterial);
