@@ -18,7 +18,7 @@ namespace GameClient.Presentation.HUD3D
         // (`width:5%`, and its JS clamps with Math.max(4, ...)). Without this
         // the gold fill collapses to zero width at score 0, leaving the wood
         // bar reading as an empty hollow plank instead of a track with a fill.
-        [SerializeField] private float _minVisibleFrac = 0.05f;
+        [SerializeField] private float _minVisibleFrac = 0f; // Set to 0 to allow a completely empty fill at 0 score
 
         // Mockup's .progress-fill animates width over `transition:width 900ms
         // cubic-bezier(.22,.9,.3,1)` on every score change instead of
