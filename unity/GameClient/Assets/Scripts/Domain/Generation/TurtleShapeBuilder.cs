@@ -85,6 +85,59 @@ namespace GameDomain.Generation
             }
         }
 
+        public static List<TileSlot> BuildClassic144()
+        {
+            var positions = new List<(int x, int y, int l)>();
+            
+            // To create a perfect "overlapping web" where EVERY layer straddles the one below it,
+            // we must alternate parities by shrinking exactly 1 row and 1 col per layer.
+            // This builds a perfect 7-layer square pyramid (140 tiles) plus 4 wing tiles (144 total).
+            
+            int centerX = 14;
+            int centerY = 14;
+
+            // L0 (Base): 7x7 square (49 tiles) - Even parity
+            for (int x = centerX - 6; x <= centerX + 6; x += 2)
+                for (int y = centerY - 6; y <= centerY + 6; y += 2)
+                    positions.Add((x, y, 0));
+                    
+            // Wings on L0 to reach 144 tiles (4 tiles)
+            positions.Add((centerX - 8, centerY, 0));
+            positions.Add((centerX - 10, centerY, 0));
+            positions.Add((centerX + 8, centerY, 0));
+            positions.Add((centerX + 10, centerY, 0));
+
+            // L1: 6x6 square (36 tiles) - Odd parity
+            for (int x = centerX - 5; x <= centerX + 5; x += 2)
+                for (int y = centerY - 5; y <= centerY + 5; y += 2)
+                    positions.Add((x, y, 1));
+
+            // L2: 5x5 square (25 tiles) - Even parity
+            for (int x = centerX - 4; x <= centerX + 4; x += 2)
+                for (int y = centerY - 4; y <= centerY + 4; y += 2)
+                    positions.Add((x, y, 2));
+
+            // L3: 4x4 square (16 tiles) - Odd parity
+            for (int x = centerX - 3; x <= centerX + 3; x += 2)
+                for (int y = centerY - 3; y <= centerY + 3; y += 2)
+                    positions.Add((x, y, 3));
+
+            // L4: 3x3 square (9 tiles) - Even parity
+            for (int x = centerX - 2; x <= centerX + 2; x += 2)
+                for (int y = centerY - 2; y <= centerY + 2; y += 2)
+                    positions.Add((x, y, 4));
+
+            // L5: 2x2 square (4 tiles) - Odd parity
+            for (int x = centerX - 1; x <= centerX + 1; x += 2)
+                for (int y = centerY - 1; y <= centerY + 1; y += 2)
+                    positions.Add((x, y, 5));
+
+            // L6: 1x1 cap (1 tile) - Even parity
+            positions.Add((centerX, centerY, 6));
+
+            return BuildFromPositions(positions);
+        }
+
         private static List<TileSlot> BuildFromPositions(List<(int x, int y, int l)> positions)
         {
             var slots = new List<TileSlot>();

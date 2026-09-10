@@ -57,8 +57,8 @@ namespace GameClient.Presentation.Board3D
             SlotId = slotId;
             Layer = layer;
 
-            _bodyTint = new MeshRendererTint(_bodyRenderer, "_BaseColor");
-            _emissionTint = new MeshRendererTint(_bodyRenderer, "_EmissionColor");
+            _bodyTint = new MeshRendererTint(_bodyRenderer, "_BaseColor", null, 0);
+            _emissionTint = new MeshRendererTint(_bodyRenderer, "_EmissionColor", null, 0);
 
             _originalLocalPos = transform.localPosition;
             transform.localScale = Vector3.one;
@@ -149,10 +149,10 @@ namespace GameClient.Presentation.Board3D
         private void ApplyStackShadow(int layer)
         {
             if (_dropShadow == null) return;
-            float grow = 1f + 0.10f * layer;      // larger with height
-            float off = 0.045f * layer;           // more offset with height
-            _dropShadow.localScale = new Vector3(_shadowBaseScale.x * grow, _shadowBaseScale.y * grow, 1f);
-            _dropShadow.localPosition = new Vector3(_shadowBasePos.x + off, _shadowBasePos.y - off, _shadowBasePos.z);
+            // In 3D, physical height creates natural parallax. We no longer 
+            // artificially offset/grow the shadow based on layer.
+            _dropShadow.localScale = _shadowBaseScale;
+            _dropShadow.localPosition = _shadowBasePos;
         }
 
         public void PlayDealIn(float delaySeconds, System.Action onComplete)

@@ -164,6 +164,29 @@ namespace GameClient.Presentation.Board3D
             float boardHeight = (maxY - minY) * _cellHeight + 2f * _cellHeight + offY + _cameraMargin * 2f;
 
             float aspect = Screen.height > 0 ? (float)Screen.width / Screen.height : 0.5f;
+
+            float centerX = (minX + maxX) / 2f * _cellWidth - offX / 2f;
+            float centerY = (minY + maxY) / 2f * _cellHeight + offY / 2f;
+            var boardCenter = new Vector3(centerX, centerY, 0f);
+
+            if (_camera.orthographic)
+            {
+                float sizeForHeight = boardHeight / 2f;
+                float sizeForWidth = (boardWidth / 2f) / aspect;
+                _camera.orthographicSize = Mathf.Max(sizeForHeight, sizeForWidth) * _tiltDistancePadding;
+
+                // Orthographic 2.5D look: pitch up slightly to see bottom edges. 
+                // We leave yaw at 0f so the board grid remains perfectly horizontal 
+                // and un-skewed (no parallelogram effect).
+                var orthoRotation = Quaternion.Euler(_cameraTiltDegrees, 0f, 0f);
+                _camera.transform.rotation = orthoRotation;
+
+                float orthoWorldYOffset = _verticalBiasViewportFrac * (_camera.orthographicSize * 2f);
+                var orthoAimPoint = boardCenter + new Vector3(0f, orthoWorldYOffset, 0f);
+                _camera.transform.position = orthoAimPoint - (orthoRotation * Vector3.forward) * 50f;
+                return;
+            }
+
             float verticalFovRad = _camera.fieldOfView * Mathf.Deg2Rad;
 
             float distanceForHeight = (boardHeight / 2f) / Mathf.Tan(verticalFovRad / 2f);
@@ -172,10 +195,6 @@ namespace GameClient.Presentation.Board3D
 
             float distance = Mathf.Max(distanceForHeight, distanceForWidth) * _tiltDistancePadding;
             distance = Mathf.Max(distance, _minDistanceForHud);
-
-            float centerX = (minX + maxX) / 2f * _cellWidth - offX / 2f;
-            float centerY = (minY + maxY) / 2f * _cellHeight + offY / 2f;
-            var boardCenter = new Vector3(centerX, centerY, 0f);
 
             var rotation = Quaternion.Euler(_cameraTiltDegrees, 0f, 0f);
             _camera.transform.rotation = rotation;

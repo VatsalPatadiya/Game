@@ -25,7 +25,7 @@ namespace GameDomain.Progression
             new LevelData { LevelId = 2, Name = "Level 2", TileCount = 36, Difficulty = 2, ParAids = 3 },
             new LevelData { LevelId = 3, Name = "Level 3", TileCount = 48, Difficulty = 2, ParAids = 2 },
             new LevelData { LevelId = 4, Name = "Level 4", TileCount = 48, Difficulty = 3, ParAids = 2 },
-            new LevelData { LevelId = 5, Name = "Level 5", TileCount = 60, Difficulty = 4, ParAids = 1 },
+            new LevelData { LevelId = 5, Name = "Level 5", TileCount = 144, Difficulty = 5, ParAids = 1 },
         };
 
         public static LevelData Get(int levelId) => Levels.FirstOrDefault(l => l.LevelId == levelId);

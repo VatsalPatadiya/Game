@@ -128,7 +128,14 @@ namespace GameClient.Presentation
                 difficulty = levelData.Difficulty;
                 rng = _random;
             }
-            _shape = TurtleShapeBuilder.BuildForDifficulty(difficulty);
+            if (!_isDaily && _currentLevelId == 5)
+            {
+                _shape = TurtleShapeBuilder.BuildClassic144();
+            }
+            else
+            {
+                _shape = TurtleShapeBuilder.BuildForDifficulty(difficulty);
+            }
             _slotsById = _shape.ToDictionary(s => s.Id);
 
             var level = new LevelDefinition

@@ -21,7 +21,8 @@ namespace GameClient.Presentation.Board3D
             var verts = new List<Vector3>();
             var normals = new List<Vector3>();
             var uvs = new List<Vector2>();
-            var tris = new List<int>();
+            var faceTris = new List<int>();
+            var sideTris = new List<int>();
 
             // FRONT (-Z), triangle fan from centre
             int frontCentre = verts.Count;
@@ -38,7 +39,7 @@ namespace GameClient.Presentation.Board3D
             {
                 int a = frontStart + i;
                 int b = frontStart + (i + 1) % n;
-                tris.Add(frontCentre); tris.Add(b); tris.Add(a);
+                faceTris.Add(frontCentre); faceTris.Add(b); faceTris.Add(a);
             }
 
             // BACK (+Z)
@@ -56,7 +57,7 @@ namespace GameClient.Presentation.Board3D
             {
                 int a = backStart + i;
                 int b = backStart + (i + 1) % n;
-                tris.Add(backCentre); tris.Add(a); tris.Add(b);
+                faceTris.Add(backCentre); faceTris.Add(a); faceTris.Add(b);
             }
 
             // SIDE wall
@@ -74,8 +75,8 @@ namespace GameClient.Presentation.Board3D
                 int i1 = sideStart + i * 2 + 1;
                 int j0 = sideStart + ((i + 1) % n) * 2;
                 int j1 = sideStart + ((i + 1) % n) * 2 + 1;
-                tris.Add(i0); tris.Add(i1); tris.Add(j0);
-                tris.Add(j0); tris.Add(i1); tris.Add(j1);
+                sideTris.Add(i0); sideTris.Add(j0); sideTris.Add(i1);
+                sideTris.Add(j0); sideTris.Add(j1); sideTris.Add(i1);
             }
 
             var mesh = new Mesh { name = "RoundedTile" };
@@ -83,7 +84,9 @@ namespace GameClient.Presentation.Board3D
             mesh.SetVertices(verts);
             mesh.SetNormals(normals);
             mesh.SetUVs(0, uvs);
-            mesh.SetTriangles(tris, 0);
+            mesh.subMeshCount = 2;
+            mesh.SetTriangles(faceTris, 0);
+            mesh.SetTriangles(sideTris, 1);
             mesh.RecalculateBounds();
             return mesh;
         }

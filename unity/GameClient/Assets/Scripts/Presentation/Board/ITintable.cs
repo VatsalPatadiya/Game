@@ -34,13 +34,15 @@ namespace GameClient.Presentation.Board
     {
         private readonly MeshRenderer _renderer;
         private readonly string _colorProperty;
+        private readonly int _materialIndex;
         private readonly MaterialPropertyBlock _block;
         private Color _color;
 
-        public MeshRendererTint(MeshRenderer renderer, string colorProperty = "_BaseColor", Color? initialColor = null)
+        public MeshRendererTint(MeshRenderer renderer, string colorProperty = "_BaseColor", Color? initialColor = null, int materialIndex = -1)
         {
             _renderer = renderer;
             _colorProperty = colorProperty;
+            _materialIndex = materialIndex;
             _block = new MaterialPropertyBlock();
             _color = initialColor ?? Color.white;
         }
@@ -51,9 +53,18 @@ namespace GameClient.Presentation.Board
             set
             {
                 _color = value;
-                _renderer.GetPropertyBlock(_block);
-                _block.SetColor(_colorProperty, value);
-                _renderer.SetPropertyBlock(_block);
+                if (_materialIndex >= 0)
+                {
+                    _renderer.GetPropertyBlock(_block, _materialIndex);
+                    _block.SetColor(_colorProperty, value);
+                    _renderer.SetPropertyBlock(_block, _materialIndex);
+                }
+                else
+                {
+                    _renderer.GetPropertyBlock(_block);
+                    _block.SetColor(_colorProperty, value);
+                    _renderer.SetPropertyBlock(_block);
+                }
             }
         }
     }

@@ -44,7 +44,7 @@ public static class GameSceneBuilder3D
 
         var cameraGO = new GameObject("Main Camera", typeof(Camera));
         var camera = cameraGO.GetComponent<Camera>();
-        camera.orthographic = false;
+        camera.orthographic = true;
         // 40 -> 48: the board's width (6 columns on a narrow portrait FOV) was
         // the binding fit constraint, forcing the camera much farther back
         // than its height needed - a wider FOV lets the board fit at a closer

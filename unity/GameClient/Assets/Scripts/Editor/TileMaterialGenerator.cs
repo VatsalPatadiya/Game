@@ -9,9 +9,9 @@ public static class TileMaterialGenerator
     // barely visible at tile size) for a more visible glossy sheen on the
     // card body - part of a pass giving the whole HUD/board more dimensional
     // shading instead of flat single colors.
-    private static readonly Color IvoryTop    = new Color(0.99f, 0.972f, 0.93f);  // #FCF8ED
-    private static readonly Color IvoryBottom = new Color(0.87f, 0.825f, 0.72f);  // #DED2B8
-    private static readonly Color Jade        = new Color(0.184f, 0.541f, 0.329f); // #2F8A54
+    private static readonly Color IvoryTop    = Color.white;
+    private static readonly Color IvoryBottom = Color.white; // Pure white everywhere
+    private static readonly Color Jade        = new Color(0.184f, 0.541f, 0.329f);
 
     [MenuItem("Tools/Mahjong/Generate Tile Material")]
     public static void Generate()
@@ -57,7 +57,7 @@ public static class TileMaterialGenerator
         }
         mat.SetTexture("_BaseMap", faceTex);
         mat.SetColor("_BaseColor", Color.white);           // tint stays white; MeshRendererTint drives free/blocked
-        mat.SetFloat("_Smoothness", 0.15f);                // matte bone
+        mat.SetFloat("_Smoothness", 0.65f);                // glossy bone
         mat.SetColor("_EmissionColor", Color.black);
         EditorUtility.SetDirty(mat);
 
@@ -93,7 +93,7 @@ public static class TileMaterialGenerator
             float d = Mathf.Sqrt(qx * qx + qy * qy) - 0.16f; // rounded-rect SDF, <0 inside
             float t = Mathf.Clamp01((d + 0.14f) / 0.20f);    // 0 well inside -> 1 outside, soft band
             t = t * t * (3f - 2f * t);
-            float a = 0.34f * (1f - t); // was 0.28 - nudged up for clearer depth separation between stacked layers; still short of the original un-softened value to avoid muddying the dense straddle
+            float a = 0.70f * (1f - t); // dense contact shadow for deep separation in orthographic view
             shTex.SetPixel(x, y, new Color(0f, 0f, 0f, Mathf.Clamp01(a)));
         }
         shTex.Apply(updateMipmaps: true);
@@ -110,25 +110,31 @@ public static class TileMaterialGenerator
 
         // URP/Lit + SetTransparent is the project's proven transparent path (the
         // HUD icons use it); Unlit needs different blend keywords and rendered
-        // the shadow opaque-black. Black albedo stays dark under any light, and
-        // the sprite's alpha drives the soft falloff.
-        var shader = Shader.Find("Universal Render Pipeline/Lit");
         var shadowMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/TileShadow.mat");
         if (shadowMat == null)
         {
-            shadowMat = new Material(shader);
+            shadowMat = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
             AssetDatabase.CreateAsset(shadowMat, "Assets/Materials/TileShadow.mat");
         }
-        else
-        {
-            shadowMat.shader = shader;
-        }
-        shadowMat.SetTexture("_BaseMap", shadowTex);
-        shadowMat.SetColor("_BaseColor", new Color(0f, 0f, 0f, 1f)); // black; alpha comes from the sprite
-        shadowMat.SetFloat("_Smoothness", 0f);
-        shadowMat.SetColor("_EmissionColor", Color.black);
-        URPMaterialUtil.SetTransparent(shadowMat);
-        shadowMat.SetFloat("_Cull", 0f); // double-sided: tile-facing orientation never culls it
+        shadowMat.mainTexture = shadowTex;
+        shadowMat.SetFloat("_Surface", 1f);
+        shadowMat.SetFloat("_Blend", 0f);
+        shadowMat.renderQueue = 3000;
+        shadowMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+        shadowMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+        shadowMat.SetInt("_ZWrite", 0);
         EditorUtility.SetDirty(shadowMat);
+
+        var baseMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/TileBase.mat");
+        if (baseMat == null)
+        {
+            baseMat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+            AssetDatabase.CreateAsset(baseMat, "Assets/Materials/TileBase.mat");
+        }
+        baseMat.SetColor("_BaseColor", Jade);
+        baseMat.SetFloat("_Smoothness", 0.3f);
+        EditorUtility.SetDirty(baseMat);
+
+        AssetDatabase.SaveAssets();
     }
 }

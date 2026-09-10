@@ -4,7 +4,7 @@ using UnityEngine;
 
 public static class TileMeshGenerator
 {
-    private const float CardThickness = 0.18f; // real Z depth, replaces the 2D drop-shadow trick
+    private const float CardThickness = 0.40f; // real Z depth, replaces the 2D drop-shadow trick
 
     public static void Generate()
     {
@@ -37,16 +37,17 @@ public static class TileMeshGenerator
 
         var bodyRenderer = body.GetComponent<MeshRenderer>();
         var cardMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/TileBody.mat");
-        if (cardMaterial == null)
+        var baseMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/TileBase.mat");
+        if (cardMaterial == null || baseMaterial == null)
             throw new System.Exception("TILE_MESH_GENERATOR_MISSING_MATERIAL: run TileMaterialGenerator first");
-        bodyRenderer.sharedMaterial = cardMaterial;
-        bodyRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
-        bodyRenderer.receiveShadows = true;
+        bodyRenderer.sharedMaterials = new Material[] { cardMaterial, baseMaterial };
+        bodyRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        bodyRenderer.receiveShadows = false;
 
         var foodAnchorGO = new GameObject("FoodAnchor");
         foodAnchorGO.transform.SetParent(root.transform, false);
         foodAnchorGO.transform.localPosition = new Vector3(0f, 0f, -(CardThickness / 2f + 0.02f));
-        foodAnchorGO.transform.localScale = Vector3.one * 2.0f; // bigger symbol: the clean (frameless) face leaves more room, matching the reference's large symbols
+        foodAnchorGO.transform.localScale = Vector3.one * 2.2f; // slightly larger symbol, safely inside bounds
 
         // Soft drop shadow: a quad behind the tile body (toward the felt, +Z),
         // nudged down-right so it reads under a top-left key light. Extends past
@@ -58,12 +59,13 @@ public static class TileMeshGenerator
         shadowGO.name = "DropShadow";
         Object.DestroyImmediate(shadowGO.GetComponent<Collider>());
         shadowGO.transform.SetParent(root.transform, false);
-        shadowGO.transform.localPosition = new Vector3(0.05f, -0.07f, CardThickness / 2f + 0.03f);
-        shadowGO.transform.localScale = new Vector3(w * 1.24f, h * 1.2f, 1f);
+        shadowGO.transform.localPosition = new Vector3(0.015f, -0.03f, CardThickness / 2f - 0.005f);
+        shadowGO.transform.localScale = new Vector3(w * 1.05f, h * 1.05f, 1f);
         var shadowRenderer = shadowGO.GetComponent<MeshRenderer>();
         shadowRenderer.sharedMaterial = shadowMat;
         shadowRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         shadowRenderer.receiveShadows = false;
+        shadowRenderer.enabled = true; // Restored drop shadow, but tighter and darker
 
         var tileView = root.AddComponent<TileView3D>(); // auto-adds a BoxCollider to root via [RequireComponent]
         var collider = root.GetComponent<BoxCollider>();
