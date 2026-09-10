@@ -22,7 +22,9 @@ namespace GameDomain.Generation
         {
             int d = difficulty < 1 ? 1 : (difficulty > 5 ? 5 : difficulty);
             // Starting presets (tuned later against real boards, per spec 5.1).
-            // Triple mode uses a lower confusability at equal difficulty (3 look-alikes is already hard).
+            // Triple mode's ConfusabilityLevel is <= Pair's at equal difficulty (floored at 0):
+            // 3 look-alikes is already hard, so we step confusability down by one, but never
+            // below 0. At difficulty 1-2 both modes are 0, so they are equal (not strictly lower).
             float[] openingFraction     = { 0.80f, 0.70f, 0.55f, 0.40f, 0.30f };
             float[] openingBranchingMin = { 6f,    5f,    4f,    3f,    2f    };
             int[]   confusability       = { 0,     0,     1,     2,     3     };

@@ -48,5 +48,17 @@ namespace GameDomain.Tests.Generation
             var rising = new List<int> { 6, 6, 6, 6, 8, 9, 10, 11 };
             Assert.That(p.Accepts(rising), Is.False);
         }
+
+        [Test]
+        public void For_TripleConfusability_NeverExceedsPair_AllDifficulties()
+        {
+            for (int d = 1; d <= 5; d++)
+            {
+                var pair = DifficultyProfile.For(d, MatchMode.Pair);
+                var triple = DifficultyProfile.For(d, MatchMode.Triple);
+                Assert.That(triple.ConfusabilityLevel, Is.LessThanOrEqualTo(pair.ConfusabilityLevel),
+                    $"difficulty {d}: triple confusability must not exceed pair");
+            }
+        }
     }
 }
