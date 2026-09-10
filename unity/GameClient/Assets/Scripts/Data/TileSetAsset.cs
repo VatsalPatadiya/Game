@@ -9,5 +9,10 @@ namespace GameClient.Data
         public Sprite[] Icons;
         public Color[] AccentColors;
         public GameObject[] FoodModels;
+
+        // Similarity cluster id per FoodModel index (parallel to FoodModels). Models
+        // that look alike share a cluster id; -1 = visually unique. Drives the
+        // difficulty confusability lever (see PaletteSelector). Authored in Inspector.
+        public int[] SimilarityClusterId;
     }
 }
