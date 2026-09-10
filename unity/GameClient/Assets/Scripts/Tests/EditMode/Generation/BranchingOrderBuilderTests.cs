@@ -49,9 +49,26 @@ namespace GameDomain.Tests.Generation
         }
 
         [Test]
+        public void Build_ReturnsNull_WhenFewerThanGroupSizeFreeTiles()
+        {
+            // A single row of 4 (cols=4) exposes only its two ends as free (interior
+            // tiles are blocked). Asking for triples (groupSize 3) can never satisfy
+            // 3 co-free tiles at step 0, so Build must return null.
+            var shape = TestLayoutShapes.BuildLayeredRowShape(new[] { 4 });
+            var slotsById = shape.ToDictionary(s => s.Id);
+            var ids = new HashSet<string>(slotsById.Keys);
+
+            var order = BranchingOrderBuilder.Build(slotsById, ids, new System.Random(1), 3, 0.5f);
+
+            Assert.That(order, Is.Null);
+        }
+
+        [Test]
         public void Build_Triples_GroupsOfThree()
         {
-            // 9 tiles single-row so triples always have 3 free.
+            // LayeredRowShapeBuilder wraps at cols=4, so new[]{9} is three chains
+            // (4,4,1), not a single row. The shape exposes at least 3 free tiles at
+            // each step, so triples (groupSize 3) can always be satisfied.
             var shape = TestLayoutShapes.BuildLayeredRowShape(new[] { 9 });
             var slotsById = shape.ToDictionary(s => s.Id);
             var ids = new HashSet<string>(slotsById.Keys);
