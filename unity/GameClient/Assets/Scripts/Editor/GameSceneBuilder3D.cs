@@ -37,6 +37,15 @@ public static class GameSceneBuilder3D
     // BoardView3D's actual fit distance instead of hardcoding it here.
     private const float HudDistance = 9f;
     private const float PopupDistance = 7.35f; // closer than HudDistance so the modal reads larger, in front of the board (also scaled by the same 0.8175 ratio)
+    // Constant orthographic zoom for the board. The camera-parented HUD's on-screen
+    // positions are baked (ViewportToWorldPoint) against the camera's orthographicSize
+    // at build time, so the board MUST render at this same value at runtime or the HUD
+    // scales off-screen. Tuned so tiles render at the ~147px size the user approved on
+    // the earlier "after_tilt_board" build (5.0 gave a smaller ~136px face; lower zoom
+    // = bigger tiles). Trade-off: at this zoom a 7-wide board overflows the width, so
+    // the largest board is 6-wide (~70 tiles), and every OTHER camera-facing screen
+    // (level-start / level-select / pause) renders ~8% larger since they share it.
+    private const float FixedBoardOrthoSize = 4.0f;
 
     public static void Build()
     {
@@ -45,6 +54,10 @@ public static class GameSceneBuilder3D
         var cameraGO = new GameObject("Main Camera", typeof(Camera));
         var camera = cameraGO.GetComponent<Camera>();
         camera.orthographic = true;
+        // Calibrate the camera at the SAME fixed zoom the board renders at, so every
+        // PositionInFrontOfCamera call below bakes HUD positions that stay correct at
+        // runtime (BoardView3D also renders at FixedBoardOrthoSize).
+        camera.orthographicSize = FixedBoardOrthoSize;
         // 40 -> 48: the board's width (6 columns on a narrow portrait FOV) was
         // the binding fit constraint, forcing the camera much farther back
         // than its height needed - a wider FOV lets the board fit at a closer
@@ -313,7 +326,7 @@ public static class GameSceneBuilder3D
 
         var scoreGO = new GameObject("ScoreText", typeof(TextMeshPro));
         scoreGO.transform.SetParent(scoreRootGO.transform, false);
-        scoreGO.transform.localPosition = new Vector3(0f, -0.06f, -0.15f); // pulled well in FRONT of the fill/background; centered text has no visible parallax, and this removes the transparent-sort ambiguity that dropped it when coplanar
+        scoreGO.transform.localPosition = new Vector3(0f, 0f, -0.15f); // vertically centered in the pill (was y=-0.06, nudged low); z pulls it well in FRONT of the fill/background so centered text has no visible parallax and no transparent-sort ambiguity
         var scoreText = scoreGO.GetComponent<TextMeshPro>();
         scoreText.text = "0";
         scoreText.color = CreamHudText;
@@ -392,7 +405,7 @@ public static class GameSceneBuilder3D
         // x = 0.17 / 0.5 / 0.83 so the outer buttons' edges line up with the
         // progress bar / tray edges - consistent left/right margins across the
         // whole HUD (they were at 0.2/0.8, a bit narrower than the tray).
-        const float BottomButtonRowY = 0.15f;
+        const float BottomButtonRowY = 0.08f; // low at the bottom (above the gesture bar) so the taller 5-layer pyramid clears the buttons
         var shuffleButtonGO = CreateHudButton3D(camera, hudButtonFaceMaterial, badgeMaterial, new Vector2(0.17f, BottomButtonRowY), gameController, typeof(ShuffleButton3D), shuffleIcon,
             locked: true, lockedFaceMaterial: hudButtonFaceLockedMaterial, lockedLabel: "Lv. 6");
         var hintButtonGO = CreateHudButton3D(camera, hudButtonFaceMaterial, badgeMaterial, new Vector2(0.5f, BottomButtonRowY), gameController, typeof(HintButton3D), hintIcon,
@@ -429,9 +442,31 @@ public static class GameSceneBuilder3D
         float buttonHalfHeight = ScreenHalfHeightFrac(camera, ButtonFaceWorldDiameter, HudDistance);
         float bandTop = trayY - trayHalfHeight - HudRowGap;
         float bandBottom = BottomButtonRowY + buttonHalfHeight + HudRowGap;
+        // Pin the board's TOP edge just under the tray (bandTop) so every board size
+        // sits there and grows downward - a small board no longer floats with a big
+        // gap above it, and the largest (80-tile) board rides just under the tray
+        // instead of up into it. The centring bias stays as a fallback.
+        SetFieldFloat(boardView, "_boardTopAnchorViewport", bandTop);
         float desiredBoardCenterY = (bandTop + bandBottom) * 0.5f;
         float verticalBiasFrac = 0.5f - desiredBoardCenterY;
         SetFieldFloat(boardView, "_verticalBiasViewportFrac", verticalBiasFrac);
+
+        // Board band = the screen height between the tray's bottom edge and the
+        // button row's top edge (~0.60). Cap the board's on-screen height to this
+        // band so a tall board can't bleed into the top cluster or the buttons.
+        float boardBandHeightFrac = Mathf.Max(0.2f, bandTop - bandBottom);
+        SetFieldFloat(boardView, "_boardBandHeightFrac", boardBandHeightFrac);
+        // Tile-size floor: an upper clamp on orthographicSize so tiles never shrink
+        // below ~124px wide on this 1080px-wide panel (tile width 0.626 world =
+        // minWidthFrac * viewport width; maxOrtho = 0.626 / (2*aspect*minWidthFrac),
+        // aspect ~0.4615, minWidthFrac ~0.115). A board too big to fit at that size
+        // overflows the band instead of shrinking. World-space value, so it holds
+        // regardless of the exact device once the aspect is close.
+        const float TileSizeFloorMaxOrtho = 5.9f;
+        SetFieldFloat(boardView, "_maxOrthographicSize", TileSizeFloorMaxOrtho);
+        // Constant zoom (matches the camera's HUD-calibration size above): keeps the
+        // HUD stable across levels and gives every level the same tile size.
+        SetFieldFloat(boardView, "_fixedOrthographicSize", FixedBoardOrthoSize);
 
         // Soft drop shadow behind the whole tray.
         var traySlotShadowMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/TileShadow.mat");

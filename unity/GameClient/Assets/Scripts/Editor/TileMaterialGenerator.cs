@@ -9,9 +9,16 @@ public static class TileMaterialGenerator
     // barely visible at tile size) for a more visible glossy sheen on the
     // card body - part of a pass giving the whole HUD/board more dimensional
     // shading instead of flat single colors.
-    private static readonly Color IvoryTop    = Color.white;
-    private static readonly Color IvoryBottom = Color.white; // Pure white everywhere
-    private static readonly Color Jade        = new Color(0.184f, 0.541f, 0.329f);
+    // Warm ivory with a very subtle top->bottom gradient (was pure white, which
+    // read cold/plastic). Target #F4F1E7 -> #ECE7DA, matching the reference's
+    // warm cream tile face (spec: closer to #F4F3E8 than #FFFFFF).
+    private static readonly Color IvoryTop    = new Color(0.957f, 0.945f, 0.906f);
+    private static readonly Color IvoryBottom = new Color(0.925f, 0.906f, 0.855f);
+    // Deep MATTE forest-jade (was a bright emerald 0.184/0.541/0.329 that lit up
+    // as a neon mint cap on the tile's top edge). The reference's tile thickness
+    // is a dark, desaturated, matte green (~#29573B). Used for the side wall,
+    // the thin face rim, and the mesh base material.
+    private static readonly Color Jade        = new Color(0.161f, 0.341f, 0.231f);
 
     [MenuItem("Tools/Mahjong/Generate Tile Material")]
     public static void Generate()
@@ -29,9 +36,13 @@ public static class TileMaterialGenerator
         // bevelStrength/sheenStrength give the face a raised lacquered edge + a
         // soft top-left specular pool (premium re-theme Pass B, guidelines s5).
         // Approved as candidate "diagonal + bevel rim" (scratchpad/tile_face.py).
+        // Thin, subtle dark-jade trim hugging the rim (was a thicker inset
+        // picture-frame). The reference face is essentially clean ivory with only
+        // a faint dark hairline just inside the edge - the green mass comes from
+        // the extruded SIDE wall, not a frame painted on the face.
         var tex = TileFaceTexture.Build(texW, texH, IvoryTop, IvoryBottom, Jade,
-            framePadding: 0.045f, frameThickness: 0.018f, cornerRadius: 0.15f,
-            bevelStrength: 0.5f, sheenStrength: 0.06f);
+            framePadding: 0.028f, frameThickness: 0.011f, cornerRadius: 0.15f,
+            bevelStrength: 0.45f, sheenStrength: 0.05f);
         File.WriteAllBytes("Assets/Textures/TileFace.png", tex.EncodeToPNG());
         Object.DestroyImmediate(tex);
         AssetDatabase.ImportAsset("Assets/Textures/TileFace.png");
@@ -57,7 +68,7 @@ public static class TileMaterialGenerator
         }
         mat.SetTexture("_BaseMap", faceTex);
         mat.SetColor("_BaseColor", Color.white);           // tint stays white; MeshRendererTint drives free/blocked
-        mat.SetFloat("_Smoothness", 0.65f);                // glossy bone
+        mat.SetFloat("_Smoothness", 0.32f);                // satin, not glossy (was 0.65 - reference faces are matte/satin)
         mat.SetColor("_EmissionColor", Color.black);
         EditorUtility.SetDirty(mat);
 
@@ -93,8 +104,10 @@ public static class TileMaterialGenerator
             float d = Mathf.Sqrt(qx * qx + qy * qy) - 0.16f; // rounded-rect SDF, <0 inside
             float t = Mathf.Clamp01((d + 0.14f) / 0.20f);    // 0 well inside -> 1 outside, soft band
             t = t * t * (3f - 2f * t);
-            float a = 0.70f * (1f - t); // dense contact shadow for deep separation in orthographic view
-            shTex.SetPixel(x, y, new Color(0f, 0f, 0f, Mathf.Clamp01(a)));
+            float a = 0.62f * (1f - t); // soft dark contact shadow for depth separation
+            // Dark GREEN-black tint (not pure black) so overlaps cast the
+            // reference's deep-jade shadow onto the tile below.
+            shTex.SetPixel(x, y, new Color(0.015f, 0.055f, 0.035f, Mathf.Clamp01(a)));
         }
         shTex.Apply(updateMipmaps: true);
         File.WriteAllBytes("Assets/Textures/TileShadow.png", shTex.EncodeToPNG());
@@ -132,7 +145,7 @@ public static class TileMaterialGenerator
             AssetDatabase.CreateAsset(baseMat, "Assets/Materials/TileBase.mat");
         }
         baseMat.SetColor("_BaseColor", Jade);
-        baseMat.SetFloat("_Smoothness", 0.3f);
+        baseMat.SetFloat("_Smoothness", 0f);   // fully matte side wall - kills the glossy neon-mint highlight on the top edge
         EditorUtility.SetDirty(baseMat);
 
         AssetDatabase.SaveAssets();

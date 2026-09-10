@@ -32,8 +32,34 @@ namespace GameClient.Presentation.Board3D
         // camera back much farther than needed and left a large unused
         // vertical gap between the tray and the bottom buttons. Paired with
         // the wider FOV below.
-        [SerializeField] private float _cameraMargin = 0.15f;
-        [SerializeField] private float _cameraTiltDegrees = 14f; // pitch so the stacked layers read as 3D depth (30 skewed the board into a parallelogram)
+        [SerializeField] private float _cameraMargin = 0.05f; // trimmed 0.15 -> 0.05 so the board fills the width (bigger tiles) inside the enlarged board band
+        // Fraction of the SCREEN height the board is allowed to occupy (the board
+        // band). 1 = full screen (unchanged / default for tests). The scene builder
+        // sets this to the board band's height (~0.60) so a tall board's on-screen
+        // height is capped to its band and can't bleed into the top cluster or the
+        // bottom buttons.
+        [SerializeField] private float _boardBandHeightFrac = 1f;
+        // Tile-size floor: an upper clamp on orthographicSize so tiles can never
+        // scale below a comfortable size (a bigger orthographicSize = smaller tiles).
+        // 0 = disabled (default / tests). The builder sets it from the approved tile
+        // size; a board too big to fit at that size overflows rather than shrinking.
+        [SerializeField] private float _maxOrthographicSize = 0f;
+        // FIXED orthographic zoom. When > 0 the board renders at this constant
+        // orthographicSize regardless of board size, so (a) every level's tiles are
+        // the SAME comfortable size and (b) the camera-parented HUD - whose on-screen
+        // positions were baked against the camera's build-time orthographicSize - is
+        // always calibrated (a per-board zoom spread the HUD off-screen on small
+        // boards). The scene builder sets it to the same value it calibrates the HUD
+        // at, and sizes the largest board (120 tiles) to fit at this zoom. 0 = the
+        // legacy dynamic fit (kept for tests / back-compat).
+        [SerializeField] private float _fixedOrthographicSize = 0f;
+        // Viewport Y (1 = top of screen) to pin the board's TOP edge to, so the board
+        // always sits just under the tray regardless of its size (a small board no
+        // longer floats with a big gap above it, and a large board doesn't ride up
+        // into the tray). The board grows DOWNWARD from this line. 0 = disabled
+        // (fall back to _verticalBiasViewportFrac centring).
+        [SerializeField] private float _boardTopAnchorViewport = 0f;
+        [SerializeField] private float _cameraTiltDegrees = 5f; // near-front pitch: the tile's green top side-wall shrinks to a thin clean edge (matches reference's clean ivory tops); depth still reads via drop shadows + stacking straddle. Was 14 (exposed a prominent green "cap" on top-row tiles).
         [SerializeField] private float _tiltDistancePadding = 1.05f; // barely-tilted view needs almost no extra distance (was 1.35 for the 30-degree pitch)
         [SerializeField] private float _tileJitterAmount = 0f; // clean aligned grid (premium mahjong look); was 0.07 loose-pile scatter
         [SerializeField] private float _tileRotationJitterDegrees = 0f;
@@ -171,9 +197,27 @@ namespace GameClient.Presentation.Board3D
 
             if (_camera.orthographic)
             {
-                float sizeForHeight = boardHeight / 2f;
-                float sizeForWidth = (boardWidth / 2f) / aspect;
-                _camera.orthographicSize = Mathf.Max(sizeForHeight, sizeForWidth) * _tiltDistancePadding;
+                float orthoSize;
+                if (_fixedOrthographicSize > 0f)
+                {
+                    // Constant zoom: same tile size every level, and the HUD (baked
+                    // against this same value) stays put. The board is still centred
+                    // in its band via _verticalBiasViewportFrac below.
+                    orthoSize = _fixedOrthographicSize;
+                }
+                else
+                {
+                    // Legacy dynamic fit: divide the height requirement by the board
+                    // band fraction so the board's world height fills at most that
+                    // fraction of the screen; clamp to the tile-size floor.
+                    float bandFrac = _boardBandHeightFrac > 0f ? _boardBandHeightFrac : 1f;
+                    float sizeForHeight = (boardHeight / 2f) / bandFrac;
+                    float sizeForWidth = (boardWidth / 2f) / aspect;
+                    orthoSize = Mathf.Max(sizeForHeight, sizeForWidth) * _tiltDistancePadding;
+                    if (_maxOrthographicSize > 0f)
+                        orthoSize = Mathf.Min(orthoSize, _maxOrthographicSize);
+                }
+                _camera.orthographicSize = orthoSize;
 
                 // Orthographic 2.5D look: pitch up slightly to see bottom edges. 
                 // We leave yaw at 0f so the board grid remains perfectly horizontal 
@@ -181,7 +225,18 @@ namespace GameClient.Presentation.Board3D
                 var orthoRotation = Quaternion.Euler(_cameraTiltDegrees, 0f, 0f);
                 _camera.transform.rotation = orthoRotation;
 
-                float orthoWorldYOffset = _verticalBiasViewportFrac * (_camera.orthographicSize * 2f);
+                // Vertical placement: either pin the board's TOP to a viewport line
+                // (just under the tray, so every board size sits there and grows down)
+                // or fall back to the centring bias. A positive bias shifts the board
+                // DOWN, so bias = 0.5 - desiredCentreViewport.
+                float bias = _verticalBiasViewportFrac;
+                if (_boardTopAnchorViewport > 0f)
+                {
+                    float halfHeightViewport = boardHeight / (4f * orthoSize); // (boardHeight/2)/(2*orthoSize)
+                    float boardCenterViewport = _boardTopAnchorViewport - halfHeightViewport;
+                    bias = 0.5f - boardCenterViewport;
+                }
+                float orthoWorldYOffset = bias * (orthoSize * 2f);
                 var orthoAimPoint = boardCenter + new Vector3(0f, orthoWorldYOffset, 0f);
                 _camera.transform.position = orthoAimPoint - (orthoRotation * Vector3.forward) * 50f;
                 return;

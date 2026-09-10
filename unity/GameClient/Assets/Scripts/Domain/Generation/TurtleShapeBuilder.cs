@@ -17,6 +17,14 @@ namespace GameDomain.Generation
     // which sub-project #7 (content) uses to make levels differ by difficulty.
     public static class TurtleShapeBuilder
     {
+        // Hard project cap on board size. A board larger than this at the game's
+        // fixed tile size is taller/wider than the play area and would overlap the
+        // tray or the bottom buttons, so no level is allowed to exceed it. Set to 54
+        // (a full 5-wide, 5-LAYER turtle) - the biggest that fits at the ~170px tile
+        // size (6-wide overflows the screen width; this fills the play area vertically
+        // as a proper tall pyramid).
+        public const int MaxTiles = 54;
+
         // The classic 48-ish turtle (kept for back-compat / regression tests):
         // a 6x4 base tapering 6x4 -> 5x3 -> 4x2 -> 1 cap.
         private static readonly int[][] LayerXs =
@@ -71,17 +79,71 @@ namespace GameDomain.Generation
             return BuildFromPositions(positions);
         }
 
+        // Centred turtle with an EXACT tile count (even, for pair-match). Picks the
+        // most compact tapering base (width <= 8 so it fits the board band) whose
+        // full taper is >= targetTiles, then trims the excess strictly TOP-DOWN
+        // (highest layer first) so every remaining upper tile still rests on a full
+        // layer below - no floating tiles, still solvable by construction.
+        public static List<TileSlot> BuildWithTileCount(int targetTiles)
+        {
+            if (targetTiles > MaxTiles) targetTiles = MaxTiles; // enforce the hard cap
+            if (targetTiles < 2) targetTiles = 2;
+            if (targetTiles % 2 == 1) targetTiles++; // pairs need an even total
+
+            List<(int x, int y, int l)> best = null;
+            int bestExcess = int.MaxValue;
+            for (int cols = 4; cols <= 8; cols++)
+                for (int rows = 3; rows <= cols; rows++)
+                {
+                    var pos = TaperPositions(cols, rows);
+                    int excess = pos.Count - targetTiles;
+                    if (excess >= 0 && excess < bestExcess)
+                    {
+                        bestExcess = excess;
+                        best = pos;
+                    }
+                }
+            if (best == null) best = TaperPositions(8, 8); // fallback: plenty of tiles
+
+            // Trim top-down (layer desc, then furthest y/x) to the exact target. Because
+            // we remove whole upper layers before touching a lower one, nothing is left
+            // floating (a removed tile never supports a still-present tile above it).
+            best.Sort((a, b) =>
+                a.l != b.l ? b.l - a.l : (a.y != b.y ? b.y - a.y : b.x - a.x));
+            while (best.Count > targetTiles) best.RemoveAt(0);
+
+            return BuildFromPositions(best);
+        }
+
+        // The centred tapering-turtle positions for a base footprint (no even-count
+        // adjustment) - shared by Build(cols,rows) and BuildWithTileCount.
+        private static List<(int x, int y, int l)> TaperPositions(int baseCols, int baseRows)
+        {
+            var positions = new List<(int x, int y, int l)>();
+            for (int l = 0; baseCols - l >= 2 && baseRows - l >= 2; l++)
+            {
+                int cols = baseCols - l;
+                int rows = baseRows - l;
+                for (int r = 0; r < rows; r++)
+                    for (int c = 0; c < cols; c++)
+                        positions.Add(((1 + l) + 2 * c, (1 + l) + 2 * r, l));
+            }
+            return positions;
+        }
+
         // Board footprint per difficulty tier (1-5), clamped. Produces roughly
         // 18 / 22 / 46 / 68 / 82 tiles - an increasing curve.
         public static List<TileSlot> BuildForDifficulty(int difficulty)
         {
             switch (difficulty <= 1 ? 1 : (difficulty >= 5 ? 5 : difficulty))
             {
-                case 1: return Build(4, 3);
-                case 2: return Build(5, 3);
-                case 3: return Build(6, 4);
-                case 4: return Build(6, 5);
-                default: return Build(7, 5);
+                // <=5-wide and <=4 rows so every tier fits the play area at the larger
+                // ~170px tile size. Counts: 12 / 20 / 26 / 30 / 40, strictly increasing.
+                case 1: return Build(3, 3);   // 12
+                case 2: return Build(4, 3);   // 20
+                case 3: return Build(5, 3);   // 26
+                case 4: return Build(4, 4);   // 30
+                default: return BuildWithTileCount(MaxTiles); // 54 (5x5, tall)
             }
         }
 

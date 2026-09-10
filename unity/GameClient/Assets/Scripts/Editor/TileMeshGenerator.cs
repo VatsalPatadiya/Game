@@ -4,7 +4,10 @@ using UnityEngine;
 
 public static class TileMeshGenerator
 {
-    private const float CardThickness = 0.40f; // real Z depth, replaces the 2D drop-shadow trick
+    // Slimmer Z depth (was 0.40) so the extruded green side reads as a thin,
+    // elegant edge like the reference screenshot, not a chunky top band - while
+    // still keeping visible physical thickness.
+    private const float CardThickness = 0.24f;
 
     public static void Generate()
     {
