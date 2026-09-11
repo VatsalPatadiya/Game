@@ -16,7 +16,7 @@ public static class GameSceneBuilder3D
     private static readonly Color GoldChrome = new Color(0.85f, 0.65f, 0.25f, 1f); // amber/gold border
     private static readonly Color DarkWood = new Color(0.18f, 0.10f, 0.05f, 1f); // dark wood interior
     private static readonly Color BadgeRed = new Color(0.80f, 0.20f, 0.20f, 1f); // notification badge
-    private static readonly Color GoldInkText = new Color(0.227f, 0.141f, 0.063f); // dark ink on gold-pill buttons
+    private static readonly Color GoldInkText = new Color(0.141f, 0.082f, 0.020f); // #241505, matches the approved mockup's button ink
     private static readonly Color StarGold = new Color(0.96f, 0.78f, 0.36f); // #F5C75C, earned star
     private static readonly Color StarMuted = new Color(0.44f, 0.32f, 0.18f); // dim unearned star
 
@@ -578,7 +578,7 @@ public static class GameSceneBuilder3D
         var restartText = primaryBtnTextGO.GetComponent<TextMeshPro>();
         restartText.fontSize = 0.5f;
         restartText.alignment = TextAlignmentOptions.Center;
-        if (DisplayFont != null) restartText.font = DisplayFont; // Cinzel
+        restartText.fontStyle = FontStyles.Bold; // bold sans, not Cinzel - matches PauseMenu3D's button labels (see MakeButton)
         restartText.color = GoldInkText; // dark ink on the gold pill, matching every other gold button
 
         var gameOverPopup = popupGO.GetComponent<GameOverPopup3D>();
@@ -1169,14 +1169,19 @@ public static class GameSceneBuilder3D
             go.transform.SetParent(overlay.transform, true);
             return go.transform;
         }
-        TextMeshPro Label(string name, Vector2 vp, string text, float size, Color color)
+        // display=false + Bold: button labels use a bold sans, not the Cinzel
+        // display face - Cinzel's thin serif strokes read poorly at small
+        // button-label sizes (mockup used the same sans/bold split: Cinzel only
+        // for the large title, bold body font for buttons).
+        TextMeshPro Label(string name, Vector2 vp, string text, float size, Color color, bool display = true, FontStyles style = FontStyles.Normal)
         {
             var go = new GameObject(name, typeof(TextMeshPro));
             Place(go, vp);
             var t = go.GetComponent<TextMeshPro>();
             t.text = text; t.fontSize = size; t.color = color;
+            t.fontStyle = style;
             t.alignment = TextAlignmentOptions.Center;
-            if (DisplayFont != null) t.font = DisplayFont;
+            if (display && DisplayFont != null) t.font = DisplayFont;
             return t;
         }
         (PressScaleButton3D btn, TextMeshPro lbl) MakeButton(string name, Vector2 vp, string text, float width, float height, float fontSize)
@@ -1190,7 +1195,7 @@ public static class GameSceneBuilder3D
             col.size = new Vector3(width, height, 0.1f);
             var b = pill.AddComponent<PressScaleButton3D>();
             SetField(b, "_targetCamera", camera);
-            var l = Label(name + "Text", vp, text, fontSize, GoldInkText);
+            var l = Label(name + "Text", vp, text, fontSize, GoldInkText, display: false, style: FontStyles.Bold);
             l.transform.localPosition += new Vector3(0f, 0f, -0.06f);
             return (b, l);
         }
