@@ -54,7 +54,10 @@ namespace GameClient.Presentation.HUD3D
 
         public void Show()
         {
-            _gameOverPopup?.Hide();
+            // One popup at a time: if a win/lose result is showing, the user
+            // must dismiss it first rather than Pause silently closing it out
+            // from under them.
+            if (_gameOverPopup != null && _gameOverPopup.IsShowing) return;
             _gameController?.SetPaused(true);
             SetHudActive(false);
             if (_overlay != null) _overlay.SetActive(true);

@@ -614,6 +614,7 @@ public static class GameSceneBuilder3D
         SetField(backNav, "_levelStartScreen", levelStartRoot);
         SetFieldArray(backNav, "_gameHudObjects", hudObjects);
         SetField(backNav, "_pauseMenu", pauseMenu);
+        SetField(backNav, "_gameOverPopup", gameOverPopup);
         SetField(backNav, "_backButton", backButton);
 
         Directory.CreateDirectory("Assets/Scenes");

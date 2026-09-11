@@ -19,6 +19,8 @@ namespace GameClient.Presentation.HUD3D
         private static readonly Color StarGold = new Color(0.96f, 0.78f, 0.36f);
         private static readonly Color StarMuted = new Color(0.44f, 0.32f, 0.18f);
 
+        public bool IsShowing => gameObject.activeSelf;
+
         private GameController _gameController;
 
         private void Start()
