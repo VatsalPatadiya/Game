@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using GameDomain.Generation;
 
 namespace GameDomain.Progression
 {
@@ -13,6 +14,7 @@ namespace GameDomain.Progression
         public int TileCount = 48;
         public int Difficulty = 1;   // 1-5, drives board size/variety later
         public int ParAids = 2;      // using <= this many aids still earns the 2nd star
+        public GameDomain.Generation.MatchMode Mode = GameDomain.Generation.MatchMode.Pair;
     }
 
     // Ordered list of levels. A small starter set now; expandable to authored

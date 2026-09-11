@@ -78,5 +78,11 @@ namespace GameDomain.Tests.Progression
             int lastId = LevelCatalog.Levels[LevelCatalog.Levels.Count - 1].LevelId;
             Assert.That(LevelCatalog.NextLevelId(lastId), Is.EqualTo(lastId));
         }
+
+        [Test]
+        public void LevelData_DefaultsToPairMode()
+        {
+            Assert.That(new GameDomain.Progression.LevelData().Mode, Is.EqualTo(GameDomain.Generation.MatchMode.Pair));
+        }
     }
 }

@@ -157,8 +157,19 @@ namespace GameClient.Presentation
             };
 
             // Pair-match tray: values come in pairs so two identical tiles
-            // collected in the tray clear together.
-            _board = BoardGenerator.Generate(level, rng);
+            // collected in the tray clear together. The mode/profile pick how the
+            // board is shaped (opening branching, look-alike confusability); daily
+            // challenges are always pair-mode regardless of level config.
+            var mode = _isDaily ? MatchMode.Pair
+                                : (LevelCatalog.Get(_currentLevelId)?.Mode ?? MatchMode.Pair);
+            var profile = DifficultyProfile.For(difficulty, mode);
+
+            var tileSet = _boardView != null ? _boardView.TileSet : null;
+            int[] clusters = tileSet != null ? tileSet.SimilarityClusterId : null;
+            int modelCount = (tileSet != null && tileSet.FoodModels != null && tileSet.FoodModels.Length > 0)
+                ? tileSet.FoodModels.Length : 26;
+
+            _board = BoardGenerator.GenerateShaped(level, rng, profile, clusters, modelCount);
             _lastMatchTime = null;
             _comboCount = 0;
             _aidsUsed = 0;
