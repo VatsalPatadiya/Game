@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &336381116123650414
+--- !u!1 &287963468737642113
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,9 +8,9 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1549267977705351174}
-  - component: {fileID: 3310817914048047072}
-  - component: {fileID: 7464745543209950632}
+  - component: {fileID: 7144281145805535629}
+  - component: {fileID: 7218999377226097373}
+  - component: {fileID: 5086575481241051709}
   m_Layer: 0
   m_Name: hot-dog
   m_TagString: Untagged
@@ -18,13 +18,13 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &1549267977705351174
+--- !u!4 &7144281145805535629
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 336381116123650414}
+  m_GameObject: {fileID: 287963468737642113}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: -0, y: 0, z: 0}
@@ -33,21 +33,21 @@ Transform:
   m_Children: []
   m_Father: {fileID: 179775248381526526}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!33 &3310817914048047072
+--- !u!33 &7218999377226097373
 MeshFilter:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 336381116123650414}
+  m_GameObject: {fileID: 287963468737642113}
   m_Mesh: {fileID: 7266992467196484438, guid: d1b0bfc30b69f4be793111e1094a8380, type: 3}
---- !u!23 &7464745543209950632
+--- !u!23 &5086575481241051709
 MeshRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 336381116123650414}
+  m_GameObject: {fileID: 287963468737642113}
   m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
@@ -241,7 +241,7 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 1549267977705351174}
+  - {fileID: 7144281145805535629}
   - {fileID: 5414846274457639522}
   - {fileID: 6626461073493250956}
   m_Father: {fileID: 6750059896566472293}

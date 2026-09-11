@@ -488,7 +488,18 @@ public static class GameSceneBuilder3D
         trayContainerGO.transform.SetParent(trayRootGO.transform, false);
         trayContainerGO.transform.localPosition = new Vector3(0f, 0f, 0.03f); // tighter Z stack so slots don't parallax over the border (fix 7)
         trayContainerGO.GetComponent<MeshFilter>().sharedMesh = frameMesh;
-        trayContainerGO.GetComponent<MeshRenderer>().sharedMaterial = trayBorderMaterial;
+        var trayContainerRenderer = trayContainerGO.GetComponent<MeshRenderer>();
+        trayContainerRenderer.sharedMaterial = trayBorderMaterial;
+        // The frame, jade body, and slot recess/card are stacked only fractions
+        // of a unit apart in Z (see the near-Z-fight fix on the slot body's
+        // position below) - the board's directional light (tuned with a long
+        // shadow distance for the tilted board, see shadowDistance=30 above)
+        // casts a real-time shadow between these tightly-stacked panels that
+        // contributed to the "half box" tray bug, the same root cause already
+        // fixed once for the divider mesh onto the modal panels (see
+        // BuildModalPanelBackground).
+        trayContainerRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        trayContainerRenderer.receiveShadows = false;
 
         // Dark-jade body inset within the gold frame (TrayBody, jade after Pass C+).
         var trayBodyMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/TrayBody.mat");
@@ -502,7 +513,10 @@ public static class GameSceneBuilder3D
         trayBodyGO.transform.SetParent(trayRootGO.transform, false);
         trayBodyGO.transform.localPosition = new Vector3(0f, 0f, 0.02f);
         trayBodyGO.GetComponent<MeshFilter>().sharedMesh = trayBodyMesh;
-        trayBodyGO.GetComponent<MeshRenderer>().sharedMaterial = trayBodyMaterial;
+        var trayBodyRenderer = trayBodyGO.GetComponent<MeshRenderer>();
+        trayBodyRenderer.sharedMaterial = trayBodyMaterial;
+        trayBodyRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        trayBodyRenderer.receiveShadows = false;
 
         var anchors = new Transform[TraySlotCount];
         float startX = -(TraySlotCount - 1) * TraySlotSpacing / 2f;
@@ -1566,9 +1580,22 @@ public static class GameSceneBuilder3D
         var slotMesh = SaveRoundedTrayMesh("Assets/Meshes/TraySlot.asset", width * 0.96f, height * 0.96f, 0.05f, width * 0.16f);
         var body = new GameObject("Body", typeof(MeshFilter), typeof(MeshRenderer));
         body.transform.SetParent(content.transform, false);
-        body.transform.localPosition = new Vector3(0f, 0f, -0.015f); // slightly toward camera; small Z offset limits tilt parallax over the border (fix 7)
+        // -0.05 (was -0.015): at -0.015 with this mesh's 0.05 thickness, the
+        // card's own near face landed at almost exactly the same depth as the
+        // shared TrayBody panel behind it (both ~Z0-0.04) - an effective
+        // Z-fight that let TrayBody win the depth test over the lower portion
+        // of every filled slot, reading as the card being cut off ("half box").
+        // Comfortably ahead of TrayBody's near face removes the tie outright.
+        body.transform.localPosition = new Vector3(0f, 0f, -0.05f);
         body.GetComponent<MeshFilter>().sharedMesh = slotMesh;
-        body.GetComponent<MeshRenderer>().sharedMaterial = cardMaterial; // recess material passed in
+        var bodyRenderer = body.GetComponent<MeshRenderer>();
+        bodyRenderer.sharedMaterial = cardMaterial; // recess material passed in
+        // Same shadow-casting fix as the tray frame/body above: the recess/card
+        // sits within fractions of a unit of those panels, and the directional
+        // light's real-time shadow between these tightly-stacked layers is what
+        // reads as the lower portion of the slot being cut off.
+        bodyRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        bodyRenderer.receiveShadows = false;
 
         var foodAnchorGO = new GameObject("FoodAnchor");
         foodAnchorGO.transform.SetParent(content.transform, false);
