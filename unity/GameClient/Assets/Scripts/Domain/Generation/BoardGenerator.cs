@@ -109,7 +109,7 @@ namespace GameDomain.Generation
                         "Could not generate a solvable board for level " + level.LevelId +
                         " after " + maxRestarts + " attempts.");
 
-                System.Diagnostics.Debug.WriteLine(
+                Console.Error.WriteLine(
                     "Difficulty profile not met for level " + level.LevelId + "; used fallback board.");
             }
 
