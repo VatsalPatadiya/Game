@@ -54,7 +54,10 @@ namespace GameClient.Presentation.HUD3D
         private void OnEnable()
         {
             if (_gameController != null)
+            {
                 _gameController.ScoreChanged += HandleScoreChanged;
+                _gameController.MaxScoreChanged += HandleMaxScoreChanged;
+            }
             if (_label != null) _labelBaseScale = _label.transform.localScale;
             HandleScoreChanged(0, 0);
             _displayedFrac = _targetFrac;
@@ -65,7 +68,20 @@ namespace GameClient.Presentation.HUD3D
         private void OnDisable()
         {
             if (_gameController != null)
+            {
                 _gameController.ScoreChanged -= HandleScoreChanged;
+                _gameController.MaxScoreChanged -= HandleMaxScoreChanged;
+            }
+        }
+
+        // Fired once per level load with the score a full clear will reach
+        // (GameController.LoadLevel) - replaces the fixed serialized _maxScore
+        // default so the fill reaches exactly 100% on the level's last match
+        // regardless of level size.
+        private void HandleMaxScoreChanged(int maxScore)
+        {
+            _maxScore = maxScore;
+            _targetFrac = _maxScore > 0f ? Mathf.Clamp01(_targetScore / _maxScore) : 0f;
         }
 
         private void Update()

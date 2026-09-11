@@ -44,6 +44,10 @@ namespace GameClient.Presentation
         private List<TileSlot> _shape;
         private Dictionary<string, TileSlot> _slotsById;
         public event Action<int, int> ScoreChanged;
+        // Fired once per level load with the score a full board clear will
+        // reach (see LoadLevel) - lets the progress bar's fill be calibrated
+        // to the actual level instead of a guessed fixed constant.
+        public event Action<int> MaxScoreChanged;
         public event Action<int, int, int> UsesChanged;
         // Fired on every tray match with the current combo streak count so the
         // combo meter can fill/pop and start its drain timer.
@@ -182,6 +186,14 @@ namespace GameClient.Presentation
             IsInputLocked = true;
             _boardView.Build(_board, _slotsById, animateDealIn: true, onDealInComplete: () => IsInputLocked = false);
 
+            // Every match is worth a flat 100 points (TrayManager.TryPushToTray) -
+            // ComboScorer's streak multiplier is dead code, never invoked - so a
+            // full clear's total score is always exactly (tile count / MatchSize)
+            // * 100. Telling the progress bar this per level (instead of a fixed
+            // guessed constant) is what makes the fill reach exactly 100% on the
+            // last match regardless of the level's size.
+            int maxScore = (_board.Cells.Count / TrayManager.MatchSize) * 100;
+            MaxScoreChanged?.Invoke(maxScore);
             ScoreChanged?.Invoke(_board.Score, _board.ComboCount);
             NotifyUsesChanged();
         }

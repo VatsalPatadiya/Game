@@ -174,7 +174,7 @@ public static class GameSceneBuilder3D
         // (CardStyle.CardAspectRatio) so a collected tile looks like the same
         // object on the board and in the tray (fix spec section 2).
         const int TraySlotCount = 4;    // pair-match tray: 4 slots (matches BoardState.MaxTraySize)
-        const float TraySlotWidth = 0.52f;
+        const float TraySlotWidth = 0.56f; // was 0.52 - slight bump per user request; height/frame/progress-bar width all follow automatically
         float TraySlotHeight = TraySlotWidth / CardStyle.CardAspectRatio; // portrait, ~0.76
         // Tight, even spacing (fix spec section 5): the inter-slot gap and the
         // left/right frame padding are both small and roughly equal, so the 4
@@ -199,6 +199,12 @@ public static class GameSceneBuilder3D
         // gap - see ScreenHalfHeightFrac) so this row can never overlap the
         // back/menu discs regardless of either row's height.
         const float HudRowGap = 0.02f; // consistent edge-to-edge gap between every stacked HUD row below
+        // Tighter than HudRowGap, used only for the score-bar-to-tray gap and the
+        // tray-to-board gap: the default gap left a visibly empty felt strip below
+        // the score bar, and tightening both here also raises the board's top
+        // anchor (bandTop below), giving the pyramid more headroom above the
+        // bottom button row.
+        const float TightRowGap = 0.008f;
         const float TopbarFaceDiameter = 0.42f; // CreateVisualIconButton3D's face scale, must match its own call below (was 0.55 - looked oversized at the current zoom)
         // 0.92 -> 0.94: lifts the whole topbar/progress/tray cluster together
         // (everything below is computed FROM this anchor) to free up more
@@ -303,9 +309,14 @@ public static class GameSceneBuilder3D
         // fail a depth test, and 0.02 is small enough that tilt-parallax is
         // negligible - so the full-height fill stays inside the border (round-2 fix 1).
         float progFillRadius = 0.16f - ProgressBorderThickness;
-        float progUsableW = progInnerW - progFillRadius; // leave the pill's right rounded end dark
-        // Shift left by half the radius difference so the left edge is perfectly flush with the background track
-        barFillGO.transform.localPosition = new Vector3(-progFillRadius * 0.5f, 0f, 0.03f);
+        // Full inner width (was progInnerW - progFillRadius, deliberately leaving
+        // the right rounded end always dark) - now that the fill's max score is
+        // calibrated to the level's actual tile count, a full clear really does
+        // mean 100%, so the fill should be able to cover the track edge-to-edge,
+        // matching rounded end to rounded end, instead of always stopping one
+        // corner-radius short of the right edge.
+        float progUsableW = progInnerW;
+        barFillGO.transform.localPosition = new Vector3(0f, 0f, 0.03f);
         // Height is BAKED INTO the fill mesh (1.0 wide x progInnerH tall, radius =
         // progInnerH/2 = horizontal capsule). ProgressBar3D scales ONLY the X
         // (width), leaving Y=1, so the fill is ALWAYS full inner height with
@@ -333,6 +344,11 @@ public static class GameSceneBuilder3D
         scoreText.fontStyle = FontStyles.Bold;
         scoreText.alignment = TextAlignmentOptions.Center;
         if (DisplayFont != null) scoreText.font = DisplayFont; // Cinzel for the score number
+        // TMP's synthetic Bold style is subtle on Cinzel (no true bold weight in
+        // the SDF asset) - dilate the glyph edges further on this instance's own
+        // material clone so the score number reads as genuinely bold, without
+        // touching the shared font material other Cinzel text uses.
+        scoreText.fontMaterial.SetFloat("_FaceDilate", 0.35f);
 
         var progressBar = scoreRootGO.AddComponent<ProgressBar3D>();
         SetField(progressBar, "_fillFilter", barFillGO.GetComponent<MeshFilter>());
@@ -429,7 +445,7 @@ public static class GameSceneBuilder3D
         const float TrayDistance = 7.35f; // 9 * 0.8175, same FOV-compensation ratio as HudDistance
         float progressBottomEdge = progressBarY - progressHalfHeight;
         float trayHalfHeight = ScreenHalfHeightFrac(camera, trayFrameHeight, TrayDistance);
-        float trayY = progressBottomEdge - HudRowGap - trayHalfHeight;
+        float trayY = progressBottomEdge - TightRowGap - trayHalfHeight;
         PositionInFrontOfCamera(trayRootGO.transform, camera, new Vector2(0.5f, trayY), TrayDistance);
         trayRootGO.transform.localScale = Vector3.one * (TrayDistance / HudDistance);
 
@@ -439,7 +455,7 @@ public static class GameSceneBuilder3D
         // gap below - this shifts it to fill the space).
         const float ButtonFaceWorldDiameter = 0.99f * 0.62f;
         float buttonHalfHeight = ScreenHalfHeightFrac(camera, ButtonFaceWorldDiameter, HudDistance);
-        float bandTop = trayY - trayHalfHeight - HudRowGap;
+        float bandTop = trayY - trayHalfHeight - TightRowGap;
         float bandBottom = BottomButtonRowY + buttonHalfHeight + HudRowGap;
         // Pin the board's TOP edge just under the tray (bandTop) so every board size
         // sits there and grows downward - a small board no longer floats with a big
