@@ -539,7 +539,14 @@ public static class GameSceneBuilder3D
         titleText.fontSize = 1.1f;
         titleText.alignment = TextAlignmentOptions.Center;
         titleText.color = CreamHudText;
-        if (DisplayFont != null) titleText.font = DisplayFont; // Cinzel for the win/lose title
+        if (DisplayFont != null)
+        {
+            titleText.font = DisplayFont; // Cinzel for the win/lose title
+            // Tamed underlay offset - see PauseMenu3D's Label() comment on why
+            // Cinzel's default -0.5 reads as a disconnected ghost duplicate at
+            // this font size instead of a subtle shadow.
+            titleText.fontMaterial.SetFloat("_UnderlayOffsetY", -0.08f);
+        }
 
         // Same thin gold accent as PauseMenu3D's divider, for a consistent
         // "structured header" look across both popups instead of bare text.
@@ -548,7 +555,14 @@ public static class GameSceneBuilder3D
         gameOverDivider.transform.localPosition = new Vector3(0f, 0.78f, -0.15f);
         gameOverDivider.GetComponent<MeshFilter>().sharedMesh =
             SaveRoundedTrayMesh("Assets/Meshes/GameOverDivider.asset", 1.1f, 0.022f, 0.05f, 0.011f);
-        gameOverDivider.GetComponent<MeshRenderer>().sharedMaterial = GetOrCreateNonEmissiveGoldMaterial();
+        var gameOverDividerRenderer = gameOverDivider.GetComponent<MeshRenderer>();
+        gameOverDividerRenderer.sharedMaterial = GetOrCreateNonEmissiveGoldMaterial();
+        // The actual root cause of the "ghost text" bug (see PausedDivider):
+        // this thin bright bar was casting a real-time shadow onto the panel
+        // body a fraction of a unit behind it, rendering as a faint patterned
+        // smudge - not a text/font/board issue at all.
+        gameOverDividerRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        gameOverDividerRenderer.receiveShadows = false;
 
         var starsRootGO = new GameObject("Stars");
         starsRootGO.transform.SetParent(popupGO.transform, false);
@@ -615,6 +629,7 @@ public static class GameSceneBuilder3D
         var pauseMenu = BuildPauseMenu(camera, gameController, hudObjects, menuButton, hudButtonFaceMaterial,
             gameOverPopup, trayBorderMaterial, trayBodyMaterial);
         SetField(gameOverPopup, "pauseMenu", pauseMenu);
+        SetField(pauseMenu, "_boardRoot", boardGO);
 
         // Shared back navigation (hardware/gesture back + on-screen back button).
         var backNavGO = new GameObject("BackNavigator");
@@ -1190,7 +1205,18 @@ public static class GameSceneBuilder3D
             t.text = text; t.fontSize = size; t.color = color;
             t.fontStyle = style;
             t.alignment = TextAlignmentOptions.Center;
-            if (display && DisplayFont != null) t.font = DisplayFont;
+            if (display && DisplayFont != null)
+            {
+                t.font = DisplayFont;
+                // Cinzel's shared material bakes an underlay (drop-shadow) with
+                // _UnderlayOffsetY: -0.5 - at this popup's font size that reads
+                // as a disconnected dark duplicate of the letters floating below
+                // them, not a subtle shadow (it was always there, just went
+                // unnoticed against the plain panel until the divider added
+                // nearby contrast). .fontMaterial clones per-instance, so this
+                // doesn't touch the shared asset used by level-select/start.
+                t.fontMaterial.SetFloat("_UnderlayOffsetY", -0.08f);
+            }
             return t;
         }
         (PressScaleButton3D btn, TextMeshPro lbl) MakeButton(string name, Vector2 vp, string text, float width, float height, float fontSize)
@@ -1234,7 +1260,16 @@ public static class GameSceneBuilder3D
         divider.transform.localPosition += new Vector3(0f, 0f, -0.15f);
         divider.GetComponent<MeshFilter>().sharedMesh =
             SaveRoundedTrayMesh("Assets/Meshes/PausedDivider.asset", 0.9f, 0.022f, 0.05f, 0.011f);
-        divider.GetComponent<MeshRenderer>().sharedMaterial = GetOrCreateNonEmissiveGoldMaterial();
+        var dividerRenderer = divider.GetComponent<MeshRenderer>();
+        dividerRenderer.sharedMaterial = GetOrCreateNonEmissiveGoldMaterial();
+        // ROOT CAUSE of the "ghost text" bug reported after this divider was
+        // added: it was casting a real-time shadow onto the panel body a
+        // fraction of a unit behind it, rendering as a faint patterned smudge
+        // that looked like duplicate text - not a font/underlay/board issue,
+        // confirmed by diffing screenshots from before/after this divider
+        // existed (clean before, smudge after, at the exact same position).
+        dividerRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        dividerRenderer.receiveShadows = false;
 
         // Resume is the primary action (bigger, most prominent); Restart is
         // secondary at the same size as the toggles below it, not competing
@@ -1501,7 +1536,10 @@ public static class GameSceneBuilder3D
         frameGO.transform.SetParent(parent, false);
         frameGO.transform.localPosition = new Vector3(0f, 0f, 0.05f);
         frameGO.GetComponent<MeshFilter>().sharedMesh = frameMesh;
-        frameGO.GetComponent<MeshRenderer>().sharedMaterial = borderMaterial;
+        var frameRenderer = frameGO.GetComponent<MeshRenderer>();
+        frameRenderer.sharedMaterial = borderMaterial;
+        frameRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; // a real-time shadow cast onto the body mesh a fraction of a unit behind it read as a faint, patterned smudge - not caught until a bright divider nearby made it visible
+        frameRenderer.receiveShadows = false;
 
         var bodyMesh = SaveRoundedTrayMesh(
             "Assets/Meshes/" + namePrefix + "Body.asset",
@@ -1510,7 +1548,10 @@ public static class GameSceneBuilder3D
         bodyGO.transform.SetParent(parent, false);
         bodyGO.transform.localPosition = new Vector3(0f, 0f, 0.03f);
         bodyGO.GetComponent<MeshFilter>().sharedMesh = bodyMesh;
-        bodyGO.GetComponent<MeshRenderer>().sharedMaterial = bodyMaterial;
+        var bodyRenderer = bodyGO.GetComponent<MeshRenderer>();
+        bodyRenderer.sharedMaterial = bodyMaterial;
+        bodyRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        bodyRenderer.receiveShadows = false;
     }
 
     private static GameObject BuildTraySlotPrefab(Material cardMaterial, float width, float height)

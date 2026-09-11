@@ -28,6 +28,16 @@ namespace GameClient.Presentation.HUD3D
         // So Pause can never open on top of a still-visible win/lose popup -
         // the reverse of GameOverPopup3D's own pauseMenu?.Hide() guard.
         [SerializeField] private GameOverPopup3D _gameOverPopup;
+        // Hidden (not just visually covered) while paused: the board and this
+        // panel are positioned via two different camera-distance systems, and
+        // an upper-layer board tile can be genuinely closer to the camera than
+        // the panel, winning the depth test and showing through it regardless
+        // of panel size. SetAlwaysOnTop/_ZTest override is a documented no-op
+        // in this URP setup, so the only reliable fix is to not render the
+        // board at all while the panel is up - the same technique already used
+        // for _gameHudObjects, just kept separate since the board isn't part
+        // of that shared array (which other screens also hide/show).
+        [SerializeField] private GameObject _boardRoot;
 
         private SettingsData _settings;
         private Coroutine _showAnimation;
@@ -62,6 +72,7 @@ namespace GameClient.Presentation.HUD3D
             if (_gameOverPopup != null && _gameOverPopup.IsShowing) return;
             _gameController?.SetPaused(true);
             SetHudActive(false);
+            if (_boardRoot != null) _boardRoot.SetActive(false);
             if (_overlay != null)
             {
                 _overlay.SetActive(true);
@@ -75,6 +86,7 @@ namespace GameClient.Presentation.HUD3D
         {
             if (_overlay != null) _overlay.SetActive(false);
             SetHudActive(true);
+            if (_boardRoot != null) _boardRoot.SetActive(true);
             _gameController?.SetPaused(false);
         }
 
