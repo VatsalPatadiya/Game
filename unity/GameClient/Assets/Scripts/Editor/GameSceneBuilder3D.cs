@@ -541,6 +541,15 @@ public static class GameSceneBuilder3D
         titleText.color = CreamHudText;
         if (DisplayFont != null) titleText.font = DisplayFont; // Cinzel for the win/lose title
 
+        // Same thin gold accent as PauseMenu3D's divider, for a consistent
+        // "structured header" look across both popups instead of bare text.
+        var gameOverDivider = new GameObject("TitleDivider", typeof(MeshFilter), typeof(MeshRenderer));
+        gameOverDivider.transform.SetParent(popupGO.transform, false);
+        gameOverDivider.transform.localPosition = new Vector3(0f, 0.78f, -0.15f);
+        gameOverDivider.GetComponent<MeshFilter>().sharedMesh =
+            SaveRoundedTrayMesh("Assets/Meshes/GameOverDivider.asset", 1.1f, 0.022f, 0.05f, 0.011f);
+        gameOverDivider.GetComponent<MeshRenderer>().sharedMaterial = GetOrCreateNonEmissiveGoldMaterial();
+
         var starsRootGO = new GameObject("Stars");
         starsRootGO.transform.SetParent(popupGO.transform, false);
         starsRootGO.transform.localPosition = new Vector3(0f, 0.55f, -0.15f);
@@ -1202,10 +1211,12 @@ public static class GameSceneBuilder3D
 
         // Shared jade+gold-framed panel behind the title+buttons (was missing
         // entirely - buttons floated directly on the felt with no container),
-        // matching the same panel the game-over popup now uses.
+        // matching the same panel the game-over popup now uses. Height/anchor
+        // tightened from an earlier 3.1/0.48 that left uneven dead space above
+        // the title and below the toggle row - this fits the content snugly.
         var panelAnchor = new GameObject("PausePanelAnchor");
-        Place(panelAnchor, new Vector2(0.5f, 0.48f));
-        BuildModalPanelBackground(panelAnchor.transform, "PausePanel", 2.3f, 3.1f, trayBorderMaterial, trayBodyMaterial);
+        Place(panelAnchor, new Vector2(0.5f, 0.495f));
+        BuildModalPanelBackground(panelAnchor.transform, "PausePanel", 2.3f, 2.75f, trayBorderMaterial, trayBodyMaterial);
 
         // Explicit, generous forward offset (not the tiny 0.03-0.05 gap the panel
         // itself uses) - small Z gaps are unreliable at HUD camera distance (see
@@ -1214,15 +1225,26 @@ public static class GameSceneBuilder3D
         // started spatially overlapping the panel's on-screen footprint.
         var pausedTitle = Label("PausedTitle", new Vector2(0.5f, 0.62f), "PAUSED", 0.9f, CreamHudText);
         pausedTitle.transform.localPosition += new Vector3(0f, 0f, -0.15f);
+
+        // A bare thin gold accent under the title - the "just text floating on
+        // a panel" look was the missing-polish complaint; this one line gives
+        // the header actual structure, same gold as the buttons for cohesion.
+        var divider = new GameObject("PausedDivider", typeof(MeshFilter), typeof(MeshRenderer));
+        Place(divider, new Vector2(0.5f, 0.585f));
+        divider.transform.localPosition += new Vector3(0f, 0f, -0.15f);
+        divider.GetComponent<MeshFilter>().sharedMesh =
+            SaveRoundedTrayMesh("Assets/Meshes/PausedDivider.asset", 0.9f, 0.022f, 0.05f, 0.011f);
+        divider.GetComponent<MeshRenderer>().sharedMaterial = GetOrCreateNonEmissiveGoldMaterial();
+
         // Resume is the primary action (bigger, most prominent); Restart is
         // secondary at the same size as the toggles below it, not competing
         // with Resume for attention.
-        var resume = MakeButton("Resume", new Vector2(0.5f, 0.54f), "RESUME", 1.9f, 0.42f, 0.46f);
-        var restart = MakeButton("Restart", new Vector2(0.5f, 0.44f), "RESTART", 1.6f, 0.32f, 0.38f);
+        var resume = MakeButton("Resume", new Vector2(0.5f, 0.53f), "RESUME", 1.9f, 0.42f, 0.46f);
+        var restart = MakeButton("Restart", new Vector2(0.5f, 0.435f), "RESTART", 1.6f, 0.32f, 0.38f);
         // Sound/Music are settings toggles, not primary actions - side by side
         // and narrower so they read as a distinct, lower-priority row.
-        var sound = MakeButton("SoundToggle", new Vector2(0.30f, 0.34f), "Sound: ON", 0.95f, 0.30f, 0.32f);
-        var music = MakeButton("MusicToggle", new Vector2(0.70f, 0.34f), "Music: ON", 0.95f, 0.30f, 0.32f);
+        var sound = MakeButton("SoundToggle", new Vector2(0.30f, 0.345f), "Sound: ON", 0.95f, 0.30f, 0.32f);
+        var music = MakeButton("MusicToggle", new Vector2(0.70f, 0.345f), "Music: ON", 0.95f, 0.30f, 0.32f);
 
         overlay.SetActive(false); // hidden until the menu button is tapped
 

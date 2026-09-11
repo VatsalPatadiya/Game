@@ -1,3 +1,4 @@
+using System.Collections;
 using TMPro;
 using UnityEngine;
 
@@ -22,6 +23,7 @@ namespace GameClient.Presentation.HUD3D
         public bool IsShowing => gameObject.activeSelf;
 
         private GameController _gameController;
+        private Coroutine _showAnimation;
 
         private void Start()
         {
@@ -37,7 +39,7 @@ namespace GameClient.Presentation.HUD3D
             if (messageText != null) messageText.text = "The board is clear! Final score: " + score;
             if (primaryButtonText != null) primaryButtonText.text = "Next Level";
             SetStars(starsEarned);
-            gameObject.SetActive(true);
+            ShowPopup();
         }
 
         public void ShowStuck(GameController controller)
@@ -48,7 +50,7 @@ namespace GameClient.Presentation.HUD3D
             if (messageText != null) messageText.text = "Try shuffling, or start a fresh board.";
             if (primaryButtonText != null) primaryButtonText.text = "Try Again";
             SetStars(-1);
-            gameObject.SetActive(true);
+            ShowPopup();
         }
 
         public void ShowLose(GameController controller)
@@ -59,12 +61,40 @@ namespace GameClient.Presentation.HUD3D
             if (messageText != null) messageText.text = "No more matches possible. Try again!";
             if (primaryButtonText != null) primaryButtonText.text = "Try Again";
             SetStars(-1);
-            gameObject.SetActive(true);
+            ShowPopup();
         }
 
         public void Hide()
         {
             gameObject.SetActive(false);
+        }
+
+        private void ShowPopup()
+        {
+            gameObject.SetActive(true);
+            if (_showAnimation != null) StopCoroutine(_showAnimation);
+            _showAnimation = StartCoroutine(PlayShowAnimation(transform));
+        }
+
+        // Scale-only (no fade) - the panel/button materials are opaque, so
+        // animating alpha has no visual effect; scale is the safe, always-works
+        // option for a popup that shouldn't just snap into existence.
+        private static IEnumerator PlayShowAnimation(Transform target)
+        {
+            const float duration = 0.15f;
+            var startScale = Vector3.one * 0.85f;
+            var endScale = Vector3.one;
+            target.localScale = startScale;
+            float elapsed = 0f;
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(elapsed / duration);
+                float eased = 1f - (1f - t) * (1f - t);
+                target.localScale = Vector3.Lerp(startScale, endScale, eased);
+                yield return null;
+            }
+            target.localScale = endScale;
         }
 
         // filledCount < 0 hides the row entirely (loses/stuck/daily have no

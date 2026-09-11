@@ -1,3 +1,4 @@
+using System.Collections;
 using GameClient.Presentation;
 using GameDomain.Progression;
 using TMPro;
@@ -29,6 +30,7 @@ namespace GameClient.Presentation.HUD3D
         [SerializeField] private GameOverPopup3D _gameOverPopup;
 
         private SettingsData _settings;
+        private Coroutine _showAnimation;
 
         public bool IsOpen => _overlay != null && _overlay.activeSelf;
 
@@ -60,7 +62,12 @@ namespace GameClient.Presentation.HUD3D
             if (_gameOverPopup != null && _gameOverPopup.IsShowing) return;
             _gameController?.SetPaused(true);
             SetHudActive(false);
-            if (_overlay != null) _overlay.SetActive(true);
+            if (_overlay != null)
+            {
+                _overlay.SetActive(true);
+                if (_showAnimation != null) StopCoroutine(_showAnimation);
+                _showAnimation = StartCoroutine(PlayShowAnimation(_overlay.transform));
+            }
             RefreshLabels();
         }
 
@@ -69,6 +76,27 @@ namespace GameClient.Presentation.HUD3D
             if (_overlay != null) _overlay.SetActive(false);
             SetHudActive(true);
             _gameController?.SetPaused(false);
+        }
+
+        // A popup that just snaps into existence reads as cheap. Scale-only (no
+        // fade): the panel/button materials are opaque, so animating alpha on
+        // them has no visual effect - scale is the safe, always-works option.
+        private static IEnumerator PlayShowAnimation(Transform target)
+        {
+            const float duration = 0.15f;
+            var startScale = Vector3.one * 0.85f;
+            var endScale = Vector3.one;
+            target.localScale = startScale;
+            float elapsed = 0f;
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(elapsed / duration);
+                float eased = 1f - (1f - t) * (1f - t);
+                target.localScale = Vector3.Lerp(startScale, endScale, eased);
+                yield return null;
+            }
+            target.localScale = endScale;
         }
 
         private void SetHudActive(bool active)
