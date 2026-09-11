@@ -204,7 +204,7 @@ public static class GameSceneBuilder3D
         // the score bar, and tightening both here also raises the board's top
         // anchor (bandTop below), giving the pyramid more headroom above the
         // bottom button row.
-        const float TightRowGap = 0.008f;
+        const float TightRowGap = 0.0f; // was 0.008, then 0.003 - tightened to touching so tall boards get maximum headroom above the button row
         const float TopbarFaceDiameter = 0.42f; // CreateVisualIconButton3D's face scale, must match its own call below (was 0.55 - looked oversized at the current zoom)
         // 0.92 -> 0.94: lifts the whole topbar/progress/tray cluster together
         // (everything below is computed FROM this anchor) to free up more
