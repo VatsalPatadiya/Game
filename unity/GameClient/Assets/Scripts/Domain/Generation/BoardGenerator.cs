@@ -85,6 +85,7 @@ namespace GameDomain.Generation
             int groupSize = profile.GroupSize;
 
             List<string[]> chosenOrder = null;
+            List<string[]> lastBuiltOrder = null;
 
             for (int attempt = 0; attempt < maxRestarts; attempt++)
             {
@@ -92,17 +93,26 @@ namespace GameDomain.Generation
                     slotsById, new HashSet<string>(allIds), random, groupSize, profile.OpeningFraction);
                 if (order == null) continue;
 
+                lastBuiltOrder = order;
                 var curve = BranchingSimulator.Profile(slotsById, order);
                 if (profile.Accepts(curve)) { chosenOrder = order; break; }
             }
 
-            // Fallback: a neutral (still front-loaded but unverified) solvable order. Solvability
-            // is preserved because BranchingOrderBuilder only ever groups co-free tiles.
+            // Fallback: reuse the last structurally-valid order built above instead of re-running a
+            // fresh maxRestarts loop -- it already carries the same OpeningFraction exposure bias
+            // (the actual difficulty-shaping behavior) and is already solvable by construction, so
+            // re-searching for another one buys nothing. Only run a fresh loop if the profile-seeking
+            // loop above never produced ANY solvable order at all.
             if (chosenOrder == null)
             {
-                for (int attempt = 0; attempt < maxRestarts && chosenOrder == null; attempt++)
-                    chosenOrder = BranchingOrderBuilder.Build(
-                        slotsById, new HashSet<string>(allIds), random, groupSize, profile.OpeningFraction);
+                chosenOrder = lastBuiltOrder;
+
+                if (chosenOrder == null)
+                {
+                    for (int attempt = 0; attempt < maxRestarts && chosenOrder == null; attempt++)
+                        chosenOrder = BranchingOrderBuilder.Build(
+                            slotsById, new HashSet<string>(allIds), random, groupSize, profile.OpeningFraction);
+                }
 
                 if (chosenOrder == null)
                     throw new BoardGenerationException(

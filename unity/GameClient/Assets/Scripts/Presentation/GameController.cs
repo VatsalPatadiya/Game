@@ -138,7 +138,7 @@ namespace GameClient.Presentation
             }
             if (!_isDaily && _currentLevelId == 5)
             {
-                // The big showcase pyramid, capped at the project MAX of 80 tiles so
+                // The big showcase pyramid, capped at the project MAX of 54 tiles so
                 // it fits the play area cleanly at full tile size (a 7x5 turtle) with
                 // no overlap into the tray or the bottom buttons.
                 _shape = TurtleShapeBuilder.BuildWithTileCount(TurtleShapeBuilder.MaxTiles);
