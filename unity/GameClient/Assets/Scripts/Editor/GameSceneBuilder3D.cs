@@ -16,6 +16,9 @@ public static class GameSceneBuilder3D
     private static readonly Color GoldChrome = new Color(0.85f, 0.65f, 0.25f, 1f); // amber/gold border
     private static readonly Color DarkWood = new Color(0.18f, 0.10f, 0.05f, 1f); // dark wood interior
     private static readonly Color BadgeRed = new Color(0.80f, 0.20f, 0.20f, 1f); // notification badge
+    private static readonly Color GoldInkText = new Color(0.227f, 0.141f, 0.063f); // dark ink on gold-pill buttons
+    private static readonly Color StarGold = new Color(0.96f, 0.78f, 0.36f); // #F5C75C, earned star
+    private static readonly Color StarMuted = new Color(0.44f, 0.32f, 0.18f); // dim unearned star
 
     // Premium display font (Cinzel OFL, Pass E) for headings/numbers - LEVEL,
     // score, PLAY. Body text keeps LiberationSans (TMP default).
@@ -133,10 +136,6 @@ public static class GameSceneBuilder3D
 
         var cardMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/CardBody.mat");
         RequireNotNull(cardMaterial, "Assets/Materials/CardBody.mat as Material");
-        var woodMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Wood.mat");
-        RequireNotNull(woodMaterial, "Assets/Materials/Wood.mat as Material (run WoodUiGenerator first)");
-        var bronzeMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Bronze.mat");
-        RequireNotNull(bronzeMaterial, "Assets/Materials/Bronze.mat as Material (run WoodUiGenerator first)");
         var hudButtonFaceMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/HudButtonFace.mat");
         RequireNotNull(hudButtonFaceMaterial, "Assets/Materials/HudButtonFace.mat as Material (run WoodUiGenerator first)");
         var hudButtonFaceLockedMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/HudButtonFaceLocked.mat");
@@ -524,58 +523,70 @@ public static class GameSceneBuilder3D
         SetField(gameController, "_trayView", trayView);
 
         // ------------------
-        // Game over popup
+        // Game over popup - shared jade+gold modal panel (was a one-off
+        // Wood.mat cube left over from before the jade+gold retheme; also
+        // fixes the "invisible button text" bug, see PrimaryButton below).
         // ------------------
         var popupGO = new GameObject("GameOverPopup", typeof(GameOverPopup3D));
         PositionInFrontOfCamera(popupGO.transform, camera, new Vector2(0.5f, 0.5f), PopupDistance);
 
-        var panel = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        panel.name = "Panel";
-        panel.transform.SetParent(popupGO.transform, false);
-        panel.transform.localScale = new Vector3(3f, 2f, 0.15f);
-        panel.GetComponent<MeshRenderer>().sharedMaterial = woodMaterial;
-        Object.DestroyImmediate(panel.GetComponent<BoxCollider>());
+        BuildModalPanelBackground(popupGO.transform, "GameOverPanel", 3.0f, 2.7f, trayBorderMaterial, trayBodyMaterial);
 
         var titleGO = new GameObject("Title", typeof(TextMeshPro));
         titleGO.transform.SetParent(popupGO.transform, false);
-        titleGO.transform.localPosition = new Vector3(0f, 0.6f, -0.1f);
+        titleGO.transform.localPosition = new Vector3(0f, 0.95f, -0.15f); // generous gap, see PausedTitle's depth-test comment
         var titleText = titleGO.GetComponent<TextMeshPro>();
         titleText.fontSize = 1.1f;
         titleText.alignment = TextAlignmentOptions.Center;
         titleText.color = CreamHudText;
         if (DisplayFont != null) titleText.font = DisplayFont; // Cinzel for the win/lose title
 
+        var starsRootGO = new GameObject("Stars");
+        starsRootGO.transform.SetParent(popupGO.transform, false);
+        starsRootGO.transform.localPosition = new Vector3(0f, 0.55f, -0.15f);
+        starsRootGO.transform.localScale = Vector3.one * 1.6f; // bigger than the level-start sample (closer camera distance here)
+        var starRenderers = BuildStarRow(starsRootGO.transform, "GameOverStar", filledCount: 0); // ShowWin sets the real count at runtime
+
         var messageGO = new GameObject("Message", typeof(TextMeshPro));
         messageGO.transform.SetParent(popupGO.transform, false);
-        messageGO.transform.localPosition = new Vector3(0f, 0.1f, -0.1f);
+        messageGO.transform.localPosition = new Vector3(0f, 0.15f, -0.15f);
         var messageText = messageGO.GetComponent<TextMeshPro>();
         messageText.fontSize = 0.66f;
         messageText.alignment = TextAlignmentOptions.Center;
         messageText.color = CreamHudText;
 
-        var restartGO = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        restartGO.name = "RestartButton";
-        restartGO.transform.SetParent(popupGO.transform, false);
-        restartGO.transform.localPosition = new Vector3(0f, -0.6f, -0.1f);
-        restartGO.transform.localScale = new Vector3(1.4f, 0.5f, 0.15f);
-        restartGO.GetComponent<MeshRenderer>().sharedMaterial = bronzeMaterial;
-        var restartButton = restartGO.AddComponent<PressScaleButton3D>();
+        // Primary button: a rounded-pill MESH (real width/height baked into the
+        // mesh itself), not a scaled Cube - the old Cube's thin Z-scale (0.15)
+        // silently shrank its child text's -0.1 local offset to -0.015, landing
+        // the text BEHIND the cube's own front face (-0.075) so it was fully
+        // occluded. The label here is a sibling of the button (both children of
+        // popupGO, which has no scale), so no parent-scale can distort it again.
+        var primaryBtnGO = new GameObject("PrimaryButton", typeof(MeshFilter), typeof(MeshRenderer));
+        primaryBtnGO.transform.SetParent(popupGO.transform, false);
+        primaryBtnGO.transform.localPosition = new Vector3(0f, -0.75f, -0.1f);
+        primaryBtnGO.GetComponent<MeshFilter>().sharedMesh =
+            SaveRoundedTrayMesh("Assets/Meshes/GameOverPrimaryBtn.asset", 2.0f, 0.5f, 0.12f, 0.2f);
+        primaryBtnGO.GetComponent<MeshRenderer>().sharedMaterial = GetOrCreateNonEmissiveGoldMaterial();
+        var primaryBtnCollider = primaryBtnGO.AddComponent<BoxCollider>();
+        primaryBtnCollider.size = new Vector3(2.0f, 0.5f, 0.12f);
+        var restartButton = primaryBtnGO.AddComponent<PressScaleButton3D>();
         SetField(restartButton, "_targetCamera", camera);
 
-        var restartTextGO = new GameObject("Text", typeof(TextMeshPro));
-        restartTextGO.transform.SetParent(restartGO.transform, false);
-        restartTextGO.transform.localPosition = new Vector3(0f, 0f, -0.1f);
-        var restartText = restartTextGO.GetComponent<TextMeshPro>();
-        restartText.text = "Restart";
-        restartText.fontSize = 0.66f;
+        var primaryBtnTextGO = new GameObject("PrimaryButtonText", typeof(TextMeshPro));
+        primaryBtnTextGO.transform.SetParent(popupGO.transform, false); // sibling of the button, see comment above
+        primaryBtnTextGO.transform.localPosition = new Vector3(0f, -0.75f, -0.16f);
+        var restartText = primaryBtnTextGO.GetComponent<TextMeshPro>();
+        restartText.fontSize = 0.5f;
         restartText.alignment = TextAlignmentOptions.Center;
         if (DisplayFont != null) restartText.font = DisplayFont; // Cinzel
-        restartText.color = CreamHudText; // cream on the bronze restart button
+        restartText.color = GoldInkText; // dark ink on the gold pill, matching every other gold button
 
         var gameOverPopup = popupGO.GetComponent<GameOverPopup3D>();
         SetField(gameOverPopup, "restartButton", restartButton);
         SetField(gameOverPopup, "titleText", titleText);
         SetField(gameOverPopup, "messageText", messageText);
+        SetField(gameOverPopup, "primaryButtonText", restartText);
+        SetFieldArray(gameOverPopup, "starRenderers", starRenderers);
         SetField(gameController, "_gameOverPopup", gameOverPopup);
         popupGO.SetActive(false); // hidden by default
 
@@ -592,7 +603,9 @@ public static class GameSceneBuilder3D
         var levelSelectRoot = BuildLevelSelectScreen(camera, gameController, hudObjects, levelStartRoot, hudButtonFaceMaterial, hudButtonFaceLockedMaterial);
         levelStartRoot.SetActive(false); // the level-select screen shows first
 
-        var pauseMenu = BuildPauseMenu(camera, gameController, hudObjects, menuButton, hudButtonFaceMaterial);
+        var pauseMenu = BuildPauseMenu(camera, gameController, hudObjects, menuButton, hudButtonFaceMaterial,
+            gameOverPopup, trayBorderMaterial, trayBodyMaterial);
+        SetField(gameOverPopup, "pauseMenu", pauseMenu);
 
         // Shared back navigation (hardware/gesture back + on-screen back button).
         var backNavGO = new GameObject("BackNavigator");
@@ -1135,7 +1148,8 @@ public static class GameSceneBuilder3D
     // toggles a child overlay; opened by the top menu button.
     private static PauseMenu3D BuildPauseMenu(
         Camera camera, GameController gameController, GameObject[] hudObjects,
-        PressScaleButton3D menuButton, Material discFaceMaterial)
+        PressScaleButton3D menuButton, Material discFaceMaterial,
+        GameOverPopup3D gameOverPopup, Material trayBorderMaterial, Material trayBodyMaterial)
     {
         const float D = 7f * 0.8175f;
         var root = new GameObject("PauseMenu");
@@ -1164,28 +1178,45 @@ public static class GameSceneBuilder3D
             if (DisplayFont != null) t.font = DisplayFont;
             return t;
         }
-        var goldInk = new Color(0.227f, 0.141f, 0.063f);
-        (PressScaleButton3D btn, TextMeshPro lbl) MakeButton(string name, Vector2 vp, string text)
+        (PressScaleButton3D btn, TextMeshPro lbl) MakeButton(string name, Vector2 vp, string text, float width, float height, float fontSize)
         {
             var pill = new GameObject(name, typeof(MeshFilter), typeof(MeshRenderer));
             Place(pill, vp);
             pill.GetComponent<MeshFilter>().sharedMesh =
-                SaveRoundedTrayMesh("Assets/Meshes/PauseBtn_" + name + ".asset", 1.7f, 0.34f, 0.1f, 0.16f);
+                SaveRoundedTrayMesh("Assets/Meshes/PauseBtn_" + name + ".asset", width, height, 0.1f, height * 0.47f);
             pill.GetComponent<MeshRenderer>().sharedMaterial = GetOrCreateNonEmissiveGoldMaterial();
             var col = pill.AddComponent<BoxCollider>();
-            col.size = new Vector3(1.7f, 0.34f, 0.1f);
+            col.size = new Vector3(width, height, 0.1f);
             var b = pill.AddComponent<PressScaleButton3D>();
             SetField(b, "_targetCamera", camera);
-            var l = Label(name + "Text", vp, text, 0.42f, goldInk);
+            var l = Label(name + "Text", vp, text, fontSize, GoldInkText);
             l.transform.localPosition += new Vector3(0f, 0f, -0.06f);
             return (b, l);
         }
 
-        Label("PausedTitle", new Vector2(0.5f, 0.66f), "PAUSED", 0.9f, CreamHudText);
-        var resume = MakeButton("Resume", new Vector2(0.5f, 0.54f), "RESUME");
-        var restart = MakeButton("Restart", new Vector2(0.5f, 0.45f), "RESTART");
-        var sound = MakeButton("SoundToggle", new Vector2(0.5f, 0.36f), "Sound: ON");
-        var music = MakeButton("MusicToggle", new Vector2(0.5f, 0.27f), "Music: ON");
+        // Shared jade+gold-framed panel behind the title+buttons (was missing
+        // entirely - buttons floated directly on the felt with no container),
+        // matching the same panel the game-over popup now uses.
+        var panelAnchor = new GameObject("PausePanelAnchor");
+        Place(panelAnchor, new Vector2(0.5f, 0.48f));
+        BuildModalPanelBackground(panelAnchor.transform, "PausePanel", 2.3f, 3.1f, trayBorderMaterial, trayBodyMaterial);
+
+        // Explicit, generous forward offset (not the tiny 0.03-0.05 gap the panel
+        // itself uses) - small Z gaps are unreliable at HUD camera distance (see
+        // the ProgressBar3D "coplanar transparent elements render unreliably"
+        // gotcha); this only became visible once the title's viewport position
+        // started spatially overlapping the panel's on-screen footprint.
+        var pausedTitle = Label("PausedTitle", new Vector2(0.5f, 0.62f), "PAUSED", 0.9f, CreamHudText);
+        pausedTitle.transform.localPosition += new Vector3(0f, 0f, -0.15f);
+        // Resume is the primary action (bigger, most prominent); Restart is
+        // secondary at the same size as the toggles below it, not competing
+        // with Resume for attention.
+        var resume = MakeButton("Resume", new Vector2(0.5f, 0.54f), "RESUME", 1.9f, 0.42f, 0.46f);
+        var restart = MakeButton("Restart", new Vector2(0.5f, 0.44f), "RESTART", 1.6f, 0.32f, 0.38f);
+        // Sound/Music are settings toggles, not primary actions - side by side
+        // and narrower so they read as a distinct, lower-priority row.
+        var sound = MakeButton("SoundToggle", new Vector2(0.30f, 0.34f), "Sound: ON", 0.95f, 0.30f, 0.32f);
+        var music = MakeButton("MusicToggle", new Vector2(0.70f, 0.34f), "Music: ON", 0.95f, 0.30f, 0.32f);
 
         overlay.SetActive(false); // hidden until the menu button is tapped
 
@@ -1200,6 +1231,7 @@ public static class GameSceneBuilder3D
         SetField(pause, "_musicLabel", music.lbl);
         SetField(pause, "_gameController", gameController);
         SetFieldArray(pause, "_gameHudObjects", hudObjects);
+        SetField(pause, "_gameOverPopup", gameOverPopup);
         return pause;
     }
 
@@ -1253,33 +1285,42 @@ public static class GameSceneBuilder3D
     // because LiberationSans (the project's only font) has no star glyph.
     private static void BuildStars(Camera camera, Transform parent, float distance, Vector2 vp)
     {
-        var starSprite = GetStarSprite();
-        var gold = new Color(0.96f, 0.78f, 0.36f);  // #F5C75C
-        var muted = new Color(0.44f, 0.32f, 0.18f);  // dim unearned star
-
         var starsRoot = new GameObject("Stars");
         starsRoot.transform.position = camera.ViewportToWorldPoint(new Vector3(vp.x, vp.y, distance));
         starsRoot.transform.rotation = camera.transform.rotation;
         starsRoot.transform.SetParent(parent, true);
+        BuildStarRow(starsRoot.transform, "LevelStartStar", filledCount: 2);
+    }
 
-        var tints = new[] { gold, gold, muted };
-        float[] xs = { -0.16f, 0f, 0.16f }; // ~86px spacing (was 0.42 - stars too far apart and too big)
+    // Shared 3-star row (mockup's .stars): a generated 5-point star sprite
+    // tinted per-star (gold = earned, muted = not) because LiberationSans (the
+    // project's only font) has no star glyph. Returns the per-star renderers
+    // so a caller whose fill count isn't known until runtime (the game-over
+    // popup's actual result) can recolor them later via MeshRenderer.material.
+    private static MeshRenderer[] BuildStarRow(Transform starsRoot, string assetNamePrefix, int filledCount)
+    {
+        var starSprite = GetStarSprite();
+        var renderers = new MeshRenderer[3];
+        float[] xs = { -0.16f, 0f, 0.16f }; // ~86px spacing
         for (int i = 0; i < 3; i++)
         {
             var q = GameObject.CreatePrimitive(PrimitiveType.Quad);
             q.name = "Star" + i;
             Object.DestroyImmediate(q.GetComponent<Collider>());
-            q.transform.SetParent(starsRoot.transform, false);
+            q.transform.SetParent(starsRoot, false);
             q.transform.localPosition = new Vector3(xs[i], 0f, -0.02f);
-            q.transform.localScale = new Vector3(0.13f, 0.13f, 1f); // ~70px star (was 0.34 - far too big)
+            q.transform.localScale = new Vector3(0.13f, 0.13f, 1f); // ~70px star
             var m = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
             URPMaterialUtil.SetTransparent(m);
             URPMaterialUtil.SetAlwaysOnTop(m);
             m.SetTexture("_BaseMap", starSprite.texture);
-            m.SetColor("_BaseColor", tints[i]);
-            AssetDatabase.CreateAsset(m, "Assets/Materials/LevelStartStar" + i + ".mat");
-            q.GetComponent<MeshRenderer>().material = m;
+            m.SetColor("_BaseColor", i < filledCount ? StarGold : StarMuted);
+            AssetDatabase.CreateAsset(m, "Assets/Materials/" + assetNamePrefix + i + ".mat");
+            var mr = q.GetComponent<MeshRenderer>();
+            mr.material = m;
+            renderers[i] = mr;
         }
+        return renderers;
     }
 
     // Three faint corner leaf silhouettes (mockup's `.leaf.l1/.l2/.l3`), at
@@ -1409,6 +1450,39 @@ public static class GameSceneBuilder3D
         AssetDatabase.CreateAsset(mesh, path);
         AssetDatabase.SaveAssets();
         return AssetDatabase.LoadAssetAtPath<Mesh>(path);
+    }
+
+    // Shared jade+gold-framed modal panel: a gold rounded-rect frame with a
+    // dark inset body on top, same technique (and materials) as the tray's
+    // own border - so every popup shares one consistent look instead of each
+    // being its own one-off (the old game-over popup was a plain Wood.mat
+    // cube left over from before the jade+gold retheme; the pause menu had
+    // no panel at all). Border stroke width = frame radius - body radius,
+    // the same "uniform corner stroke" rule the tray/score-bar borders use.
+    private static void BuildModalPanelBackground(
+        Transform parent, string namePrefix, float width, float height,
+        Material borderMaterial, Material bodyMaterial)
+    {
+        const float cornerRadius = 0.22f;
+        const float strokeWidth = 0.05f;
+        const float thickness = 0.12f;
+
+        var frameMesh = SaveRoundedTrayMesh(
+            "Assets/Meshes/" + namePrefix + "Frame.asset", width, height, thickness, cornerRadius);
+        var frameGO = new GameObject(namePrefix + "Frame", typeof(MeshFilter), typeof(MeshRenderer));
+        frameGO.transform.SetParent(parent, false);
+        frameGO.transform.localPosition = new Vector3(0f, 0f, 0.05f);
+        frameGO.GetComponent<MeshFilter>().sharedMesh = frameMesh;
+        frameGO.GetComponent<MeshRenderer>().sharedMaterial = borderMaterial;
+
+        var bodyMesh = SaveRoundedTrayMesh(
+            "Assets/Meshes/" + namePrefix + "Body.asset",
+            width - strokeWidth * 2f, height - strokeWidth * 2f, thickness, cornerRadius - strokeWidth);
+        var bodyGO = new GameObject(namePrefix + "Body", typeof(MeshFilter), typeof(MeshRenderer));
+        bodyGO.transform.SetParent(parent, false);
+        bodyGO.transform.localPosition = new Vector3(0f, 0f, 0.03f);
+        bodyGO.GetComponent<MeshFilter>().sharedMesh = bodyMesh;
+        bodyGO.GetComponent<MeshRenderer>().sharedMaterial = bodyMaterial;
     }
 
     private static GameObject BuildTraySlotPrefab(Material cardMaterial, float width, float height)

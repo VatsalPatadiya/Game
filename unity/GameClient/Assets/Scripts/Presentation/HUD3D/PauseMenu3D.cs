@@ -24,6 +24,9 @@ namespace GameClient.Presentation.HUD3D
         // Hidden while the pause overlay is up (their always-on-top icon glyphs
         // would otherwise draw over the overlay regardless of depth).
         [SerializeField] private GameObject[] _gameHudObjects;
+        // So Pause can never open on top of a still-visible win/lose popup -
+        // the reverse of GameOverPopup3D's own pauseMenu?.Hide() guard.
+        [SerializeField] private GameOverPopup3D _gameOverPopup;
 
         private SettingsData _settings;
 
@@ -51,6 +54,7 @@ namespace GameClient.Presentation.HUD3D
 
         public void Show()
         {
+            _gameOverPopup?.Hide();
             _gameController?.SetPaused(true);
             SetHudActive(false);
             if (_overlay != null) _overlay.SetActive(true);

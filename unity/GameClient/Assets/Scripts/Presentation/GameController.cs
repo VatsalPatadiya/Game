@@ -272,9 +272,12 @@ namespace GameClient.Presentation
         {
             if (_board.Cells.Values.All(c => c.Cleared))
             {
-                if (_isDaily) RecordDailyWin();
-                else RecordWin();
-                _gameOverPopup?.ShowWin(this, _board.Score);
+                // Daily challenge has no par/aids-based rating, so it shows no
+                // stars (negative = hide the row) rather than a misleading count.
+                int stars;
+                if (_isDaily) { RecordDailyWin(); stars = -1; }
+                else stars = RecordWin();
+                _gameOverPopup?.ShowWin(this, _board.Score, stars);
                 return;
             }
 
@@ -328,7 +331,7 @@ namespace GameClient.Presentation
 
         // On a win: score the attempt (stars), record it (best stars + unlock the
         // next level), persist, and advance the current level for the next play.
-        private void RecordWin()
+        private int RecordWin()
         {
             if (_progress == null) _progress = new GameProgress();
             var levelData = LevelCatalog.Get(_currentLevelId) ?? LevelCatalog.Levels[0];
@@ -337,6 +340,7 @@ namespace GameClient.Presentation
             _progress.RecordResult(_currentLevelId, stars, next);
             SaveSystem.Save(_progress);
             _currentLevelId = next;
+            return stars;
         }
 
         // Daily win: mark today's daily complete and persist; does not touch the
