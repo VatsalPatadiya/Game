@@ -222,16 +222,30 @@ namespace GameClient.Presentation
                 ? tileView.transform.position
                 : _trayView.GetSlotWorldPosition(0);
 
+            // Give the tapped tile a beat of feedback (flash + shrink) before it
+            // leaves the board, instead of vanishing with no acknowledgement.
+            if (tileView != null)
+            {
+                bool tapAwayDone = false;
+                tileView.PlayTapAway(() => tapAwayDone = true);
+                yield return new WaitUntil(() => tapAwayDone);
+            }
+
             // The tile now lives in the tray (domain-side), so take it off the board.
             _boardView.RemoveTileInstant(slotId);
 
-            // Fly a card from the board up to the slot it landed in.
+            // Fly a card from the board up to the slot it landed in. The tray's
+            // arrival pop-in starts before the flight lands (see CardAnimator.
+            // TrayArrivalOverlapFraction) so the two read as one continuous motion.
             int landingIndex = oldTray.Count;
             var flight = _trayView.SpawnFlightCard(foodModel, startPos);
             Vector3 slotPos = _trayView.GetSlotWorldPosition(landingIndex);
-            yield return CardAnimator.MoveTransform(flight.transform, startPos, slotPos, 0.22f);
-            _trayView.ReleaseFlightCard(flight);
+            var flightRoutine = StartCoroutine(
+                CardAnimator.MoveTransform(flight.transform, startPos, slotPos, CardAnimator.TrayFlightDuration));
+            yield return new WaitForSeconds(CardAnimator.TrayFlightDuration * CardAnimator.TrayArrivalOverlapFraction);
             _trayView.PlayArrivalPopIn(landingIndex, foodModel);
+            yield return flightRoutine;
+            _trayView.ReleaseFlightCard(flight);
 
             // A pair cleared if the tray ended up shorter than "old + this one".
             bool matched = newTray.Count < oldTray.Count + 1;

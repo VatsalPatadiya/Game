@@ -22,8 +22,13 @@ namespace GameClient.Presentation.Board
         // concurrently on a separate, slightly longer/overshooting curve.
         public const float TapConfirmFlashDuration = 0.07f;
         public const float TapAwayDuration = 0.1f;
+        public const float TrayFlightDuration = 0.22f;
         public const float TrayPopInDuration = 0.11f;
         public const float TrayPopInOvershoot = 1.08f;
+        // The tray's pop-in starts this fraction into the flight (not after it
+        // lands), so the tail of the flight and the pop-in's overshoot read as
+        // one continuous motion instead of two separate snaps.
+        public const float TrayArrivalOverlapFraction = 0.7f;
 
         public static float EaseOut(float t) => 1f - (1f - t) * (1f - t);
 
