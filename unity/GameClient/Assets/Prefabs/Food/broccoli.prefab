@@ -29,10 +29,10 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 639531450276842849}
+  - {fileID: 8007696265098621549}
   m_Father: {fileID: 3908427398626011833}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &7327142471883951221
+--- !u!1 &8451583291183636242
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -40,9 +40,9 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 639531450276842849}
-  - component: {fileID: 2893698667969440591}
-  - component: {fileID: 8047156795691187433}
+  - component: {fileID: 8007696265098621549}
+  - component: {fileID: 3707057737737853996}
+  - component: {fileID: 4906256853825551336}
   m_Layer: 0
   m_Name: broccoli
   m_TagString: Untagged
@@ -50,13 +50,13 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &639531450276842849
+--- !u!4 &8007696265098621549
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7327142471883951221}
+  m_GameObject: {fileID: 8451583291183636242}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: -0, y: 0, z: 0}
@@ -65,21 +65,21 @@ Transform:
   m_Children: []
   m_Father: {fileID: 2502101695640085232}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!33 &2893698667969440591
+--- !u!33 &3707057737737853996
 MeshFilter:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7327142471883951221}
+  m_GameObject: {fileID: 8451583291183636242}
   m_Mesh: {fileID: -5538994835381136387, guid: 473ce15128a0f46a5acd27a35260df70, type: 3}
---- !u!23 &8047156795691187433
+--- !u!23 &4906256853825551336
 MeshRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7327142471883951221}
+  m_GameObject: {fileID: 8451583291183636242}
   m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1

@@ -2,6 +2,7 @@ using System.IO;
 using GameClient.Data;
 using GameClient.Presentation;
 using GameClient.Presentation.Board3D;
+using GameClient.Presentation.HUD;
 using GameClient.Presentation.HUD3D;
 using TMPro;
 using UnityEditor;
@@ -551,6 +552,21 @@ public static class GameSceneBuilder3D
         SetField(trayView, "tileSet", tileSet);
         SetFieldArray(trayView, "slotAnchors", anchors);
         SetField(gameController, "_trayView", trayView);
+
+        // Match celebration: a white particle burst at the tray slot when two
+        // tiles match (reference: user-provided screen recording of a similar
+        // mahjong game's "white balls" effect). The component already existed
+        // but was never instantiated here, so _matchCelebration was always
+        // null and PlayMatchCelebration silently no-opped every match.
+        var matchGlowMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/MatchParticleGlow.mat");
+        RequireNotNull(matchGlowMaterial, "Assets/Materials/MatchParticleGlow.mat (run MatchParticleGenerator first)");
+        var matchSparkleMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/MatchParticleSparkle.mat");
+        RequireNotNull(matchSparkleMaterial, "Assets/Materials/MatchParticleSparkle.mat (run MatchParticleGenerator first)");
+        var matchCelebrationGO = new GameObject("MatchCelebration", typeof(MatchCelebrationController));
+        var matchCelebration = matchCelebrationGO.GetComponent<MatchCelebrationController>();
+        SetField(matchCelebration, "_glowMaterial", matchGlowMaterial);
+        SetField(matchCelebration, "_sparkleMaterial", matchSparkleMaterial);
+        SetField(gameController, "_matchCelebration", matchCelebration);
 
         // ------------------
         // Game over popup - shared jade+gold modal panel (was a one-off
