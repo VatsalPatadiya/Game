@@ -93,8 +93,7 @@ public static class MatchParticleGenerator
         importer.SaveAndReimport();
 
         var loadedTex = AssetDatabase.LoadAssetAtPath<Texture2D>(texPath);
-        var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit")
-                     ?? Shader.Find("Universal Render Pipeline/Unlit");
+        var shader = Shader.Find("Sprites/Default");
 
         string matPath = "Assets/Materials/" + name + ".mat";
         var mat = AssetDatabase.LoadAssetAtPath<Material>(matPath);
@@ -107,9 +106,8 @@ public static class MatchParticleGenerator
         {
             mat.shader = shader;
         }
-        mat.SetTexture("_BaseMap", loadedTex);
-        mat.SetColor("_BaseColor", Color.white);
-        URPMaterialUtil.SetTransparent(mat);
+        mat.SetTexture("_MainTex", loadedTex);
+        mat.SetColor("_Color", Color.white);
         EditorUtility.SetDirty(mat);
         AssetDatabase.SaveAssets();
     }

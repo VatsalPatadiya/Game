@@ -61,10 +61,10 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 3264203607726566546}
+  - {fileID: 3165270154371698980}
   m_Father: {fileID: 7562393609178832740}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &4303723701940281161
+--- !u!1 &5169497962651324390
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -72,9 +72,9 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 3264203607726566546}
-  - component: {fileID: 8463784921244631162}
-  - component: {fileID: 4404716719968053775}
+  - component: {fileID: 3165270154371698980}
+  - component: {fileID: 5410925035531193885}
+  - component: {fileID: 600506408785489146}
   m_Layer: 0
   m_Name: mushroom
   m_TagString: Untagged
@@ -82,13 +82,13 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &3264203607726566546
+--- !u!4 &3165270154371698980
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4303723701940281161}
+  m_GameObject: {fileID: 5169497962651324390}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: -0, y: 0, z: 0}
@@ -97,21 +97,21 @@ Transform:
   m_Children: []
   m_Father: {fileID: 5519436077711113686}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!33 &8463784921244631162
+--- !u!33 &5410925035531193885
 MeshFilter:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4303723701940281161}
+  m_GameObject: {fileID: 5169497962651324390}
   m_Mesh: {fileID: -7588155868070637639, guid: beb0cd662ebf34e00af5b379e11e1b64, type: 3}
---- !u!23 &4404716719968053775
+--- !u!23 &600506408785489146
 MeshRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4303723701940281161}
+  m_GameObject: {fileID: 5169497962651324390}
   m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
