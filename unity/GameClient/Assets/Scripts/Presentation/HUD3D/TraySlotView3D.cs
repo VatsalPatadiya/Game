@@ -1,7 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
-using GameClient.Presentation.Board;
 using UnityEngine;
+using GameClient.Presentation.Board;
 
 namespace GameClient.Presentation.HUD3D
 {
@@ -11,35 +11,17 @@ namespace GameClient.Presentation.HUD3D
         [SerializeField] private MeshRenderer _bodyRenderer;
         [SerializeField] private Transform _foodAnchor;
         [SerializeField] private Color _highlightEmission = new Color(1f, 0.85f, 0.2f, 1f);
-        // Empty slot shows the dark wood recess; a filled slot swaps to the ivory
-        // tile face so a collected tile reads as a real white tile (like the
-        // reference), not a symbol floating on wood.
         [SerializeField] private Material _emptyMaterial;
         [SerializeField] private Material _filledMaterial;
-        // Only populated on flight-card instances (see GameSceneBuilder3D's
-        // BuildTraySlotPrefab) - disabled by default so the 4 static tray
-        // slots never show one; TrayView3D enables it for the duration of a
-        // flight to match the reference's motion-blur trail on a moving tile.
         [SerializeField] private TrailRenderer _flightTrail;
 
         private MeshRendererTint _bodyTint;
-        private MeshRendererTint[] _iconTints = new MeshRendererTint[0];
         private MeshRendererTint _emissionTint;
         private Coroutine _clearCoroutine;
         private Coroutine _popInCoroutine;
 
-        // Food-model instances are pooled per prefab (keyed by the shared
-        // FoodModels[] reference from TileVisual.FoodModelFor - same tile
-        // value always returns the same GameObject, so reference equality is
-        // a reliable pool key) instead of Destroy+Instantiate on every fill.
-        // A tile tap used to do 3 Instantiate + 2 Destroy calls of
-        // mesh-renderer-bearing GameObjects within a ~220ms window (one
-        // flight card + its food model, destroyed, then the destination
-        // slot's food model instantiated again) - on the Galaxy A50 test
-        // device that was the actual cause of the reported animation
-        // "hitching", not the (already frame-rate-independent) easing math.
-        private readonly Dictionary<GameObject, GameObject> _foodInstances = new Dictionary<GameObject, GameObject>();
-        private GameObject _activeFoodInstance;
+        private SpriteRenderer _iconRenderer;
+        private SpriteRendererTint _iconTint;
 
         private void Awake()
         {
@@ -51,89 +33,77 @@ namespace GameClient.Presentation.HUD3D
             if (_content != null) _content.localScale = Vector3.one;
         }
 
-        // Lazily create the material tints. TrayView3D.Initialize instantiates a
-        // slot and calls SetEmpty in the SAME frame; if the tray GameObject is
-        // INACTIVE at that moment (e.g. a retry triggered from the pause menu,
-        // which hid the HUD), Unity does NOT run the new slot's Awake yet, so the
-        // tints would be null and SetEmpty threw a NullReferenceException -
-        // aborting the slot's size reset and leaving it half-height (the reported
-        // retry bug). Initializing here on first use makes the slot correct
-        // regardless of activation order - one source of truth.
         private void EnsureTints()
         {
-            if (_bodyTint == null) _bodyTint = new MeshRendererTint(_bodyRenderer, "_BaseColor");
-            if (_emissionTint == null) _emissionTint = new MeshRendererTint(_bodyRenderer, "_EmissionColor");
+            if (_bodyTint == null && _bodyRenderer != null) _bodyTint = new MeshRendererTint(_bodyRenderer, "_BaseColor");
+            if (_emissionTint == null && _bodyRenderer != null) _emissionTint = new MeshRendererTint(_bodyRenderer, "_EmissionColor");
         }
 
         public void SetEmpty()
         {
             EnsureTints();
-            // Always restore full size: PopInRoutine animates _content.localScale,
-            // and on a rebuild/retry a slot must never inherit a partial scale.
             if (_content != null) _content.localScale = Vector3.one;
-            _emissionTint.Color = Color.black;
-            // Empty slot shows the warm recess (one of the tray's 4 visible parts).
+            if (_foodAnchor != null) _foodAnchor.localScale = Vector3.one;
+            if (_emissionTint != null) _emissionTint.Color = Color.black;
+            
             if (_bodyRenderer != null)
             {
                 _bodyRenderer.enabled = true;
                 if (_emptyMaterial != null)
                     _bodyRenderer.sharedMaterial = _emptyMaterial;
             }
-            if (_activeFoodInstance != null)
+            if (_iconRenderer != null)
             {
-                _activeFoodInstance.SetActive(false); // pooled, not destroyed - see _foodInstances
-                _activeFoodInstance = null;
+                _iconRenderer.enabled = false;
             }
-            _iconTints = new MeshRendererTint[0];
         }
 
-        public void SetFilled(GameObject foodModelPrefab)
+        public void SetFilled(Sprite tileSprite)
         {
             EnsureTints();
-            _emissionTint.Color = Color.black;
+            if (_emissionTint != null) _emissionTint.Color = Color.black;
+            
+            // Keep the recess visible behind the tile as the dark wooden box
             if (_bodyRenderer != null)
             {
-                _bodyRenderer.enabled = true; // show the ivory tile (was hidden while empty)
-                if (_filledMaterial != null)
-                    _bodyRenderer.sharedMaterial = _filledMaterial; // ivory tile face
+                _bodyRenderer.enabled = true;
+                if (_emptyMaterial != null)
+                    _bodyRenderer.sharedMaterial = _emptyMaterial;
             }
-            _bodyTint.Color = Color.white; // clear any leftover fade from a prior clear animation
-            if (_foodAnchor == null || foodModelPrefab == null) return;
 
-            if (_activeFoodInstance != null) _activeFoodInstance.SetActive(false);
-
-            if (!_foodInstances.TryGetValue(foodModelPrefab, out var foodInstance) || foodInstance == null)
+            if (_iconRenderer == null)
             {
-                foodInstance = Instantiate(foodModelPrefab, _foodAnchor);
-                foodInstance.transform.localPosition = Vector3.zero;
-                foodInstance.transform.localRotation = Quaternion.identity;
-                _foodInstances[foodModelPrefab] = foodInstance;
+                var iconGO = new GameObject("Icon");
+                iconGO.transform.SetParent(_foodAnchor, false);
+                // Target height is 0.62f to fully fit inside the Tray Slot Body Box
+                float targetHeight = 0.62f; 
+                float spriteHeight = tileSprite != null ? tileSprite.bounds.size.y : 1f;
+                float scaleFactor = spriteHeight > 0f ? (targetHeight / spriteHeight) : 1f;
+                iconGO.transform.localScale = new Vector3(scaleFactor, scaleFactor, 1f);
+                
+                _iconRenderer = iconGO.AddComponent<SpriteRenderer>();
+                _iconRenderer.sortingOrder = 100; 
+                _iconTint = new SpriteRendererTint(_iconRenderer);
             }
-            foodInstance.SetActive(true);
-            _activeFoodInstance = foodInstance;
-
-            var renderers = foodInstance.GetComponentsInChildren<MeshRenderer>();
-            _iconTints = new MeshRendererTint[renderers.Length];
-            for (int i = 0; i < renderers.Length; i++)
+            if (tileSprite != null)
             {
-                _iconTints[i] = new MeshRendererTint(renderers[i], "_BaseColor");
-                _iconTints[i].Color = Color.white;
+                _iconRenderer.sprite = tileSprite;
+                _iconRenderer.enabled = true;
             }
+            if (_iconTint != null) _iconTint.Color = Color.white;
         }
 
-        // Called by TrayView3D around a flight (tap-to-tray or reflow) so the
-        // trail only ever renders while this instance is actually moving.
         public void SetFlightTrailEnabled(bool enabled)
         {
             if (_flightTrail == null) return;
-            if (!enabled) _flightTrail.Clear(); // drop any residual points before disabling, so the next flight doesn't start with a stale trail
+            if (!enabled) _flightTrail.Clear();
             _flightTrail.emitting = enabled;
             _flightTrail.enabled = enabled;
         }
 
-        public void PlayPopIn(GameObject foodModelPrefab)
+        public void PlayPopIn(Sprite tileSprite)
         {
-            SetFilled(foodModelPrefab);
+            SetFilled(tileSprite);
             if (_popInCoroutine != null) StopCoroutine(_popInCoroutine);
             _popInCoroutine = StartCoroutine(PopInRoutine());
         }
@@ -144,7 +114,7 @@ namespace GameClient.Presentation.HUD3D
             float overshoot = CardAnimator.TrayPopInOvershoot;
             const float overshootFraction = 0.7f;
 
-            _content.localScale = Vector3.zero;
+            _foodAnchor.localScale = Vector3.zero;
             float elapsed = 0f;
             while (elapsed < duration)
             {
@@ -153,24 +123,25 @@ namespace GameClient.Presentation.HUD3D
                 float scale = t < overshootFraction
                     ? Mathf.Lerp(0f, overshoot, t / overshootFraction)
                     : Mathf.Lerp(overshoot, 1f, (t - overshootFraction) / (1f - overshootFraction));
-                _content.localScale = Vector3.one * scale;
+                _foodAnchor.localScale = Vector3.one * scale;
                 yield return null;
             }
 
-            _content.localScale = Vector3.one;
+            _foodAnchor.localScale = Vector3.one;
         }
 
         public void PlayHighlightThenClear(System.Action onComplete)
         {
             if (_clearCoroutine != null) StopCoroutine(_clearCoroutine);
-            var renderers = new ITintable[1 + _iconTints.Length];
-            renderers[0] = _bodyTint;
-            for (int i = 0; i < _iconTints.Length; i++)
-                renderers[i + 1] = _iconTints[i];
+            
+            var renderers = new List<ITintable>();
+            if (_iconTint != null) renderers.Add(_iconTint);
+            
             _clearCoroutine = StartCoroutine(CardAnimator.HighlightThenClear(
-                _emissionTint, _highlightEmission, _content, renderers,
+                null, _highlightEmission, _foodAnchor, renderers.ToArray(),
                 () =>
                 {
+                    _foodAnchor.localScale = Vector3.one;
                     _content.localScale = Vector3.one;
                     SetEmpty();
                     onComplete?.Invoke();

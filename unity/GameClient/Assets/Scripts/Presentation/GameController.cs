@@ -227,7 +227,7 @@ namespace GameClient.Presentation
             IsInputLocked = true;
 
             var value = _board.Cells[slotId].Value;
-            var foodModel = TileVisual.FoodModelFor(_boardView.TileSet, value);
+            var tileSprite = TileVisual.IconFor(_boardView.TileSet, value);
 
             var tileView = _boardView.GetTileView(slotId);
             Vector3 startPos = tileView != null
@@ -250,12 +250,12 @@ namespace GameClient.Presentation
             // arrival pop-in starts before the flight lands (see CardAnimator.
             // TrayArrivalOverlapFraction) so the two read as one continuous motion.
             int landingIndex = oldTray.Count;
-            var flight = _trayView.SpawnFlightCard(foodModel, startPos);
+            var flight = _trayView.SpawnFlightCard(tileSprite, startPos);
             Vector3 slotPos = _trayView.GetSlotWorldPosition(landingIndex);
             var flightRoutine = StartCoroutine(
                 CardAnimator.MoveTransform(flight.transform, startPos, slotPos, CardAnimator.TrayFlightDuration));
             yield return new WaitForSeconds(CardAnimator.TrayFlightDuration * CardAnimator.TrayArrivalOverlapFraction);
-            _trayView.PlayArrivalPopIn(landingIndex, foodModel);
+            _trayView.PlayArrivalPopIn(landingIndex, tileSprite);
             yield return flightRoutine;
             _trayView.ReleaseFlightCard(flight);
 

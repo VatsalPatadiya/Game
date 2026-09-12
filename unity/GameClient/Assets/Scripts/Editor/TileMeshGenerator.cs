@@ -4,9 +4,6 @@ using UnityEngine;
 
 public static class TileMeshGenerator
 {
-    // Slimmer Z depth (was 0.40) so the extruded green side reads as a thin,
-    // elegant edge like the reference screenshot, not a chunky top band - while
-    // still keeping visible physical thickness.
     private const float CardThickness = 0.24f;
 
     public static void Generate()
@@ -14,80 +11,43 @@ public static class TileMeshGenerator
         System.IO.Directory.CreateDirectory("Assets/Prefabs");
 
         var root = new GameObject("Tile3D");
-
-        float w = CardStyle.CardSizeRatio * CardStyle.CardAspectRatio;
-        float h = CardStyle.CardSizeRatio;
-        float cornerRadius = w * 0.16f;
-
-        var body = new GameObject("CardBody", typeof(MeshFilter), typeof(MeshRenderer));
+        
+        var body = new GameObject("Body");
         body.transform.SetParent(root.transform, false);
-
-        var tileMesh = RoundedTileMesh.Build(w, h, CardThickness, cornerRadius, cornerSegments: 6);
-        // Persist the generated mesh as a standalone asset BEFORE saving the
-        // prefab, so the saved prefab's MeshFilter references a real asset on
-        // disk rather than an unsaved runtime Mesh (AddObjectToAsset after
-        // SaveAsPrefabAsset does not reliably re-link the already-serialized
-        // prefab reference, leaving the tile invisible).
-        System.IO.Directory.CreateDirectory("Assets/Meshes");
-        const string meshPath = "Assets/Meshes/RoundedTile.asset";
-        var existingMesh = AssetDatabase.LoadAssetAtPath<Mesh>(meshPath);
-        if (existingMesh != null)
-            AssetDatabase.DeleteAsset(meshPath);
-        AssetDatabase.CreateAsset(tileMesh, meshPath);
-        AssetDatabase.SaveAssets();
-        var persistedMesh = AssetDatabase.LoadAssetAtPath<Mesh>(meshPath);
-        body.GetComponent<MeshFilter>().sharedMesh = persistedMesh;
-
-        var bodyRenderer = body.GetComponent<MeshRenderer>();
-        var cardMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/TileBody.mat");
-        var baseMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/TileBase.mat");
-        if (cardMaterial == null || baseMaterial == null)
-            throw new System.Exception("TILE_MESH_GENERATOR_MISSING_MATERIAL: run TileMaterialGenerator first");
-        bodyRenderer.sharedMaterials = new Material[] { cardMaterial, baseMaterial };
-        bodyRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-        bodyRenderer.receiveShadows = false;
-
-        var foodAnchorGO = new GameObject("FoodAnchor");
-        foodAnchorGO.transform.SetParent(root.transform, false);
-        foodAnchorGO.transform.localPosition = new Vector3(0f, 0f, -(CardThickness / 2f + 0.02f));
-        foodAnchorGO.transform.localScale = Vector3.one * 2.2f; // slightly larger symbol, safely inside bounds
-
-        // Soft drop shadow: a quad behind the tile body (toward the felt, +Z),
-        // nudged down-right so it reads under a top-left key light. Extends past
-        // the tile silhouette so its edges peek out as a contact shadow.
-        var shadowMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/TileShadow.mat");
-        if (shadowMat == null)
-            throw new System.Exception("TILE_MESH_GENERATOR_MISSING_SHADOW: run TileMaterialGenerator first");
-        var shadowGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
-        shadowGO.name = "DropShadow";
-        Object.DestroyImmediate(shadowGO.GetComponent<Collider>());
-        shadowGO.transform.SetParent(root.transform, false);
-        shadowGO.transform.localPosition = new Vector3(0.015f, -0.03f, CardThickness / 2f - 0.005f);
-        shadowGO.transform.localScale = new Vector3(w * 1.05f, h * 1.05f, 1f);
-        var shadowRenderer = shadowGO.GetComponent<MeshRenderer>();
-        shadowRenderer.sharedMaterial = shadowMat;
-        shadowRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-        shadowRenderer.receiveShadows = false;
-        shadowRenderer.enabled = true; // Restored drop shadow, but tighter and darker
-
-        var tileView = root.AddComponent<TileView3D>(); // auto-adds a BoxCollider to root via [RequireComponent]
-        var collider = root.GetComponent<BoxCollider>();
+        
+        var bodyRenderer = body.AddComponent<SpriteRenderer>();
+        var sprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Sprites/Tiles/Tile_1.png");
+        bodyRenderer.sprite = sprite;
+        
+        if (sprite != null)
+        {
+            float targetHeight = CardStyle.CardSizeRatio; // 0.92
+            float spriteHeight = sprite.bounds.size.y;
+            float scaleFactor = spriteHeight > 0f ? (targetHeight / spriteHeight) : 1f;
+            body.transform.localScale = new Vector3(scaleFactor, scaleFactor, 1f);
+        }
+        
+        var collider = root.AddComponent<BoxCollider>();
         collider.size = new Vector3(
             CardStyle.CardSizeRatio * CardStyle.CardAspectRatio,
             CardStyle.CardSizeRatio,
             CardThickness);
         collider.center = Vector3.zero;
 
+        var tileView = root.AddComponent<TileView3D>();
+
         var serialized = new SerializedObject(tileView);
         serialized.FindProperty("_bodyRenderer").objectReferenceValue = bodyRenderer;
         serialized.FindProperty("_bodyCollider").objectReferenceValue = collider;
-        serialized.FindProperty("_foodAnchor").objectReferenceValue = foodAnchorGO.transform;
+        serialized.FindProperty("_freeCardColor").colorValue = Color.white;
+        serialized.FindProperty("_blockedCardColor").colorValue = new Color(0.6f, 0.6f, 0.6f, 1f);
+        serialized.FindProperty("_highlightColor").colorValue = new Color(1f, 0.9f, 0.6f, 1f);
         serialized.ApplyModifiedPropertiesWithoutUndo();
 
         PrefabUtility.SaveAsPrefabAsset(root, "Assets/Prefabs/Tile3D.prefab");
         Object.DestroyImmediate(root);
 
         AssetDatabase.SaveAssets();
-        Debug.Log("TILE_MESH_GENERATOR_DONE");
+        Debug.Log("TILE_MESH_GENERATOR_DONE (SVG DYNAMIC SCALE)");
     }
 }

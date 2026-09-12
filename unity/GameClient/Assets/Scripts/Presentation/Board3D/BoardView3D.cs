@@ -149,7 +149,7 @@ namespace GameClient.Presentation.Board3D
                 var slot = slotsById[kv.Key];
                 var view = Instantiate(_tilePrefab, transform);
                 PlaceTileView(view, slot);
-                view.Initialize(slot.Id, slot.Layer, TileVisual.FoodModelFor(_tileSet, kv.Value.Value));
+                view.Initialize(slot.Id, slot.Layer, TileVisual.IconFor(_tileSet, kv.Value.Value));
                 _tileViews[kv.Key] = view;
 
                 if (animateDealIn)
@@ -359,7 +359,7 @@ namespace GameClient.Presentation.Board3D
 
                 var view = Instantiate(_tilePrefab, transform);
                 PlaceTileView(view, slot);
-                view.Initialize(slot.Id, slot.Layer, TileVisual.FoodModelFor(_tileSet, cell.Value));
+                view.Initialize(slot.Id, slot.Layer, TileVisual.IconFor(_tileSet, cell.Value));
                 view.PlayFadeInOnly();
                 _tileViews[id] = view;
             }
@@ -375,7 +375,7 @@ namespace GameClient.Presentation.Board3D
                 if (!_tileViews.TryGetValue(id, out var view)) continue;
                 if (!_slotsById.TryGetValue(id, out var slot)) continue;
                 if (!board.Cells.TryGetValue(id, out var cell)) continue;
-                view.Initialize(slot.Id, slot.Layer, TileVisual.FoodModelFor(_tileSet, cell.Value));
+                view.Initialize(slot.Id, slot.Layer, TileVisual.IconFor(_tileSet, cell.Value));
             }
             RefreshFreeStates(board);
         }

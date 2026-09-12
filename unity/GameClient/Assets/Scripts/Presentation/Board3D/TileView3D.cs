@@ -7,30 +7,19 @@ namespace GameClient.Presentation.Board3D
     [RequireComponent(typeof(BoxCollider))]
     public sealed class TileView3D : MonoBehaviour
     {
-        [SerializeField] private MeshRenderer _bodyRenderer;
+        [SerializeField] private SpriteRenderer _bodyRenderer;
         [SerializeField] private BoxCollider _bodyCollider;
-        [SerializeField] private Transform _foodAnchor;
-        [SerializeField] private Color _freeCardColor = new Color(0.969f, 0.957f, 0.922f, 1f);
-        // Covered tiles keep their full ivory colour (no grey-out) - depth reads
-        // from the real stacking shadows, like the reference. (Was a dark grey that
-        // made the whole board look washed out.)
-        [SerializeField] private Color _blockedCardColor = new Color(0.969f, 0.957f, 0.922f, 1f);
-        [SerializeField] private Color _highlightEmission = new Color(1f, 0.85f, 0.2f, 1f);
-        // Very subtle resting glow on free/selectable tiles so they read as
-        // available at a glance without dimming the covered tiles (guidelines s5;
-        // the prior grey-out of blocked tiles was rejected as washing out the board).
-        [SerializeField] private Color _freeIdleEmission = new Color(0.09f, 0.075f, 0.02f, 1f);
+        
+        [SerializeField] private Color _freeCardColor = Color.white;
+        [SerializeField] private Color _blockedCardColor = new Color(0.6f, 0.6f, 0.6f, 1f);
+        [SerializeField] private Color _highlightColor = new Color(1f, 0.9f, 0.6f, 1f);
 
-        private const float DragLiftDistance = 1.5f; // pulled toward the camera, in front of every layer
+        private const float DragLiftDistance = 1.5f;
         private const float DragSnapBackDuration = 0.18f;
+        private const float SelectLift = 0.35f;
 
-        private MeshRendererTint _bodyTint;
-        private MeshRendererTint[] _iconTints = new MeshRendererTint[0];
-        private MeshRendererTint _emissionTint;
+        private SpriteRendererTint _bodyTint;
         private Vector3 _originalLocalPos;
-
-        // Stack-height drop shadow (guidelines s5: higher tiles cast a larger,
-        // softer, more-offset shadow). Cached from the "DropShadow" child.
         private Transform _dropShadow;
         private Vector3 _shadowBaseScale;
         private Vector3 _shadowBasePos;
@@ -45,20 +34,14 @@ namespace GameClient.Presentation.Board3D
         public string SlotId { get; private set; }
         public int Layer { get; private set; }
 
-        // foodModelPrefab replaces the old flat icon+accentColor combo - each
-        // tile value gets a distinct food mesh (see TileVisual.FoodModelFor)
-        // instead of a shared quad retextured/tinted per value. A food model
-        // can have several sub-meshes/renderers (e.g. a burger's bun/patty
-        // parts), so every renderer under it gets its own MeshRendererTint -
-        // BuildRendererArray folds them all in alongside the card body for
-        // the shared fade animations in CardAnimator.
-        public void Initialize(string slotId, int layer, GameObject foodModelPrefab)
+        public void Initialize(string slotId, int layer, Sprite tileSprite)
         {
             SlotId = slotId;
             Layer = layer;
 
-            _bodyTint = new MeshRendererTint(_bodyRenderer, "_BaseColor", null, 0);
-            _emissionTint = new MeshRendererTint(_bodyRenderer, "_EmissionColor", null, 0);
+            _bodyTint = new SpriteRendererTint(_bodyRenderer);
+            _bodyRenderer.sprite = tileSprite;
+            _bodyRenderer.sortingOrder = layer;
 
             _originalLocalPos = transform.localPosition;
             transform.localScale = Vector3.one;
@@ -73,32 +56,6 @@ namespace GameClient.Presentation.Board3D
                     _shadowBasePos = _dropShadow.localPosition;
                 }
             }
-            ApplyStackShadow(layer);
-
-            _iconTints = new MeshRendererTint[0];
-            if (_foodAnchor != null)
-            {
-                for (int i = _foodAnchor.childCount - 1; i >= 0; i--)
-                    Destroy(_foodAnchor.GetChild(i).gameObject);
-
-                if (foodModelPrefab != null)
-                {
-                    var foodInstance = Instantiate(foodModelPrefab, _foodAnchor);
-                    foodInstance.transform.localPosition = Vector3.zero;
-                    foodInstance.transform.localRotation = Quaternion.identity;
-
-                    var renderers = foodInstance.GetComponentsInChildren<MeshRenderer>();
-                    _iconTints = new MeshRendererTint[renderers.Length];
-                    for (int i = 0; i < renderers.Length; i++)
-                    {
-                        _iconTints[i] = new MeshRendererTint(renderers[i], "_BaseColor");
-                        _iconTints[i].Color = Color.white;
-                    }
-                }
-            }
-
-            var noEmission = Color.black;
-            _emissionTint.Color = noEmission;
 
             RefreshCardColor(true);
         }
@@ -107,68 +64,48 @@ namespace GameClient.Presentation.Board3D
         {
             _isFree = isFree;
             RefreshCardColor(isFree);
-            ApplyRestingEmission();
         }
 
         private void RefreshCardColor(bool isFree)
         {
-            _bodyTint.Color = isFree ? _freeCardColor : _blockedCardColor;
-        }
-
-        // The resting emission for a tile that isn't currently selected/hinted:
-        // a faint idle glow on free tiles, none on blocked tiles.
-        private void ApplyRestingEmission()
-        {
-            if (_isSelected) return; // selection glow wins until deselected
-            _emissionTint.Color = _isFree ? _freeIdleEmission : Color.black;
+            if (_isSelected) return;
+            if (_bodyTint != null) _bodyTint.Color = isFree ? _freeCardColor : _blockedCardColor;
         }
 
         public void Highlight()
         {
-            _emissionTint.Color = _highlightEmission;
+            if (_bodyTint != null) _bodyTint.Color = _highlightColor;
         }
 
-        private const float SelectLift = 0.35f; // toward the camera, so a picked tile pops forward
-
-        // On-board mahjong selection feedback: bright glow + a small forward lift.
-        // Deselecting falls back to the resting idle glow (if the tile is free).
         public void SetSelected(bool selected)
         {
             _isSelected = selected;
             if (selected)
-                _emissionTint.Color = _highlightEmission;
+            {
+                if (_bodyTint != null) _bodyTint.Color = _highlightColor;
+            }
             else
-                ApplyRestingEmission();
+            {
+                RefreshCardColor(_isFree);
+            }
+
             transform.localPosition = selected
                 ? _originalLocalPos + new Vector3(0f, 0f, -SelectLift)
                 : _originalLocalPos;
         }
 
-        // Scale/offset the drop shadow by stack height so upper tiles read as
-        // floating higher above the ones they cover (guidelines s5).
-        private void ApplyStackShadow(int layer)
-        {
-            if (_dropShadow == null) return;
-            // In 3D, physical height creates natural parallax. We no longer 
-            // artificially offset/grow the shadow based on layer.
-            _dropShadow.localScale = _shadowBaseScale;
-            _dropShadow.localPosition = _shadowBasePos;
-        }
-
         public void PlayDealIn(float delaySeconds, System.Action onComplete)
         {
-            var renderers = BuildRendererArray();
-            var targetColors = new Color[renderers.Length];
-            targetColors[0] = _bodyTint.Color;
-            for (int i = 0; i < _iconTints.Length; i++)
-                targetColors[i + 1] = _iconTints[i].Color;
-            StartCoroutine(DealInRoutine(renderers, targetColors, delaySeconds, onComplete));
+            var renderers = new ITintable[] { _bodyTint };
+            var targetColors = new Color[] { _bodyTint.Color };
+            StartCoroutine(CardAnimator.ScaleAndFadeIn(transform, renderers, targetColors, delaySeconds, CardAnimator.DealInDuration));
+            StartCoroutine(WaitAndInvoke(delaySeconds + CardAnimator.DealInDuration, onComplete));
         }
-
-        private IEnumerator DealInRoutine(ITintable[] renderers, Color[] targetColors, float delay, System.Action onComplete)
+        
+        private IEnumerator WaitAndInvoke(float delay, System.Action action)
         {
-            yield return CardAnimator.ScaleAndFadeIn(transform, renderers, targetColors, delay, CardAnimator.DealInDuration);
-            onComplete?.Invoke();
+            yield return new WaitForSeconds(delay);
+            action?.Invoke();
         }
 
         public void PlayTapAway(System.Action onComplete)
@@ -179,20 +116,17 @@ namespace GameClient.Presentation.Board3D
 
         private IEnumerator TapAwayRoutine(System.Action onComplete)
         {
-            _emissionTint.Color = _highlightEmission;
+            if (_bodyTint != null) _bodyTint.Color = _highlightColor;
             yield return new WaitForSeconds(CardAnimator.TapConfirmFlashDuration);
-            _emissionTint.Color = Color.black;
-
-            yield return CardAnimator.ScaleDownAndFadeOut(transform, BuildRendererArray(), CardAnimator.TapAwayDuration, onComplete);
+            yield return CardAnimator.ScaleDownAndFadeOut(transform, new ITintable[] { _bodyTint }, CardAnimator.TapAwayDuration, onComplete);
         }
 
         public void PlayFadeInOnly()
         {
             transform.localScale = Vector3.one;
-            var c = _bodyTint.Color; c.a = 1f; _bodyTint.Color = c;
-            foreach (var tint in _iconTints)
+            if (_bodyTint != null)
             {
-                var ic = tint.Color; ic.a = 1f; tint.Color = ic;
+                var c = _bodyTint.Color; c.a = 1f; _bodyTint.Color = c;
             }
         }
 
@@ -200,7 +134,7 @@ namespace GameClient.Presentation.Board3D
         {
             if (_clearCoroutine != null) StopCoroutine(_clearCoroutine);
             _clearCoroutine = StartCoroutine(
-                CardAnimator.ScaleUpAndFadeOut(transform, BuildRendererArray(), () => Destroy(gameObject)));
+                CardAnimator.ScaleUpAndFadeOut(transform, new ITintable[] { _bodyTint }, () => Destroy(gameObject)));
         }
 
         public void PlayShake()
@@ -213,7 +147,7 @@ namespace GameClient.Presentation.Board3D
         {
             const float duration = 0.2f;
             float elapsed = 0f;
-            _bodyTint.Color = Color.red;
+            if (_bodyTint != null) _bodyTint.Color = Color.red;
 
             while (elapsed < duration)
             {
@@ -225,15 +159,6 @@ namespace GameClient.Presentation.Board3D
 
             transform.localPosition = _originalLocalPos;
             RefreshCardColor(false);
-        }
-
-        private ITintable[] BuildRendererArray()
-        {
-            var result = new ITintable[1 + _iconTints.Length];
-            result[0] = _bodyTint;
-            for (int i = 0; i < _iconTints.Length; i++)
-                result[i + 1] = _iconTints[i];
-            return result;
         }
 
         public void BeginDrag()
