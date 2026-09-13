@@ -75,16 +75,27 @@ namespace GameClient.Presentation.HUD3D
             {
                 var iconGO = new GameObject("Icon");
                 iconGO.transform.SetParent(_foodAnchor, false);
-                // Target height is 0.62f to fully fit inside the Tray Slot Body Box
-                float targetHeight = 0.62f; 
-                float spriteHeight = tileSprite != null ? tileSprite.bounds.size.y : 1f;
-                float scaleFactor = spriteHeight > 0f ? (targetHeight / spriteHeight) : 1f;
-                iconGO.transform.localScale = new Vector3(scaleFactor, scaleFactor, 1f);
-                
                 _iconRenderer = iconGO.AddComponent<SpriteRenderer>();
                 _iconRenderer.sortingOrder = 100; 
                 _iconTint = new SpriteRendererTint(_iconRenderer);
             }
+
+            // Scale the icon to fill the tray slot box using the body mesh's actual bounds.
+            // This avoids guessing world units and works regardless of how the prefab is scaled.
+            if (tileSprite != null)
+            {
+                float boxHeight = (_bodyRenderer != null && _bodyRenderer.bounds.size.y > 0f)
+                    ? _bodyRenderer.bounds.size.y * 0.85f  // 85% of box height = snug fit with tiny margin
+                    : 0.7f;
+                float spriteHeight = tileSprite.bounds.size.y;
+                // Divide by the food anchor's lossy (world) Y scale so the local scale is correct
+                float parentWorldScale = (_foodAnchor != null && _foodAnchor.lossyScale.y > 0f)
+                    ? _foodAnchor.lossyScale.y
+                    : 1f;
+                float scaleFactor = spriteHeight > 0f ? (boxHeight / spriteHeight / parentWorldScale) : 1f;
+                _iconRenderer.transform.localScale = new Vector3(scaleFactor, scaleFactor, 1f);
+            }
+
             if (tileSprite != null)
             {
                 _iconRenderer.sprite = tileSprite;

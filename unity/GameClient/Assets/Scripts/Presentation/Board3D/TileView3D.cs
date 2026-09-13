@@ -30,6 +30,7 @@ namespace GameClient.Presentation.Board3D
         private Coroutine _clearCoroutine;
         private Coroutine _fadeCoroutine;
         private Coroutine _dragSnapCoroutine;
+        private Coroutine _highlightCoroutine;
 
         public string SlotId { get; private set; }
         public int Layer { get; private set; }
@@ -72,9 +73,50 @@ namespace GameClient.Presentation.Board3D
             if (_bodyTint != null) _bodyTint.Color = isFree ? _freeCardColor : _blockedCardColor;
         }
 
+        // Plays a single pulsing glow for ~2.5 seconds then returns to normal.
+        // Cancels any in-progress highlight before starting a new one.
         public void Highlight()
         {
+            if (_highlightCoroutine != null) StopCoroutine(_highlightCoroutine);
+            _highlightCoroutine = StartCoroutine(HintGlowRoutine());
+        }
+
+        private const float HintGlowDuration = 2.5f;
+
+        private IEnumerator HintGlowRoutine()
+        {
+            Color baseColor = _isFree ? _freeCardColor : _blockedCardColor;
+            const float rampUpTime   = 0.35f;
+            const float holdTime     = 1.6f;
+            const float rampDownTime = 0.55f;
+
+            // Ramp up to glow color
+            float elapsed = 0f;
+            while (elapsed < rampUpTime)
+            {
+                elapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(elapsed / rampUpTime);
+                if (_bodyTint != null) _bodyTint.Color = Color.Lerp(baseColor, _highlightColor, t);
+                yield return null;
+            }
+
             if (_bodyTint != null) _bodyTint.Color = _highlightColor;
+
+            // Hold at full glow
+            yield return new WaitForSeconds(holdTime);
+
+            // Ramp back down to normal
+            elapsed = 0f;
+            while (elapsed < rampDownTime)
+            {
+                elapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(elapsed / rampDownTime);
+                if (_bodyTint != null) _bodyTint.Color = Color.Lerp(_highlightColor, baseColor, t);
+                yield return null;
+            }
+
+            _highlightCoroutine = null;
+            RefreshCardColor(_isFree);
         }
 
         public void SetSelected(bool selected)
