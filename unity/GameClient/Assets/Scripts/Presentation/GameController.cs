@@ -68,19 +68,18 @@ namespace GameClient.Presentation
 
         private void Awake()
         {
+            // Ensure an AudioListener exists (required for any audio output).
+            if (Camera.main != null && Camera.main.GetComponent<AudioListener>() == null)
+                Camera.main.gameObject.AddComponent<AudioListener>();
+
             _audioSource = gameObject.AddComponent<AudioSource>();
             _audioSource.playOnAwake = false;
             _audioSource.volume = 1.0f;
+            _audioSource.spatialBlend = 0f; // Force 2D – no 3D distance rolloff
+
             _tilesSettledClip = Resources.Load<AudioClip>("SFX/TilesSettled");
-            
-            if (_tilesSettledClip == null)
-            {
-                Debug.LogError("[GameController] Failed to load TilesSettled.mp3 from Resources/SFX/TilesSettled!");
-            }
-            else
-            {
-                Debug.Log($"[GameController] Successfully loaded TilesSettled audio clip: {_tilesSettledClip.name}");
-            }
+            if (_tilesSettledClip != null)
+                _tilesSettledClip.LoadAudioData();
 
             // Load progress in Awake so it's ready before other components'
             // OnEnable (the level-select screen reads it there to show lock/stars).
@@ -202,14 +201,13 @@ namespace GameClient.Presentation
                 _trayView.Initialize(_board.MaxTraySize);
 
             IsInputLocked = true;
+            
+            // Play the level-start sound once.
+            if (_tilesSettledClip != null && _audioSource != null)
+                _audioSource.PlayOneShot(_tilesSettledClip);
+            
             _boardView.Build(_board, _slotsById, animateDealIn: true, onDealInComplete: () => {
                 IsInputLocked = false;
-                Debug.Log("[GameController] onDealInComplete fired! Checking audio...");
-                if (_tilesSettledClip != null && _audioSource != null)
-                {
-                    Debug.Log("[GameController] Playing TilesSettled audio clip NOW!");
-                    _audioSource.PlayOneShot(_tilesSettledClip);
-                }
             });
 
             // Every match is worth a flat 100 points (TrayManager.TryPushToTray) -
@@ -231,6 +229,7 @@ namespace GameClient.Presentation
         {
             if (_paused) return;
             if (IsInputLocked) return;
+
             if (_board.IsGameOver) return;
             if (_board.Cells.Values.All(c => c.Cleared)) return;
 
@@ -243,6 +242,8 @@ namespace GameClient.Presentation
                 _boardView.GetTileView(slotId)?.PlayShake();
                 return;
             }
+
+
 
             var newTray = new List<string>(_board.TrayTileIds);
             StartCoroutine(AnimateTapToTray(slotId, oldTray, newTray));
