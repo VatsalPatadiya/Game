@@ -240,6 +240,9 @@ namespace GameClient.Presentation
             if (!TrayManager.TryPushToTray(_board, _slotsById, slotId))
             {
                 _boardView.GetTileView(slotId)?.PlayShake();
+#if UNITY_ANDROID || UNITY_IOS
+                Handheld.Vibrate();
+#endif
                 return;
             }
 
