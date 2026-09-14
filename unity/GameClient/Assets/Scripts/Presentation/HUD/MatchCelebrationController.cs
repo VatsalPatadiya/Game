@@ -16,32 +16,36 @@ namespace GameClient.Presentation.HUD
         // Tuned from the reference video's burst: chunky, clearly separate
         // pieces rather than fine confetti dust - fewer, bigger particles read
         // better at real gameplay speed on a phone screen than many tiny ones.
-        private const float BurstDuration = 1.0f;
-        private const float MinParticleLifetime = 0.8f;
-        private const float MaxParticleLifetime = 1.2f;
-        private const float MinStartSpeed = 15f;
-        private const float MaxStartSpeed = 35f;
-        private const float MinStartSize = 0.5f;
-        private const float MaxStartSize = 0.9f;
-        private const float GravityModifier = 0.2f;
-        private const int MinBurstCount = 45;
-        private const int MaxBurstCount = 60;
-        private const float SphereRadius = 0.1f;
+        // Tuned for a full-screen magical firefly/fairy dust effect
+        private const float BurstDuration = 2.5f;
+        private const float MinParticleLifetime = 2.0f;
+        private const float MaxParticleLifetime = 2.5f;
+        private const float MinStartSpeed = 0.5f;
+        private const float MaxStartSpeed = 2.0f;
+        private const float MinStartSize = 0.04f;
+        private const float MaxStartSize = 0.15f;
+        private const float GravityModifier = -0.05f; // Float slightly upwards
+        private const int MinBurstCount = 300;
+        private const int MaxBurstCount = 450;
 
-        // Sparkle accent: fewer, slightly bigger, brighter, and a touch
-        // faster so they pop against the bulk of the glow particles.
-        private const int MinSparkleCount = 15;
-        private const int MaxSparkleCount = 25;
-        private const float MinSparkleSize = 1.5f;
-        private const float MaxSparkleSize = 2.5f;
-        private const float MinSparkleSpeed = 20f;
-        private const float MaxSparkleSpeed = 45f;
+        // Sparkle accent
+        private const int MinSparkleCount = 150;
+        private const int MaxSparkleCount = 240;
+        private const float MinSparkleSize = 0.08f;
+        private const float MaxSparkleSize = 0.2f;
+        private const float MinSparkleSpeed = 1.0f;
+        private const float MaxSparkleSpeed = 3.0f;
 
         public void PlayMatchCelebration(Vector3 worldPosition, bool isCombo)
         {
-            SpawnBurst(worldPosition, _glowMaterial, MinBurstCount, MaxBurstCount,
+            // Spawn the particles in front of the camera so they cover the whole screen
+            Vector3 spawnPosition = Camera.main != null ? 
+                Camera.main.transform.position + Camera.main.transform.forward * 10f : 
+                worldPosition;
+
+            SpawnBurst(spawnPosition, _glowMaterial, MinBurstCount, MaxBurstCount,
                 MinStartSize, MaxStartSize, MinStartSpeed, MaxStartSpeed);
-            SpawnBurst(worldPosition, _sparkleMaterial, MinSparkleCount, MaxSparkleCount,
+            SpawnBurst(spawnPosition, _glowMaterial, MinSparkleCount, MaxSparkleCount,
                 MinSparkleSize, MaxSparkleSize, MinSparkleSpeed, MaxSparkleSpeed);
         }
 
@@ -61,13 +65,13 @@ namespace GameClient.Presentation.HUD
             main.startLifetime = new ParticleSystem.MinMaxCurve(MinParticleLifetime, MaxParticleLifetime);
             main.startSpeed = new ParticleSystem.MinMaxCurve(minSpeed, maxSpeed);
             main.startSize = new ParticleSystem.MinMaxCurve(minSize, maxSize);
-            // Premium Gold Shockwave
+            
+            // Plain White Glow
             var colorGradient = new Gradient();
             colorGradient.SetKeys(
                 new[] { 
-                    new GradientColorKey(new Color(1f, 0.95f, 0.6f), 0f),    // Soft bright gold
-                    new GradientColorKey(new Color(1f, 0.8f, 0.2f), 0.5f),   // Pure gold
-                    new GradientColorKey(new Color(1f, 1f, 1f), 1f)          // Crisp white
+                    new GradientColorKey(Color.white, 0f),
+                    new GradientColorKey(Color.white, 1f)
                 },
                 new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(1f, 1f) }
             );
@@ -79,24 +83,25 @@ namespace GameClient.Presentation.HUD
             emission.rateOverTime = 0f;
             emission.SetBursts(new[] { new ParticleSystem.Burst(0f, (short)minCount, (short)maxCount, 1, 0f) });
 
+            // Full screen box shape
             var shape = ps.shape;
-            shape.shapeType = ParticleSystemShapeType.Sphere;
-            shape.radius = SphereRadius;
+            shape.shapeType = ParticleSystemShapeType.Box;
+            shape.scale = new Vector3(15f, 25f, 5f); // Large enough to cover most phone screens at z=10
 
-            // Premium Drag: Particles shoot out fast but immediately slow down
-            var velocityLimit = ps.limitVelocityOverLifetime;
-            velocityLimit.enabled = true;
-            velocityLimit.limit = 0f;
-            velocityLimit.drag = 5f;
-            velocityLimit.multiplyDragByParticleSize = false;
-            velocityLimit.multiplyDragByParticleVelocity = true;
+            // Noise for firefly floating effect
+            var noise = ps.noise;
+            noise.enabled = true;
+            noise.strength = 0.5f;
+            noise.frequency = 0.5f;
+            noise.scrollSpeed = 0.2f;
 
-            // Premium Easing: Pop to 1 instantly, hold briefly, then ease-out curve
+            // Premium Easing: Fade in and out softly
             var sizeOverLifetime = ps.sizeOverLifetime;
             sizeOverLifetime.enabled = true;
             sizeOverLifetime.size = new ParticleSystem.MinMaxCurve(1f, new AnimationCurve(
-                new Keyframe(0f, 1f, 0f, 0f),
-                new Keyframe(0.6f, 1f, 0f, -2f),
+                new Keyframe(0f, 0f, 0f, 2f),
+                new Keyframe(0.2f, 1f, 0f, 0f),
+                new Keyframe(0.8f, 1f, 0f, 0f),
                 new Keyframe(1f, 0f, -2f, 0f)
             ));
 
@@ -104,8 +109,9 @@ namespace GameClient.Presentation.HUD
             colorOverLifetime.enabled = true;
             var alphaKeys = new[]
             {
-                new GradientAlphaKey(1f, 0f),
-                new GradientAlphaKey(1f, 0.7f),
+                new GradientAlphaKey(0f, 0f),
+                new GradientAlphaKey(1f, 0.2f),
+                new GradientAlphaKey(1f, 0.8f),
                 new GradientAlphaKey(0f, 1f)
             };
             var colorKeys = new[]
@@ -121,7 +127,7 @@ namespace GameClient.Presentation.HUD
             psRenderer.material = material;
 
             ps.Play();
-            Destroy(go, BurstDuration + 0.5f);
+            Destroy(go, MaxParticleLifetime + 0.5f);
         }
     }
 }

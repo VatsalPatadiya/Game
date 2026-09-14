@@ -55,15 +55,15 @@ public static class MatchParticleGenerator
             float v = (y + 0.5f) / Size * 2f - 1f;
             float d = Mathf.Sqrt(u * u + v * v);
 
-            // Classic twinkle shape: two thin rays along the axes, each
-            // tapering to a point at the tip (not a flat plus-sign), plus a
-            // small bright core where they cross.
-            float axisFade = 1f - SmoothStep01(0f, 1f, d);
-            float horizontal = (1f - SmoothStep01(0f, 0.05f, Mathf.Abs(v))) * axisFade;
-            float vertical = (1f - SmoothStep01(0f, 0.05f, Mathf.Abs(u))) * axisFade;
-            float core = 1f - SmoothStep01(0f, 0.22f, d);
-            float a = Mathf.Clamp01(Mathf.Max(Mathf.Max(horizontal, vertical), core));
-            a = Mathf.Pow(a, 1.4f); // sharpen the taper toward the ray tips
+            // Rounded 4-point sparkle (fatter lobes)
+            float angle = Mathf.Atan2(v, u);
+            float shape = 0.15f + 0.65f * Mathf.Pow(Mathf.Abs(Mathf.Cos(angle * 2f)), 0.6f);
+            float core = 1f - SmoothStep01(shape - 0.15f, shape + 0.05f, d);
+            
+            // Soft white circular background (lower opacity so the sparkle pops)
+            float bg = (1f - SmoothStep01(0.7f, 0.95f, d)) * 0.35f; 
+            
+            float a = Mathf.Clamp01(core + bg);
             tex.SetPixel(x, y, new Color(1f, 1f, 1f, a));
         }
 
