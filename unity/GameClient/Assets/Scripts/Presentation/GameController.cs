@@ -31,6 +31,10 @@ namespace GameClient.Presentation
         private int _comboCount;
         private readonly System.Random _random = new System.Random();
 
+        [Header("Audio")]
+        private AudioSource _audioSource;
+        private AudioClip _tilesSettledClip;
+
         // Progression (sub-project #4): loaded/saved progress, the level being
         // played, and how many aids were spent this attempt (for star scoring).
         private GameProgress _progress;
@@ -64,6 +68,20 @@ namespace GameClient.Presentation
 
         private void Awake()
         {
+            _audioSource = gameObject.AddComponent<AudioSource>();
+            _audioSource.playOnAwake = false;
+            _audioSource.volume = 1.0f;
+            _tilesSettledClip = Resources.Load<AudioClip>("SFX/TilesSettled");
+            
+            if (_tilesSettledClip == null)
+            {
+                Debug.LogError("[GameController] Failed to load TilesSettled.mp3 from Resources/SFX/TilesSettled!");
+            }
+            else
+            {
+                Debug.Log($"[GameController] Successfully loaded TilesSettled audio clip: {_tilesSettledClip.name}");
+            }
+
             // Load progress in Awake so it's ready before other components'
             // OnEnable (the level-select screen reads it there to show lock/stars).
             _progress = SaveSystem.Load();
@@ -184,7 +202,15 @@ namespace GameClient.Presentation
                 _trayView.Initialize(_board.MaxTraySize);
 
             IsInputLocked = true;
-            _boardView.Build(_board, _slotsById, animateDealIn: true, onDealInComplete: () => IsInputLocked = false);
+            _boardView.Build(_board, _slotsById, animateDealIn: true, onDealInComplete: () => {
+                IsInputLocked = false;
+                Debug.Log("[GameController] onDealInComplete fired! Checking audio...");
+                if (_tilesSettledClip != null && _audioSource != null)
+                {
+                    Debug.Log("[GameController] Playing TilesSettled audio clip NOW!");
+                    _audioSource.PlayOneShot(_tilesSettledClip);
+                }
+            });
 
             // Every match is worth a flat 100 points (TrayManager.TryPushToTray) -
             // ComboScorer's streak multiplier is dead code, never invoked - so a
