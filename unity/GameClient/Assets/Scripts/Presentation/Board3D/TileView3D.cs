@@ -42,7 +42,19 @@ namespace GameClient.Presentation.Board3D
 
             _bodyTint = new SpriteRendererTint(_bodyRenderer);
             _bodyRenderer.sprite = tileSprite;
-            _bodyRenderer.sortingOrder = layer;
+            // Initial order, will be correctly set by BoardView after placement
+            _bodyRenderer.sortingOrder = layer * 10000;
+
+            if (tileSprite != null)
+            {
+                // Dynamically scale the sprite so its world width is precisely 0.626f.
+                // This perfectly matches the _cellWidth logic in BoardView3D and prevents 
+                // the horizontal overlapping seen when sprites are naturally too wide.
+                float targetWidth = 0.626f;
+                float spriteWidthUnits = tileSprite.bounds.size.x;
+                float scale = spriteWidthUnits > 0 ? (targetWidth / spriteWidthUnits) : 1f;
+                _bodyRenderer.transform.localScale = new Vector3(scale, scale, 1f);
+            }
 
             _originalLocalPos = transform.localPosition;
             transform.localScale = Vector3.one;
@@ -125,15 +137,25 @@ namespace GameClient.Presentation.Board3D
             if (selected)
             {
                 if (_bodyTint != null) _bodyTint.Color = _highlightColor;
+                if (_bodyRenderer != null) _bodyRenderer.sortingOrder = 32000; // Bring to front while selected
             }
             else
             {
                 RefreshCardColor(_isFree);
+                UpdateSortingOrder();
             }
 
             transform.localPosition = selected
                 ? _originalLocalPos + new Vector3(0f, 0f, -SelectLift)
                 : _originalLocalPos;
+        }
+
+        public void UpdateSortingOrder()
+        {
+            // layer * 10000 ensures higher layers always render in front.
+            // -localPosition.y * 100 ensures tiles lower on the screen render in front of tiles higher up.
+            int order = (Layer * 10000) - Mathf.RoundToInt(_originalLocalPos.y * 100f);
+            if (_bodyRenderer != null) _bodyRenderer.sortingOrder = order;
         }
 
         public void PlayDealIn(float delaySeconds, System.Action onComplete)

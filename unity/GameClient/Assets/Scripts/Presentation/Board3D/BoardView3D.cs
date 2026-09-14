@@ -297,6 +297,7 @@ namespace GameClient.Presentation.Board3D
                 slot.Y * _cellHeight + jitter.y + layerOffset.y,
                 -slot.Layer * _layerHeight);
             view.transform.localRotation = Quaternion.Euler(0f, 0f, jitter.z);
+            view.UpdateSortingOrder();
         }
 
         private Vector3 JitterFor(string slotId)

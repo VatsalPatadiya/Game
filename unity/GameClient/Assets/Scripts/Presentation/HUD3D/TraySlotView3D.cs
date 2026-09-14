@@ -84,16 +84,43 @@ namespace GameClient.Presentation.HUD3D
             // This avoids guessing world units and works regardless of how the prefab is scaled.
             if (tileSprite != null)
             {
-                float boxHeight = (_bodyRenderer != null && _bodyRenderer.bounds.size.y > 0f)
-                    ? _bodyRenderer.bounds.size.y * 0.85f  // 85% of box height = snug fit with tiny margin
-                    : 0.7f;
-                float spriteHeight = tileSprite.bounds.size.y;
-                // Divide by the food anchor's lossy (world) Y scale so the local scale is correct
-                float parentWorldScale = (_foodAnchor != null && _foodAnchor.lossyScale.y > 0f)
-                    ? _foodAnchor.lossyScale.y
-                    : 1f;
-                float scaleFactor = spriteHeight > 0f ? (boxHeight / spriteHeight / parentWorldScale) : 1f;
-                _iconRenderer.transform.localScale = new Vector3(scaleFactor, scaleFactor, 1f);
+                // Calculate physical bounds of the dark tray box, using a 95% margin 
+                // to guarantee the sprite NEVER touches or crosses the edges.
+                float boxWidth = (_bodyRenderer != null && _bodyRenderer.bounds.size.x > 0f) ? _bodyRenderer.bounds.size.x * 0.95f : 0.6f;
+                float boxHeight = (_bodyRenderer != null && _bodyRenderer.bounds.size.y > 0f) ? _bodyRenderer.bounds.size.y * 0.95f : 0.8f;
+                
+                float spriteWidthUnits = tileSprite.bounds.size.x;
+                float spriteHeightUnits = tileSprite.bounds.size.y;
+                
+                float parentWorldScaleX = (_foodAnchor != null && _foodAnchor.lossyScale.x > 0f) ? _foodAnchor.lossyScale.x : 1f;
+                float parentWorldScaleY = (_foodAnchor != null && _foodAnchor.lossyScale.y > 0f) ? _foodAnchor.lossyScale.y : 1f;
+
+                float scaleX = spriteWidthUnits > 0f ? (boxWidth / spriteWidthUnits / parentWorldScaleX) : 1f;
+                float scaleY = spriteHeightUnits > 0f ? (boxHeight / spriteHeightUnits / parentWorldScaleY) : 1f;
+                
+                // Use independent X and Y scales so the tile perfectly fills the tray slot 
+                // horizontally AND vertically, stretching slightly if needed to perfectly fit the hole.
+                _iconRenderer.transform.localScale = new Vector3(scaleX, scaleY, 1f);
+
+                // PERFECT CENTERING: We set the icon to exactly the WORLD center of the mesh bounds.
+                if (_bodyRenderer != null)
+                {
+                    _iconRenderer.transform.position = _bodyRenderer.bounds.center;
+                    
+                    // We push it slightly forward in Z so it doesn't clip into the box
+                    _iconRenderer.transform.localPosition = new Vector3(
+                        _iconRenderer.transform.localPosition.x, 
+                        _iconRenderer.transform.localPosition.y, 
+                        -0.1f
+                    );
+                }
+                else 
+                {
+                    _iconRenderer.transform.localPosition = Vector3.zero;
+                }
+                
+                // Note: We deliberately do NOT add any manual X/Y offsets here, 
+                // because offsetting it risks pushing it outside the bounds of the box.
             }
 
             if (tileSprite != null)
