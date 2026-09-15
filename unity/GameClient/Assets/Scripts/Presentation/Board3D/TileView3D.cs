@@ -209,19 +209,22 @@ namespace GameClient.Presentation.Board3D
 
         private IEnumerator ShakeRoutine()
         {
-            const float duration = 0.2f;
+            const float duration = 0.25f;
             float elapsed = 0f;
-            if (_bodyTint != null) _bodyTint.Color = Color.red;
+            Color softRed = new Color(1.0f, 0.6f, 0.6f, 1f);
+            
+            if (_bodyTint != null) _bodyTint.Color = softRed;
+            Quaternion originalRot = transform.localRotation;
 
             while (elapsed < duration)
             {
                 elapsed += Time.deltaTime;
-                float xOffset = Mathf.Sin(elapsed * 40f) * 0.1f;
-                transform.localPosition = _originalLocalPos + new Vector3(xOffset, 0, 0);
+                float zAngle = Mathf.Sin(elapsed * 35f) * 6f * (1f - (elapsed / duration));
+                transform.localRotation = originalRot * Quaternion.Euler(0, 0, zAngle);
                 yield return null;
             }
 
-            transform.localPosition = _originalLocalPos;
+            transform.localRotation = originalRot;
             RefreshCardColor(false);
         }
 
