@@ -114,8 +114,8 @@ public static class WoodUiGenerator
         Color HudButtonFaceColorAt(float u, float vv) =>
             RadialDiscColorAt(u, vv, StyleARing, StyleAHighlight, StyleAFace, StyleAShadow);
 
-        // Locked/disabled look - muted steel slate
-        var LockedRing = new Color(0.350f, 0.390f, 0.440f);      // muted steel slate
+        // Locked/disabled look - keeps the gold rim so physical size & outer border match Back/Menu
+        var LockedRing = AmberChrome;                            // Champagne Gold rim
         var LockedHighlight = new Color(0.160f, 0.200f, 0.240f); 
         var LockedFace = new Color(0.110f, 0.140f, 0.170f);      
         var LockedShadow = new Color(0.070f, 0.090f, 0.110f);    

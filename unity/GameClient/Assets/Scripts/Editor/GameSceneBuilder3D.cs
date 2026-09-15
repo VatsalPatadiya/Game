@@ -419,7 +419,7 @@ public static class GameSceneBuilder3D
         // whole HUD (they were at 0.2/0.8, a bit narrower than the tray).
         const float BottomButtonRowY = 0.08f; // low at the bottom (above the gesture bar) so the taller 5-layer pyramid clears the buttons
         var shuffleButtonGO = CreateHudButton3D(camera, hudButtonFaceMaterial, badgeMaterial, new Vector2(0.17f, BottomButtonRowY), gameController, typeof(ShuffleButton3D), shuffleIcon,
-            locked: true, lockedFaceMaterial: hudButtonFaceLockedMaterial, iconScale: 0.35f);
+            iconScale: 0.35f);
         var hintButtonGO = CreateHudButton3D(camera, hudButtonFaceMaterial, badgeMaterial, new Vector2(0.5f, BottomButtonRowY), gameController, typeof(HintButton3D), hintIcon,
             iconColorOverride: GoldIconTint, iconScale: 0.35f);
         var undoButtonGO = CreateHudButton3D(camera, hudButtonFaceMaterial, badgeMaterial, new Vector2(0.83f, BottomButtonRowY), gameController, typeof(UndoButton3D), undoIcon, iconScale: 0.35f);
