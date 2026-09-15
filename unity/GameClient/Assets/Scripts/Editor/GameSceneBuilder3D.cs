@@ -71,7 +71,7 @@ public static class GameSceneBuilder3D
         // size is unchanged despite the wider lens - only the board grows.
         camera.fieldOfView = 48f;
         camera.clearFlags = CameraClearFlags.SolidColor;
-        camera.backgroundColor = new Color(0.098f, 0.184f, 0.145f); // dark felt edge, in case the felt quad doesn't reach a frame corner
+        camera.backgroundColor = new Color(0.450f, 0.530f, 0.640f); // steel blue vignette edge
         cameraGO.tag = "MainCamera";
         // Editor batch mode has no real display, so Camera.aspect defaults
         // to some arbitrary (non-portrait) value here. Every
@@ -815,9 +815,9 @@ public static class GameSceneBuilder3D
         var radial = go.AddComponent<BackgroundRadial3D>();
         radial.targetCamera = camera;
         radial.distance = distance;
-        // Felt.png gradient colors (approx):
-        radial.innerColor = new Color(0.18f, 0.40f, 0.28f, 1f); // Lighter Jade
-        radial.outerColor = new Color(0.04f, 0.12f, 0.08f, 1f); // Darker Jade
+        // Light Steel Blue (#B0C4DE) to deeper steel blue vignette:
+        radial.innerColor = new Color(0.690f, 0.769f, 0.871f, 1f); // Light Steel Blue
+        radial.outerColor = new Color(0.450f, 0.530f, 0.640f, 1f); // Deeper Steel Blue vignette
         go.transform.SetParent(parent, false);
         return go;
     }

@@ -582,8 +582,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GameClient.Presentation.HUD3D.BackgroundRadial3D
   targetCamera: {fileID: 1189357416}
   distance: 6.54
-  innerColor: {r: 0.18, g: 0.4, b: 0.28, a: 1}
-  outerColor: {r: 0.04, g: 0.12, b: 0.08, a: 1}
+  innerColor: {r: 0.69, g: 0.769, b: 0.871, a: 1}
+  outerColor: {r: 0.45, g: 0.53, b: 0.64, a: 1}
   segments: 32
 --- !u!23 &59060312
 MeshRenderer:
@@ -690,8 +690,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GameClient.Presentation.HUD3D.BackgroundRadial3D
   targetCamera: {fileID: 1189357416}
   distance: 6.54
-  innerColor: {r: 0.18, g: 0.4, b: 0.28, a: 1}
-  outerColor: {r: 0.04, g: 0.12, b: 0.08, a: 1}
+  innerColor: {r: 0.69, g: 0.769, b: 0.871, a: 1}
+  outerColor: {r: 0.45, g: 0.53, b: 0.64, a: 1}
   segments: 32
 --- !u!23 &68830846
 MeshRenderer:
@@ -4099,8 +4099,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GameClient.Presentation.HUD3D.BackgroundRadial3D
   targetCamera: {fileID: 1189357416}
   distance: 13
-  innerColor: {r: 0.18, g: 0.4, b: 0.28, a: 1}
-  outerColor: {r: 0.04, g: 0.12, b: 0.08, a: 1}
+  innerColor: {r: 0.69, g: 0.769, b: 0.871, a: 1}
+  outerColor: {r: 0.45, g: 0.53, b: 0.64, a: 1}
   segments: 32
 --- !u!23 &745723312
 MeshRenderer:
@@ -6438,8 +6438,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GameClient.Presentation.HUD3D.BackgroundRadial3D
   targetCamera: {fileID: 1189357416}
   distance: 6.54
-  innerColor: {r: 0.18, g: 0.4, b: 0.28, a: 1}
-  outerColor: {r: 0.04, g: 0.12, b: 0.08, a: 1}
+  innerColor: {r: 0.69, g: 0.769, b: 0.871, a: 1}
+  outerColor: {r: 0.45, g: 0.53, b: 0.64, a: 1}
   segments: 32
 --- !u!23 &1034324652
 MeshRenderer:
@@ -7967,7 +7967,7 @@ Camera:
   m_Enabled: 1
   serializedVersion: 2
   m_ClearFlags: 2
-  m_BackGroundColor: {r: 0.098, g: 0.184, b: 0.145, a: 1}
+  m_BackGroundColor: {r: 0.45, g: 0.53, b: 0.64, a: 1}
   m_projectionMatrixMode: 1
   m_GateFitMode: 2
   m_FOVAxisMode: 0

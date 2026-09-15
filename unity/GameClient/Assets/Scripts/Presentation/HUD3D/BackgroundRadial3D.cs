@@ -7,8 +7,8 @@ namespace GameClient.Presentation.HUD3D
     {
         public Camera targetCamera;
         public float distance = 8f;
-        public Color innerColor = new Color(0.15f, 0.35f, 0.25f, 1f); // Jade
-        public Color outerColor = new Color(0.05f, 0.15f, 0.10f, 1f); // Dark Jade
+        public Color innerColor = new Color(0.690f, 0.769f, 0.871f, 1f); // Light Steel Blue (#B0C4DE)
+        public Color outerColor = new Color(0.450f, 0.530f, 0.640f, 1f); // Deeper Steel Blue vignette
         public int segments = 32;
 
         private Mesh _mesh;
