@@ -129,11 +129,7 @@ public static class GameSceneBuilder3D
         const float GameBackdropDistance = 13f;
         var feltScreenMat = GetOrCreateFeltScreenMaterial();
         BuildScreenFillingBackdrop(camera, camera.transform, GameBackdropDistance, feltScreenMat, "FeltBackground");
-        // Between the backdrop (13) and the farthest board tile (~10.1, plus
-        // margin for the untilted-camera approximation that estimate uses) /
-        // HUD plane (9), so leaves sit behind all HUD/board content, matching
-        // the mockup's DOM order (leaves painted before .hud).
-        BuildLeafDecoration(camera, camera.transform, 11.5f);
+        // BuildLeafDecoration removed as requested: leaves removed from background
 
         var cardMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/CardBody.mat");
         RequireNotNull(cardMaterial, "Assets/Materials/CardBody.mat as Material");
@@ -727,6 +723,9 @@ public static class GameSceneBuilder3D
     // RenderSettings.ambientLight.
     private static Material GetOrCreateFeltScreenMaterial()
     {
+        var premMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/PremiumBackground.mat");
+        if (premMat != null) return premMat;
+
         var feltTex = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/Felt.png");
         RequireNotNull(feltTex, "Assets/Textures/Felt.png (run FeltBackgroundGenerator first)");
         var mat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/FeltScreen.mat");
@@ -818,6 +817,11 @@ public static class GameSceneBuilder3D
         // Light Steel Blue (#B0C4DE) to deeper steel blue vignette:
         radial.innerColor = new Color(0.690f, 0.769f, 0.871f, 1f); // Light Steel Blue
         radial.outerColor = new Color(0.450f, 0.530f, 0.640f, 1f); // Deeper Steel Blue vignette
+        radial.backgroundMaterial = material;
+        if (material != null)
+        {
+            go.GetComponent<MeshRenderer>().sharedMaterial = material;
+        }
         go.transform.SetParent(parent, false);
         return go;
     }
@@ -979,7 +983,7 @@ public static class GameSceneBuilder3D
         // with the game HUD screen's own backdrop, below in Build()).
         const float BgD = 8f * 0.8175f; // behind the content plane, same compensation ratio as D above
         BuildScreenFillingBackdrop(camera, root.transform, BgD, GetOrCreateFeltScreenMaterial(), "Backdrop");
-        BuildLeafDecoration(camera, root.transform, 7.7f * 0.8175f); // between the content plane and the backdrop
+        // BuildLeafDecoration removed as requested
 
         var creamDim = new Color(0.796f, 0.749f, 0.643f); // #CBBFA4 (mockup --cream-dim)
         var inkDim = new Color(0.604f, 0.573f, 0.494f);   // #9A927E (mockup --ink-dim)
@@ -1092,7 +1096,7 @@ public static class GameSceneBuilder3D
 
         const float BgD = 8f * 0.8175f;
         BuildScreenFillingBackdrop(camera, root.transform, BgD, GetOrCreateFeltScreenMaterial(), "Backdrop");
-        BuildLeafDecoration(camera, root.transform, 7.7f * 0.8175f);
+        // BuildLeafDecoration removed as requested
 
         Transform Place(GameObject go, Vector2 vp)
         {
