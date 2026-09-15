@@ -14,11 +14,9 @@ public static class TileMaterialGenerator
     // warm cream tile face (spec: closer to #F4F3E8 than #FFFFFF).
     private static readonly Color IvoryTop    = new Color(0.957f, 0.945f, 0.906f);
     private static readonly Color IvoryBottom = new Color(0.925f, 0.906f, 0.855f);
-    // Deep MATTE forest-jade (was a bright emerald 0.184/0.541/0.329 that lit up
-    // as a neon mint cap on the tile's top edge). The reference's tile thickness
-    // is a dark, desaturated, matte green (~#29573B). Used for the side wall,
-    // the thin face rim, and the mesh base material.
-    private static readonly Color Jade        = new Color(0.161f, 0.341f, 0.231f);
+    // Midnight Indigo Jade (#243342) - harmonizes with #B0C4DE steel blue table backdrop.
+    // Used for the tile side wall, the thin face rim, and the mesh base material.
+    private static readonly Color Jade        = new Color(0.141f, 0.200f, 0.259f);
 
     [MenuItem("Tools/Mahjong/Generate Tile Material")]
     public static void Generate()

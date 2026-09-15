@@ -6,13 +6,11 @@ using UnityEngine;
 // control-button discs = bronze), matching the reference's warm wooden UI.
 public static class WoodUiGenerator
 {
-    private static readonly Color WoodBottom = new Color(0.29f, 0.18f, 0.10f); // #4A2E1A
-    private static readonly Color WoodTop    = new Color(0.42f, 0.27f, 0.15f); // #6B4526
-    private static readonly Color Bronze     = new Color(0.725f, 0.46f, 0.19f); // #B9752F
-    // Bright gold accent shared by the back/menu + bottom button rings (premium
-    // re-theme Pass C: jade+gold chrome, replacing the muddy amber-brown so the
-    // rings read as real gold against the jade background). #D8A24A.
-    private static readonly Color AmberChrome = new Color(0.847f, 0.635f, 0.290f); // #D8A24A gold
+    private static readonly Color WoodBottom = new Color(0.102f, 0.137f, 0.176f); // #1A232D Obsidian Slate
+    private static readonly Color WoodTop    = new Color(0.149f, 0.200f, 0.251f); // #263340
+    private static readonly Color Bronze     = new Color(0.855f, 0.710f, 0.380f); // #DAC561 Champagne Gold
+    // Champagne Gold accent for HUD borders and button rims (#DAC561)
+    private static readonly Color AmberChrome = new Color(0.855f, 0.710f, 0.380f); // #DAC561 gold
 
     [MenuItem("Tools/Mahjong/Generate Wood UI")]
     public static void Generate()
@@ -108,22 +106,19 @@ public static class WoodUiGenerator
             return Color.Lerp(face, shadow, (t - 0.46f) / (1f - 0.46f));
         }
 
-        // Wood+gold button face: gold ring around a subtly warm-tinted dark radial gradient.
-        var StyleARing = AmberChrome;                        // gold
-        var StyleAHighlight = new Color(0.20f, 0.13f, 0.08f); // warm wood highlight
-        var StyleAFace = new Color(0.12f, 0.08f, 0.05f);      // dark wood face
-        var StyleAShadow = new Color(0.06f, 0.04f, 0.02f);    // deep wood shadow
+        // Obsidian Slate + Champagne Gold button face
+        var StyleARing = AmberChrome;                         // #DAC561 Champagne gold
+        var StyleAHighlight = new Color(0.180f, 0.240f, 0.300f); // subtle top-left highlight
+        var StyleAFace = new Color(0.110f, 0.150f, 0.190f);      // obsidian slate face
+        var StyleAShadow = new Color(0.060f, 0.080f, 0.110f);    // deep obsidian shadow
         Color HudButtonFaceColorAt(float u, float vv) =>
             RadialDiscColorAt(u, vv, StyleARing, StyleAHighlight, StyleAFace, StyleAShadow);
 
-        // Locked/disabled look (CSS `.chrome-btn.is-locked`) - a separate,
-        // desaturated ring+gradient rather than an alpha/opacity fade, since
-        // this is baked into an opaque-cutout texture (see the Cutout comment
-        // below) which can't carry a translucency effect itself.
-        var LockedRing = new Color(0.420f, 0.353f, 0.247f);      // #6B5A3F
-        var LockedHighlight = new Color(0.212f, 0.165f, 0.125f); // #362A20
-        var LockedFace = new Color(0.141f, 0.114f, 0.090f);      // #241D17
-        var LockedShadow = new Color(0.090f, 0.071f, 0.051f);    // #17120D
+        // Locked/disabled look - muted steel slate
+        var LockedRing = new Color(0.350f, 0.390f, 0.440f);      // muted steel slate
+        var LockedHighlight = new Color(0.160f, 0.200f, 0.240f); 
+        var LockedFace = new Color(0.110f, 0.140f, 0.170f);      
+        var LockedShadow = new Color(0.070f, 0.090f, 0.110f);    
         Color HudButtonFaceLockedColorAt(float u, float vv) =>
             RadialDiscColorAt(u, vv, LockedRing, LockedHighlight, LockedFace, LockedShadow);
 
@@ -265,44 +260,35 @@ public static class WoodUiGenerator
         var recess = LoadOrCreate("Assets/Materials/TrayRecess.mat", shader);
         recess.SetTexture("_BaseMap", null);
         recess.SetTexture("_MainTex", null);
-        recess.SetColor("_BaseColor", new Color(0.04f, 0.02f, 0.01f));
+        recess.SetColor("_BaseColor", new Color(0.060f, 0.080f, 0.100f)); // #0F141A deep recessed well
         recess.SetFloat("_Smoothness", 0.1f);
         recess.SetFloat("_Metallic", 0f);
         EditorUtility.SetDirty(recess);
 
-        // Dark-brown for the tray's inner PANEL (behind the amber border, in
-        // front of the individual slot cutouts) - lighter than TrayRecess
-        // above so the slots read as darker pockets set into this panel.
+        // Obsidian Slate for the tray's inner PANEL
         var trayBody = LoadOrCreate("Assets/Materials/TrayBody.mat", shader);
-        ApplyVerticalGradientPanel(trayBody, "TrayBodyGradient", new Color(0.20f, 0.13f, 0.08f)); // dark wood tray panel
+        ApplyVerticalGradientPanel(trayBody, "TrayBodyGradient", new Color(0.120f, 0.160f, 0.205f)); // #1F2934
         trayBody.SetFloat("_Smoothness", 0.1f);
         trayBody.SetFloat("_Metallic", 0f);
         EditorUtility.SetDirty(trayBody);
 
-        // Amber border frame behind the tray's dark body (see recess above) -
-        // GameSceneBuilder3D layers a slightly-larger copy of this material
-        // behind a slightly-smaller TrayRecess plank so the amber shows only
-        // as a border ring around the edge.
+        // Champagne Gold border frame behind the tray's body
         var trayBorder = LoadOrCreate("Assets/Materials/TrayBorder.mat", shader);
         ApplyVerticalGradientPanel(trayBorder, "TrayBorderGradient", AmberChrome);
-        trayBorder.SetFloat("_Smoothness", 0f); // flat matte gold - no specular sheen that reads as glow (fix spec)
+        trayBorder.SetFloat("_Smoothness", 0f); // flat matte gold
         trayBorder.SetFloat("_Metallic", 0f);
         EditorUtility.SetDirty(trayBorder);
 
-        // Same treatment for the progress bar's border/background - built here
-        // (not in GameSceneBuilder3D, where they used to be flat SetColor
-        // calls) so all HUD panels share this one gradient technique.
+        // Progress bar Champagne Gold border frame
         var progressBorder = LoadOrCreate("Assets/Materials/ProgressBorder.mat", shader);
-        ApplyVerticalGradientPanel(progressBorder, "ProgressBorderGradient", WoodTop);
-        progressBorder.SetFloat("_Smoothness", 0f); // flat crisp rim, consistent with the tray border (fix spec)
+        ApplyVerticalGradientPanel(progressBorder, "ProgressBorderGradient", AmberChrome);
+        progressBorder.SetFloat("_Smoothness", 0f);
         progressBorder.SetFloat("_Metallic", 0f);
         EditorUtility.SetDirty(progressBorder);
 
-        // Opaque dark recessed channel (was a near-transparent 10%-alpha wood
-        // tint that read as an empty hollow plank) - matches the mockup's
-        // .progress-inset, a dark sunken track the gold fill + score sit in.
+        // Sunken obsidian slate track for the progress bar
         var progressBackground = LoadOrCreate("Assets/Materials/ProgressBackground.mat", unlitShader);
-        ApplyVerticalGradientPanel(progressBackground, "ProgressBackgroundGradient", new Color(0.10f, 0.06f, 0.03f), recessed: true); // dark wood sunken track
+        ApplyVerticalGradientPanel(progressBackground, "ProgressBackgroundGradient", new Color(0.070f, 0.095f, 0.125f), recessed: true); // #121820
         EditorUtility.SetDirty(progressBackground);
 
         // --- gold fill texture for the progress bar (vertical sheen) ---
