@@ -34,6 +34,8 @@ namespace GameClient.Presentation
         [Header("Audio")]
         private AudioSource _audioSource;
         private AudioClip _tilesSettledClip;
+        private AudioClip _matchCelebrationClip;
+        private AudioClip _invalidTapClip;
 
         // Progression (sub-project #4): loaded/saved progress, the level being
         // played, and how many aids were spent this attempt (for star scoring).
@@ -80,6 +82,14 @@ namespace GameClient.Presentation
             _tilesSettledClip = Resources.Load<AudioClip>("SFX/TilesSettled");
             if (_tilesSettledClip != null)
                 _tilesSettledClip.LoadAudioData();
+
+            _matchCelebrationClip = Resources.Load<AudioClip>("SFX/MatchCelebration");
+            if (_matchCelebrationClip != null)
+                _matchCelebrationClip.LoadAudioData();
+
+            _invalidTapClip = Resources.Load<AudioClip>("SFX/InvalidTap");
+            if (_invalidTapClip != null)
+                _invalidTapClip.LoadAudioData();
 
             // Load progress in Awake so it's ready before other components'
             // OnEnable (the level-select screen reads it there to show lock/stars).
@@ -243,6 +253,8 @@ namespace GameClient.Presentation
 #if UNITY_ANDROID || UNITY_IOS
                 Handheld.Vibrate();
 #endif
+                if (_invalidTapClip != null && _audioSource != null)
+                    _audioSource.PlayOneShot(_invalidTapClip);
                 return;
             }
 
@@ -297,6 +309,10 @@ namespace GameClient.Presentation
                 bool isCombo = _lastMatchTime.HasValue && (now - _lastMatchTime.Value).TotalSeconds <= ComboWindowSeconds;
                 _comboCount = isCombo ? _comboCount + 1 : 1;
                 _lastMatchTime = now;
+                
+                if (_matchCelebrationClip != null && _audioSource != null)
+                    _audioSource.PlayOneShot(_matchCelebrationClip);
+                    
                 _matchCelebration?.PlayMatchCelebration(slotPos, isCombo);
                 ComboChanged?.Invoke(_comboCount);
                 yield return _trayView.ResolveAfterPush(oldTray, slotId, newTray, _board);
