@@ -158,12 +158,15 @@ namespace GameClient.Presentation.Board3D
             if (_bodyRenderer != null) _bodyRenderer.sortingOrder = order;
         }
 
-        public void PlayDealIn(float delaySeconds, System.Action onComplete)
+        public void PlayDealIn(float delaySeconds, Vector3 stagingLocalPos, System.Action onComplete)
         {
             var renderers = new ITintable[] { _bodyTint };
             var targetColors = new Color[] { _bodyTint.Color };
-            StartCoroutine(CardAnimator.ScaleAndFadeIn(transform, renderers, targetColors, delaySeconds, CardAnimator.DealInDuration));
-            StartCoroutine(WaitAndInvoke(delaySeconds + CardAnimator.DealInDuration, onComplete));
+            StartCoroutine(CardAnimator.FlyAndFadeIn(
+                transform, renderers, targetColors,
+                stagingLocalPos, _originalLocalPos,
+                delaySeconds, CardAnimator.DealInFlyDuration));
+            StartCoroutine(WaitAndInvoke(delaySeconds + CardAnimator.DealInFlyDuration, onComplete));
         }
         
         private IEnumerator WaitAndInvoke(float delay, System.Action action)

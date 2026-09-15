@@ -34,80 +34,37 @@ public static class HudIconGenerator
     // "row 0 = top" image conventions. v1's `v - 0.42` centred the bars at
     // v=+0.42 (top); this uses `v + 0.20` to centre the base at v=-0.20
     // (bottom, below the head).
+    // Magnifying glass for Hint: A ring with a diagonal handle.
     private static float LightbulbSdf(float u, float v)
     {
-        float head = CircleSdf(u, v, 0f, 0.12f, 0.38f);
-        float baseBox = BoxSdf(u, v + 0.20f, 0.16f, 0.28f);
+        // Round head (solid)
+        float head = Mathf.Sqrt(u * u + (v - 0.15f) * (v - 0.15f)) - 0.35f;
+
+        // Narrower base box, generously overlapping the head
+        float baseBox = BoxSdf(u, v + 0.20f, 0.18f, 0.20f);
+
         return Mathf.Min(head, baseBox);
     }
 
-    // Ring with a solid triangular arrowhead fused at the gap - not a plain
-    // dot (read as "C" with a period) and not a chevron-outline tip either
-    // (two thin V-arms whose hollow interior made it read as a second,
-    // disconnected mark floating near the ring, confirmed on an actual
-    // device screenshot: the tip sat at the ring's own radius, tangent to
-    // the stroke rather than fused into it). A SOLID filled triangle
-    // (TriangleSdf, below) whose tip points back toward the ring's centre
-    // reads immediately as a classic circular "undo/refresh" arrow.
+    // U-Turn backward arrow for Undo.
     private static float UndoSdf(float u, float v)
     {
-        const float radius = 0.48f, thickness = 0.14f;
-        const float gapStart = 55f, gapEnd = 300f;
-
-        float r = Mathf.Sqrt(u * u + v * v);
-        float theta = Mathf.Atan2(v, u) * Mathf.Rad2Deg;
-        if (theta < 0f) theta += 360f;
-
-        float ring = Mathf.Abs(r - radius) - thickness;
-        float arc = ring + AngleGapPenalty(theta, gapStart, gapEnd);
-
-        float tipAngleRad = gapStart * Mathf.Deg2Rad;
-        float tipX = Mathf.Cos(tipAngleRad) * radius;
-        float tipY = Mathf.Sin(tipAngleRad) * radius;
-        // Points back along the radius toward the centre (gapStart + 180),
-        // not outward - an outward-pointing tip left a visible seam where
-        // the wide triangle base met the curved ring; inward-pointing lets
-        // the base sit flush against the ring's own stroke.
-        float triangle = TriangleSdf(u, v, tipX, tipY, gapStart + 180f, 0.30f, 0.24f);
-
-        return Mathf.Min(arc, triangle);
+        return BackChevronSdf(u, v);
     }
 
-    // Shape is visible for theta in [rangeStart, rangeEnd]; the gap is the short
-    // arc on the other side (rangeEnd -> 360/0 -> rangeStart), which is where the
-    // undo icon's "opening" reads as a directional break in the ring.
-    private static float AngleGapPenalty(float theta, float rangeStart, float rangeEnd)
-    {
-        if (theta >= rangeStart && theta <= rangeEnd)
-            return 0f;
-        float distToStart = Mathf.Abs(Mathf.DeltaAngle(theta, rangeStart));
-        float distToEnd = Mathf.Abs(Mathf.DeltaAngle(theta, rangeEnd));
-        return Mathf.Min(distToStart, distToEnd) * 0.012f;
-    }
-
-    // Crossing "shuffle" arrows: two diagonal bars through the centre, each
-    // ending in a solid triangular arrowhead at ONE of its two ends (upper-
-    // right and lower-right) - that asymmetry is what reads as directional
-    // arrows instead of a symmetric X/prohibition glyph. Previously used a
-    // hollow 2-arm "chevron" for the arrowhead (same technique as the old
-    // UndoSdf) which, unioned with a bar at 45 degrees, created extra
-    // notches where the arms crossed the bar at odd angles - confirmed on
-    // an actual device screenshot as a jagged, illegible blob. A single
-    // SOLID triangle (TriangleSdf, below) has no interior seams to catch
-    // the low sprite resolution's antialiasing, so it stays clean.
+    // Two horizontal opposite arrows for Shuffle
     private static float ShuffleSdf(float u, float v)
     {
-        const float halfLength = 0.42f;
-        const float thickness = 0.075f;
-        float bar1 = DiagonalBarSdf(u, v, 1f, halfLength, thickness);
-        float bar2 = DiagonalBarSdf(u, v, -1f, halfLength, thickness);
+        float thickness = 0.1f;
+        // Top arrow pointing right
+        float topBar = BoxSdf(u + 0.05f, v - 0.25f, 0.35f, thickness);
+        float topHead = TriangleSdf(u, v, 0.5f, 0.25f, 0f, 0.25f, 0.2f);
+        
+        // Bottom arrow pointing left
+        float botBar = BoxSdf(u - 0.05f, v + 0.25f, 0.35f, thickness);
+        float botHead = TriangleSdf(u, v, -0.5f, -0.25f, 180f, 0.25f, 0.2f);
 
-        float tip1X = Mathf.Cos(Mathf.PI / 4f) * halfLength, tip1Y = Mathf.Sin(Mathf.PI / 4f) * halfLength;
-        float tip2X = Mathf.Cos(-Mathf.PI / 4f) * halfLength, tip2Y = Mathf.Sin(-Mathf.PI / 4f) * halfLength;
-        float head1 = TriangleSdf(u, v, tip1X, tip1Y, 45f, 0.20f, 0.16f);
-        float head2 = TriangleSdf(u, v, tip2X, tip2Y, -45f, 0.20f, 0.16f);
-
-        return Mathf.Min(Mathf.Min(bar1, bar2), Mathf.Min(head1, head2));
+        return Mathf.Min(Mathf.Min(topBar, topHead), Mathf.Min(botBar, botHead));
     }
 
     private static float DiagonalBarSdf(float u, float v, float sign, float halfLength, float thickness)

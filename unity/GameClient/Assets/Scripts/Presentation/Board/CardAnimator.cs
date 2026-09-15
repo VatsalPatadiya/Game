@@ -13,6 +13,7 @@ namespace GameClient.Presentation.Board
         public const float ClearDuration = 0.2f;
         // 120-150ms per spec (measured from actual gameplay footage); 130ms picked as the midpoint.
         public const float DealInDuration = 0.13f;
+        public const float DealInFlyDuration = 0.15f;
         public const float FastFadeDuration = 0.1f;
         public const float HighlightHoldDuration = 0.13f;
 
@@ -62,6 +63,51 @@ namespace GameClient.Presentation.Board
                 yield return null;
             }
 
+            target.localScale = Vector3.one;
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                if (renderers[i] == null) continue;
+                renderers[i].Color = targetColors[i];
+            }
+        }
+
+        public static IEnumerator FlyAndFadeIn(
+            Transform target, ITintable[] renderers, Color[] targetColors,
+            Vector3 startLocalPos, Vector3 endLocalPos, float delay, float duration)
+        {
+            if (delay > 0f) yield return new WaitForSeconds(delay);
+
+            target.localPosition = startLocalPos;
+            target.localScale = Vector3.one;
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                if (renderers[i] == null) continue;
+                var c = targetColors[i];
+                c.a = 0f;
+                renderers[i].Color = c;
+            }
+
+            float elapsed = 0f;
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                float raw = Mathf.Clamp01(elapsed / duration);
+                // Ease-out cubic for smooth deceleration as tile settles
+                float t = 1f - (1f - raw) * (1f - raw) * (1f - raw);
+                target.localPosition = Vector3.Lerp(startLocalPos, endLocalPos, t);
+                // Quick fade-in over the first 40% of the animation
+                float alphaT = Mathf.Clamp01(raw / 0.4f);
+                for (int i = 0; i < renderers.Length; i++)
+                {
+                    if (renderers[i] == null) continue;
+                    var c = targetColors[i];
+                    c.a = targetColors[i].a * alphaT;
+                    renderers[i].Color = c;
+                }
+                yield return null;
+            }
+
+            target.localPosition = endLocalPos;
             target.localScale = Vector3.one;
             for (int i = 0; i < renderers.Length; i++)
             {

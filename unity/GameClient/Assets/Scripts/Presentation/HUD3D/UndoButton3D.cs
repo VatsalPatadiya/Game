@@ -4,14 +4,13 @@ namespace GameClient.Presentation.HUD3D
 {
     public sealed class UndoButton3D : MonoBehaviour
     {
-        [SerializeField] private PressScaleButton3D _button;
-        [SerializeField] private ControlButtonUsesDisplay3D _usesDisplay;
+        [SerializeField] private HudButton3D _hudButton;
         [SerializeField] private GameController _gameController;
 
         private void Start()
         {
-            if (_button != null)
-                _button.OnClick += () => _gameController.OnUndoRequested();
+            if (_hudButton != null && _hudButton.Button != null)
+                _hudButton.Button.OnClick += () => _gameController.OnUndoRequested();
         }
 
         private void OnEnable()
@@ -28,7 +27,8 @@ namespace GameClient.Presentation.HUD3D
 
         private void HandleUsesChanged(int hintsRemaining, int undosRemaining, int shufflesRemaining)
         {
-            _usesDisplay?.SetRemaining(undosRemaining);
+            if (_hudButton != null && _hudButton.UsesDisplay != null)
+                _hudButton.UsesDisplay.SetRemaining(undosRemaining);
         }
     }
 }

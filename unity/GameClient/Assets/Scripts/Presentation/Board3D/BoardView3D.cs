@@ -11,9 +11,9 @@ namespace GameClient.Presentation.Board3D
 {
     public sealed class BoardView3D : MonoBehaviour
     {
-        private const float TargetDealInSeconds = 0.45f;
-        private const float MinBatchStaggerSeconds = 0.004f;
-        private const float MaxBatchStaggerSeconds = 0.018f;
+        private const float TargetDealInSeconds = 0.5f;
+        private const float MinBatchStaggerSeconds = 0.008f;
+        private const float MaxBatchStaggerSeconds = 0.035f;
 
         [SerializeField] private TileView3D _tilePrefab;
         [SerializeField] private TileSetAsset _tileSet;
@@ -122,6 +122,11 @@ namespace GameClient.Presentation.Board3D
 
             int tileCount = orderedCells.Count;
 
+            // Drop height: each tile starts this far ABOVE its own final
+            // position and drops straight down into place, creating a
+            // natural cascade effect (like the reference Mahjong Master game).
+            const float DropHeight = 2.0f;
+
             var batchIndexByPosition = new int[orderedCells.Count];
             int batchCount = 0;
             int? lastLayer = null;
@@ -155,7 +160,10 @@ namespace GameClient.Presentation.Board3D
                 if (animateDealIn)
                 {
                     float delay = batchIndexByPosition[i] * stagger;
-                    view.PlayDealIn(delay, () =>
+                    // Each tile drops from directly above its own final position
+                    var finalPos = view.transform.localPosition;
+                    var startPos = finalPos + new Vector3(0f, DropHeight * _cellHeight, 0f);
+                    view.PlayDealIn(delay, startPos, () =>
                     {
                         pendingDealIns--;
                         if (pendingDealIns == 0)
