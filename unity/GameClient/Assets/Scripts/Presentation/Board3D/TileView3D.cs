@@ -197,6 +197,29 @@ namespace GameClient.Presentation.Board3D
             }
         }
 
+        public void PlayPopSettle()
+        {
+            PlayFadeInOnly();
+            StartCoroutine(PopSettleRoutine());
+        }
+
+        private IEnumerator PopSettleRoutine()
+        {
+            const float duration = 0.12f;
+            float elapsed = 0f;
+            transform.localScale = Vector3.one * 1.06f;
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(elapsed / duration);
+                // Soft ease out to rest
+                float ease = 1f - (1f - t) * (1f - t);
+                transform.localScale = Vector3.one * Mathf.Lerp(1.06f, 1f, ease);
+                yield return null;
+            }
+            transform.localScale = Vector3.one;
+        }
+
         public void PlayClearAndDestroy()
         {
             if (_clearCoroutine != null) StopCoroutine(_clearCoroutine);

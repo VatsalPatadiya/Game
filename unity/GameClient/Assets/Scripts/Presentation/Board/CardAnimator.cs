@@ -26,6 +26,7 @@ namespace GameClient.Presentation.Board
         public const float TrayFlightDuration = 0.22f;
         public const float TrayPopInDuration = 0.11f;
         public const float TrayPopInOvershoot = 1.08f;
+        public const float UndoFlightDuration = 0.38f;
         // The tray's pop-in starts this fraction into the flight (not after it
         // lands), so the tail of the flight and the pop-in's overshoot read as
         // one continuous motion instead of two separate snaps.
@@ -238,6 +239,29 @@ namespace GameClient.Presentation.Board
                 yield return null;
             }
             target.position = toWorldPos;
+        }
+
+        public static IEnumerator MoveTransformSmooth(
+            Transform target, Vector3 fromWorldPos, Vector3 toWorldPos, Quaternion targetRot, float duration)
+        {
+            target.position = fromWorldPos;
+            Quaternion fromRot = target.rotation;
+            float elapsed = 0f;
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                float raw = Mathf.Clamp01(elapsed / duration);
+                // Cubic smoothstep for organic acceleration and gentle deceleration
+                float t = raw * raw * (3f - 2f * raw);
+                Vector3 pos = Vector3.Lerp(fromWorldPos, toWorldPos, t);
+                // Parabolic arc in Z (towards camera) so the tile cleanly hovers over board tiles
+                pos.z -= Mathf.Sin(raw * Mathf.PI) * 0.75f;
+                target.position = pos;
+                target.rotation = Quaternion.Slerp(fromRot, targetRot, t);
+                yield return null;
+            }
+            target.position = toWorldPos;
+            target.rotation = targetRot;
         }
     }
 }

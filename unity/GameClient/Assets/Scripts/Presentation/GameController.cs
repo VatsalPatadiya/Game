@@ -363,29 +363,104 @@ namespace GameClient.Presentation
         }
 
         // Undo: return the most-recently-collected tile from the tray to the
-        // board, consuming an undo charge.
+        // board with a smooth reverse-flight animation, consuming an undo charge.
         public void OnUndoRequested()
         {
             if (IsInputLocked || _board.IsGameOver) return;
-            var popped = TrayUndo.TryUndo(_board);
-            if (popped == null) return;
+            if (_board.UndosRemaining <= 0 || _board.TrayTileIds.Count == 0) return;
+
+            StartCoroutine(AnimateUndo());
+        }
+
+        private IEnumerator AnimateUndo()
+        {
+            IsInputLocked = true;
+
+            int trayIndex = _board.TrayTileIds.Count - 1;
+            string popped = TrayUndo.TryUndo(_board);
+            if (popped == null)
+            {
+                IsInputLocked = false;
+                yield break;
+            }
+
             _aidsUsed++;
-            _boardView.RestoreTiles(new[] { popped }, _board);
-            if (_trayView != null) _trayView.RenderTray(_board.TrayTileIds, _board);
-            _boardView.RefreshFreeStates(_board);
             NotifyUsesChanged();
+
+            Vector3 trayPos = _trayView != null && trayIndex >= 0
+                ? _trayView.GetSlotWorldPosition(trayIndex)
+                : Vector3.zero;
+
+            // Immediately update the tray slots so the undone tile cleanly lifts off from its slot
+            if (_trayView != null)
+            {
+                _trayView.RenderTray(_board.TrayTileIds, _board);
+            }
+
+            // Restore the tile on the board, initially deactivated until the flight lands
+            var tileView = _boardView.RestoreTile(popped, _board);
+            if (tileView != null)
+            {
+                tileView.gameObject.SetActive(false);
+            }
+
+            Vector3 targetBoardPos = tileView != null
+                ? tileView.transform.position
+                : trayPos;
+            Quaternion targetBoardRot = tileView != null
+                ? tileView.transform.rotation
+                : Quaternion.identity;
+
+            var value = _board.Cells[popped].Value;
+            var tileSprite = TileVisual.IconFor(_boardView.TileSet, value);
+
+            if (_trayView != null)
+            {
+                var flight = _trayView.SpawnFlightCard(tileSprite, trayPos);
+                yield return CardAnimator.MoveTransformSmooth(
+                    flight.transform, trayPos, targetBoardPos, targetBoardRot, CardAnimator.UndoFlightDuration);
+                _trayView.ReleaseFlightCard(flight);
+            }
+
+            if (tileView != null)
+            {
+                tileView.gameObject.SetActive(true);
+                tileView.PlayPopSettle();
+            }
+
+            _boardView.RefreshFreeStates(_board);
+            IsInputLocked = false;
         }
 
         // Shuffle: reshuffle the on-board tile values, consuming a shuffle charge.
         public void OnShuffleRequested()
-        {
-            if (IsInputLocked || _board.IsGameOver) return;
-            var ids = TrayShuffle.Shuffle(_board, _random);
-            if (ids == null) return;
-            _aidsUsed++;
-            _boardView.RefreshTileValues(ids, _board);
-            NotifyUsesChanged();
-        }
+{
+    if (IsInputLocked || _board.IsGameOver) return;
+
+    // Attempt shuffle; if no shuffles left, abort.
+    bool shuffled = ShuffleService.Shuffle(_board, _shape, _random);
+    if (!shuffled) return;
+
+    // Record shuffle usage as an aid.
+    _aidsUsed++;
+
+    // Commit current progress.
+    SaveSystem.Save(_progress);
+
+    // Lock input and play the level‑start sound.
+    IsInputLocked = true;
+    if (_tilesSettledClip != null && _audioSource != null)
+        _audioSource.PlayOneShot(_tilesSettledClip);
+
+    // Re‑build the board with the standard deal‑in animation.
+    _boardView.Build(_board, _slotsById, animateDealIn: true, onDealInComplete: () =>
+    {
+        IsInputLocked = false;
+    });
+
+    NotifyUsesChanged();
+}
+        
 
         // On a win: score the attempt (stars), record it (best stars + unlock the
         // next level), persist, and advance the current level for the next play.

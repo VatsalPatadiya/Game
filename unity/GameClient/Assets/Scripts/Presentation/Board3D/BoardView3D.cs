@@ -356,21 +356,27 @@ namespace GameClient.Presentation.Board3D
         public TileView3D GetTileView(string slotId) =>
             _tileViews.TryGetValue(slotId, out var view) ? view : null;
 
-        // Re-materialize tiles that Undo un-cleared, placing them back at their
-        // original layer/position and fading them in.
+        // Re-materialize a tile that Undo un-cleared, placing it back at its
+        // original layer/position without showing deal-in drops.
+        public TileView3D RestoreTile(string slotId, BoardState board)
+        {
+            if (_tileViews.TryGetValue(slotId, out var existing)) return existing;
+            if (!_slotsById.TryGetValue(slotId, out var slot)) return null;
+            if (!board.Cells.TryGetValue(slotId, out var cell)) return null;
+
+            var view = Instantiate(_tilePrefab, transform);
+            PlaceTileView(view, slot);
+            view.Initialize(slot.Id, slot.Layer, TileVisual.IconFor(_tileSet, cell.Value));
+            _tileViews[slotId] = view;
+            return view;
+        }
+
         public void RestoreTiles(IEnumerable<string> slotIds, BoardState board)
         {
             foreach (var id in slotIds)
             {
-                if (_tileViews.ContainsKey(id)) continue;
-                if (!_slotsById.TryGetValue(id, out var slot)) continue;
-                if (!board.Cells.TryGetValue(id, out var cell)) continue;
-
-                var view = Instantiate(_tilePrefab, transform);
-                PlaceTileView(view, slot);
-                view.Initialize(slot.Id, slot.Layer, TileVisual.IconFor(_tileSet, cell.Value));
-                view.PlayFadeInOnly();
-                _tileViews[id] = view;
+                var view = RestoreTile(id, board);
+                if (view != null) view.PlayFadeInOnly();
             }
             RefreshFreeStates(board);
         }

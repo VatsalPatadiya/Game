@@ -1022,9 +1022,9 @@ public static class GameSceneBuilder3D
         goal.enableWordWrapping = true;
         goal.rectTransform.sizeDelta = new Vector2(1.7f, 1f); // ~2 wrapped lines like the mockup (was 4.5, wider than the screen so it never wrapped)
 
-        BuildCarryoverChip(camera, root.transform, D, discFaceMaterial, hintIcon,    "icon_hint",    new Vector2(0.37f, 0.29f), "0", GoldIconTint, creamDim);
-        BuildCarryoverChip(camera, root.transform, D, discFaceMaterial, undoIcon,    "icon_undo",    new Vector2(0.50f, 0.29f), "3", CreamHudText, creamDim);
-        BuildCarryoverChip(camera, root.transform, D, discFaceMaterial, shuffleIcon, "icon_shuffle", new Vector2(0.63f, 0.29f), "3", CreamHudText, creamDim);
+        BuildCarryoverChip(camera, root.transform, D, discFaceMaterial, hintIcon,    "icon_hint",    new Vector2(0.37f, 0.24f), "0", GoldIconTint, creamDim);
+        BuildCarryoverChip(camera, root.transform, D, discFaceMaterial, undoIcon,    "icon_undo",    new Vector2(0.50f, 0.24f), "3", CreamHudText, creamDim);
+        BuildCarryoverChip(camera, root.transform, D, discFaceMaterial, shuffleIcon, "icon_shuffle", new Vector2(0.63f, 0.24f), "3", CreamHudText, creamDim);
 
         // Play button: gold rounded pill + "PLAY". Narrower than before (was
         // 2.3, which spanned edge-to-edge) so it sits with side margins like

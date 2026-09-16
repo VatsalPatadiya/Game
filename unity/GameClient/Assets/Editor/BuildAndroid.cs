@@ -1,34 +1,42 @@
 using UnityEditor;
+using UnityEditor.Build.Reporting;
 using UnityEngine;
+using System.IO;
 
 public static class BuildAndroid
 {
-    // Builds the Android APK using the first scene in the build settings (or specify explicitly).
+    // Builds the Android APK. Called via -executeMethod BuildAndroid.BuildAPK
     public static void BuildAPK()
     {
-        // Define which scenes to include in the build. Adjust as needed.
+        string projectPath = Path.GetFullPath(".");
+        string outputDir  = Path.Combine(projectPath, "Builds", "Android");
+        string outputPath = Path.Combine(outputDir, "MyGame.apk");
+
+        Directory.CreateDirectory(outputDir);
+
         string[] scenes = { "Assets/Scenes/Game.unity" };
 
-        // Ensure the output directory exists.
-        string outputPath = "Build/Android/MyGame.apk";
-        System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(outputPath));
+        BuildPlayerOptions options = new BuildPlayerOptions
+        {
+            scenes           = scenes,
+            locationPathName = outputPath,
+            target           = BuildTarget.Android,
+            options          = BuildOptions.None
+        };
 
-        BuildPlayerOptions options = new BuildPlayerOptions();
-        options.scenes = scenes;
-        options.locationPathName = outputPath;
-        options.target = BuildTarget.Android;
-        options.options = BuildOptions.None;
+        Debug.Log($"[BuildAndroid] Building APK to: {outputPath}");
 
-        // Perform the build and log the result.
-        BuildReport report = BuildPipeline.BuildPlayer(options);
+        BuildReport  report  = BuildPipeline.BuildPlayer(options);
         BuildSummary summary = report.summary;
+
         if (summary.result == BuildResult.Succeeded)
         {
-            Debug.Log($"Android build succeeded: {summary.totalSize / (1024 * 1024)} MB");
+            Debug.Log($"[BuildAndroid] Build SUCCEEDED. Size: {summary.totalSize / (1024 * 1024)} MB. Path: {outputPath}");
         }
-        else if (summary.result == BuildResult.Failed)
+        else
         {
-            Debug.LogError("Android build failed.");
+            Debug.LogError($"[BuildAndroid] Build FAILED. Result: {summary.result}");
+            EditorApplication.Exit(1);
         }
     }
 }
