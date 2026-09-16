@@ -106,19 +106,19 @@ public static class WoodUiGenerator
             return Color.Lerp(face, shadow, (t - 0.46f) / (1f - 0.46f));
         }
 
-        // Obsidian Slate + Champagne Gold button face
-        var StyleARing = AmberChrome;                         // #DAC561 Champagne gold
-        var StyleAHighlight = new Color(0.180f, 0.240f, 0.300f); // subtle top-left highlight
-        var StyleAFace = new Color(0.110f, 0.150f, 0.190f);      // obsidian slate face
-        var StyleAShadow = new Color(0.060f, 0.080f, 0.110f);    // deep obsidian shadow
+        // Crisp White outer ring + Deep Midnight Navy core (#0C1724)
+        var StyleARing = Color.white;
+        var StyleAHighlight = new Color(0.075f, 0.133f, 0.196f); // subtle top-left highlight
+        var StyleAFace = new Color(0.047f, 0.090f, 0.141f);      // midnight navy face (#0C1724)
+        var StyleAShadow = new Color(0.035f, 0.063f, 0.102f);    // deep navy shadow
         Color HudButtonFaceColorAt(float u, float vv) =>
             RadialDiscColorAt(u, vv, StyleARing, StyleAHighlight, StyleAFace, StyleAShadow);
 
-        // Locked/disabled look - keeps the gold rim so physical size & outer border match Back/Menu
-        var LockedRing = AmberChrome;                            // Champagne Gold rim
-        var LockedHighlight = new Color(0.160f, 0.200f, 0.240f); 
-        var LockedFace = new Color(0.110f, 0.140f, 0.170f);      
-        var LockedShadow = new Color(0.070f, 0.090f, 0.110f);    
+        // Locked/disabled look - light silver grey rim and muted navy core
+        var LockedRing = new Color(0.70f, 0.72f, 0.75f);
+        var LockedHighlight = new Color(0.09f, 0.12f, 0.15f); 
+        var LockedFace = new Color(0.07f, 0.09f, 0.12f);      
+        var LockedShadow = new Color(0.04f, 0.06f, 0.08f);    
         Color HudButtonFaceLockedColorAt(float u, float vv) =>
             RadialDiscColorAt(u, vv, LockedRing, LockedHighlight, LockedFace, LockedShadow);
 

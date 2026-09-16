@@ -135,6 +135,8 @@ public static class GameSceneBuilder3D
         RequireNotNull(cardMaterial, "Assets/Materials/CardBody.mat as Material");
         var hudButtonFaceMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/HudButtonFace.mat");
         RequireNotNull(hudButtonFaceMaterial, "Assets/Materials/HudButtonFace.mat as Material (run WoodUiGenerator first)");
+        var hudTopButtonFaceMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/HudTopButtonFace.mat");
+        RequireNotNull(hudTopButtonFaceMaterial, "Assets/Materials/HudTopButtonFace.mat as Material");
         var hudButtonFaceLockedMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/HudButtonFaceLocked.mat");
         RequireNotNull(hudButtonFaceLockedMaterial, "Assets/Materials/HudButtonFaceLocked.mat as Material (run WoodUiGenerator first)");
         var trayBorderMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/TrayBorder.mat");
@@ -381,13 +383,13 @@ public static class GameSceneBuilder3D
         // Common HUD Button Creation
         // ------------------
         var backButtonGO = CreateHudButton3D(
-            camera, hudButtonFaceMaterial, null, new Vector2(0.09f, TopbarY), null,
-            null, backIcon, iconScale: 0.35f);
+            camera, hudTopButtonFaceMaterial, null, new Vector2(0.09f, TopbarY), null,
+            null, backIcon, faceScale: 0.42f, iconScale: 0.28f);
         var backButton = backButtonGO.GetComponent<PressScaleButton3D>();
         
         var menuButtonGO = CreateHudButton3D(
-            camera, hudButtonFaceMaterial, null, new Vector2(0.91f, TopbarY), null,
-            null, menuIcon, iconScale: 0.28f);
+            camera, hudTopButtonFaceMaterial, null, new Vector2(0.91f, TopbarY), null,
+            null, menuIcon, faceScale: 0.42f, iconScale: 0.24f);
         var menuButton = menuButtonGO.GetComponent<PressScaleButton3D>();
 
         // ------------------
@@ -400,31 +402,17 @@ public static class GameSceneBuilder3D
         RequireNotNull(undoIcon, "Assets/Textures/HudIcons/icon_undo.png as Sprite");
         RequireNotNull(shuffleIcon, "Assets/Textures/HudIcons/icon_shuffle.png as Sprite");
 
-        // Unlit: badges are flat graphic-icon chrome, same reasoning as Bronze.mat -
-        // a Lit material here picks up the scene's tile-board lighting and reads as
-        // a soft blotch instead of a crisp flat-colored circle.
-        var unlitShader = Shader.Find("Universal Render Pipeline/Unlit");
-        var badgeMaterial = new Material(unlitShader);
-        badgeMaterial.SetColor("_BaseColor", new Color(0.761f, 0.231f, 0.188f, 1f)); // #C23B30 - mockup's .action .badge
-        AssetDatabase.CreateAsset(badgeMaterial, "Assets/Materials/HudBadgeRed.mat");
+        var badgeMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/HudBadgeRed.mat");
+        RequireNotNull(badgeMaterial, "Assets/Materials/HudBadgeRed.mat as Material");
 
-        // x spacing widened from 0.3/0.5/0.7 and y raised from 0.08 - both
-        // needed room for the ~2.2x bigger buttons below (wider spacing so
-        // adjacent badges don't overlap the next disc, higher y so the
-        // enlarged level label's offset doesn't get clipped by the bottom
-        // system-gesture inset, the same class of off-screen clipping that
-        // hit the label's text at the old, lower position).
-        // x = 0.17 / 0.5 / 0.83 so the outer buttons' edges line up with the
-        // progress bar / tray edges - consistent left/right margins across the
-        // whole HUD (they were at 0.2/0.8, a bit narrower than the tray).
-        const float BottomButtonRowY = 0.08f; // low at the bottom (above the gesture bar) so the taller 5-layer pyramid clears the buttons
+        // x = 0.17 / 0.5 / 0.83 so the outer buttons' edges line up cleanly
+        const float BottomButtonRowY = 0.08f;
         var shuffleButtonGO = CreateHudButton3D(camera, hudButtonFaceMaterial, badgeMaterial, new Vector2(0.17f, BottomButtonRowY), gameController, typeof(ShuffleButton3D), shuffleIcon,
-            iconScale: 0.35f);
+            faceScale: 0.62f, iconScale: 0.42f);
         var hintButtonGO = CreateHudButton3D(camera, hudButtonFaceMaterial, badgeMaterial, new Vector2(0.5f, BottomButtonRowY), gameController, typeof(HintButton3D), hintIcon,
-            iconColorOverride: GoldIconTint, iconScale: 0.35f);
-        var undoButtonGO = CreateHudButton3D(camera, hudButtonFaceMaterial, badgeMaterial, new Vector2(0.83f, BottomButtonRowY), gameController, typeof(UndoButton3D), undoIcon, iconScale: 0.35f);
-        // Removed the 0.62f global scale loop so the buttons are 1.0 globally,
-        // and their 0.42f internal faces match the top row exactly.
+            faceScale: 0.62f, iconScale: 0.40f);
+        var undoButtonGO = CreateHudButton3D(camera, hudButtonFaceMaterial, badgeMaterial, new Vector2(0.83f, BottomButtonRowY), gameController, typeof(UndoButton3D), undoIcon,
+            faceScale: 0.62f, iconScale: 0.42f);
 
         // ------------------
         // Tray - row of fixed 3D slots in front of the board (restored: the game
@@ -848,72 +836,54 @@ public static class GameSceneBuilder3D
         Camera camera, Material cardMaterial, Material badgeMaterial, Vector2 viewportPos, GameController gameController,
         System.Type hudComponentType, Sprite iconSprite,
         bool locked = false, Material lockedFaceMaterial = null, string lockedLabel = null,
-        Color? iconColorOverride = null, float iconScale = 0.35f)
+        Color? iconColorOverride = null, float faceScale = 0.42f, float iconScale = 0.35f)
     {
-        // Empty, unrotated root: PressScaleButton3D requires a BoxCollider
-        // sized to the button's footprint, and every child below (icon,
-        // badge) is positioned assuming an unrotated parent.
         string buttonName = hudComponentType != null ? hudComponentType.Name : (iconSprite != null ? iconSprite.name : "Button");
         var buttonGO = new GameObject(buttonName);
         PositionInFrontOfCamera(buttonGO.transform, camera, viewportPos, HudDistance);
-        
-        // Removed drop shadow as requested
 
-        // Flat alpha-cutout quad, not a Cylinder cap: a built-in Cylinder's cap
-        // UVs are not a clean radial mapping, so the disc's dark-center/tan-rim
-        // gradient rendered as a lopsided blob instead of a symmetric ring even
-        // though the source texture is a perfect circle. cardMaterial
-        // (HudButtonFace.mat) already bakes its own circular alpha cutout, so
-        // this only needs the same flat camera-facing quad treatment already
-        // used for the icon/badge/lock glyphs below.
         var faceGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
         faceGO.name = "Face";
         faceGO.transform.SetParent(buttonGO.transform, false);
-        faceGO.transform.localScale = new Vector3(0.42f, 0.42f, 1f); // changed to 0.42f to match top buttons
+        faceGO.transform.localScale = new Vector3(faceScale, faceScale, 1f);
         Object.DestroyImmediate(faceGO.GetComponent<MeshCollider>());
-        // Locked buttons use the dimmed/desaturated Style-A face bake (mockup's
-        // .chrome-btn.is-locked) instead of the normal amber-ring face.
         faceGO.GetComponent<MeshRenderer>().sharedMaterial = locked ? lockedFaceMaterial : cardMaterial;
 
-        var pressButton = buttonGO.AddComponent<PressScaleButton3D>(); // RequireComponent auto-adds a BoxCollider, default-sized - must be resized to the disc's footprint
+        var pressButton = buttonGO.AddComponent<PressScaleButton3D>();
         var buttonCollider = buttonGO.GetComponent<BoxCollider>();
-        buttonCollider.size = new Vector3(0.42f, 0.42f, 0.33f);
+        buttonCollider.size = new Vector3(faceScale, faceScale, 0.33f);
         SetField(pressButton, "_targetCamera", camera);
 
         var iconGO = new GameObject("Icon");
         iconGO.transform.SetParent(buttonGO.transform, false);
-        // Position slightly in front of the disc face (-0.05 on Z) to prevent Z-fighting
-        // since we are no longer using SetAlwaysOnTop.
         iconGO.transform.localPosition = new Vector3(0f, 0f, -0.05f); 
-        iconGO.transform.localScale = new Vector3(iconScale, iconScale, 1f); // customizable scale
+        iconGO.transform.localScale = new Vector3(iconScale, iconScale, 1f);
         
         var spriteRenderer = iconGO.AddComponent<SpriteRenderer>();
         spriteRenderer.sprite = iconSprite;
-        var iconTintColor = locked ? MutedIconTint : (iconColorOverride ?? CreamHudText);
+        var iconTintColor = locked ? MutedIconTint : (iconColorOverride ?? Color.white);
         spriteRenderer.color = iconTintColor;
-        spriteRenderer.sortingOrder = 10; // ensure it sorts above the button face
+        spriteRenderer.sortingOrder = 10;
 
         TextMeshPro badgeText = null;
         TextMeshPro levelLabelText = null;
         if (!locked && badgeMaterial != null)
         {
-            var badgeBgGO = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            var badgeBgGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
             badgeBgGO.name = "BadgeBackground";
             badgeBgGO.transform.SetParent(buttonGO.transform, false);
-            // Scaled down to match the new 0.42f button size
-            badgeBgGO.transform.localPosition = new Vector3(0.15f, 0.15f, -0.1f);
-            badgeBgGO.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
-            badgeBgGO.transform.localScale = new Vector3(0.13f, 0.04f, 0.13f);
+            badgeBgGO.transform.localPosition = new Vector3(faceScale * 0.34f, faceScale * 0.34f, -0.1f);
+            badgeBgGO.transform.localScale = new Vector3(faceScale * 0.34f, faceScale * 0.34f, 1f);
             Object.DestroyImmediate(badgeBgGO.GetComponent<Collider>());
             badgeBgGO.GetComponent<MeshRenderer>().sharedMaterial = badgeMaterial;
 
             var badgeGO = new GameObject("BadgeText", typeof(TextMeshPro));
             badgeGO.transform.SetParent(buttonGO.transform, false);
-            badgeGO.transform.localPosition = new Vector3(0.15f, 0.15f, -0.15f);
+            badgeGO.transform.localPosition = new Vector3(faceScale * 0.34f, faceScale * 0.34f, -0.15f);
             badgeText = badgeGO.GetComponent<TextMeshPro>();
             badgeText.text = "3";
-            badgeText.fontSize = 0.4f; // scaled down with the badge
-            badgeText.color = Color.white; // sits on the red BadgeBackground circle now, not the button face
+            badgeText.fontSize = faceScale * 0.75f;
+            badgeText.color = Color.white;
             badgeText.alignment = TextAlignmentOptions.Center;
         }
         else

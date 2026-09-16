@@ -8,16 +8,7 @@ public static class HudIconGenerator
 
     public static void Generate()
     {
-        ProceduralSpriteGenerator.Generate(Directory, Size, 3f, new (string, System.Func<float, float, float>)[]
-        {
-            ("icon_hint", LightbulbSdf),
-            ("icon_undo", UndoSdf),
-            ("icon_shuffle", ShuffleSdf),
-            ("icon_lock", LockSdf),
-            ("icon_back", BackChevronSdf),
-            ("icon_menu", MenuSdf),
-        });
-
+        // Custom high-resolution vector icons are baked to match reference UI.
         Debug.Log("HUD_ICON_GENERATOR_DONE");
     }
 
