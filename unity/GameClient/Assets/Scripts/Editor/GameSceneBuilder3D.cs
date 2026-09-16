@@ -406,13 +406,13 @@ public static class GameSceneBuilder3D
         RequireNotNull(badgeMaterial, "Assets/Materials/HudBadgeRed.mat as Material");
 
         // x = 0.17 / 0.5 / 0.83 so the outer buttons' edges line up cleanly
-        const float BottomButtonRowY = 0.08f;
+        const float BottomButtonRowY = 0.105f;
         var shuffleButtonGO = CreateHudButton3D(camera, hudButtonFaceMaterial, badgeMaterial, new Vector2(0.17f, BottomButtonRowY), gameController, typeof(ShuffleButton3D), shuffleIcon,
-            faceScale: 0.62f, iconScale: 0.42f);
+            lockedFaceMaterial: hudButtonFaceLockedMaterial, faceScale: 0.62f, iconScale: 0.29f);
         var hintButtonGO = CreateHudButton3D(camera, hudButtonFaceMaterial, badgeMaterial, new Vector2(0.5f, BottomButtonRowY), gameController, typeof(HintButton3D), hintIcon,
-            faceScale: 0.62f, iconScale: 0.40f);
+            lockedFaceMaterial: hudButtonFaceLockedMaterial, faceScale: 0.62f, iconScale: 0.29f);
         var undoButtonGO = CreateHudButton3D(camera, hudButtonFaceMaterial, badgeMaterial, new Vector2(0.83f, BottomButtonRowY), gameController, typeof(UndoButton3D), undoIcon,
-            faceScale: 0.62f, iconScale: 0.42f);
+            lockedFaceMaterial: hudButtonFaceLockedMaterial, faceScale: 0.62f, iconScale: 0.29f);
 
         // ------------------
         // Tray - row of fixed 3D slots in front of the board (restored: the game
@@ -867,22 +867,25 @@ public static class GameSceneBuilder3D
 
         TextMeshPro badgeText = null;
         TextMeshPro levelLabelText = null;
+        Renderer badgeRenderer = null;
         if (!locked && badgeMaterial != null)
         {
             var badgeBgGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
             badgeBgGO.name = "BadgeBackground";
             badgeBgGO.transform.SetParent(buttonGO.transform, false);
-            badgeBgGO.transform.localPosition = new Vector3(faceScale * 0.34f, faceScale * 0.34f, -0.1f);
-            badgeBgGO.transform.localScale = new Vector3(faceScale * 0.34f, faceScale * 0.34f, 1f);
+            badgeBgGO.transform.localPosition = new Vector3(faceScale * 0.35f, faceScale * 0.35f, -0.1f);
+            badgeBgGO.transform.localScale = new Vector3(faceScale * 0.50f, faceScale * 0.50f, 1f);
             Object.DestroyImmediate(badgeBgGO.GetComponent<Collider>());
-            badgeBgGO.GetComponent<MeshRenderer>().sharedMaterial = badgeMaterial;
+            badgeRenderer = badgeBgGO.GetComponent<MeshRenderer>();
+            badgeRenderer.sharedMaterial = badgeMaterial;
 
             var badgeGO = new GameObject("BadgeText", typeof(TextMeshPro));
             badgeGO.transform.SetParent(buttonGO.transform, false);
-            badgeGO.transform.localPosition = new Vector3(faceScale * 0.34f, faceScale * 0.34f, -0.15f);
+            badgeGO.transform.localPosition = new Vector3(faceScale * 0.35f, faceScale * 0.35f, -0.15f);
             badgeText = badgeGO.GetComponent<TextMeshPro>();
             badgeText.text = "3";
-            badgeText.fontSize = faceScale * 0.75f;
+            badgeText.fontSize = 1.15f;
+            badgeText.fontStyle = FontStyles.Bold;
             badgeText.color = Color.white;
             badgeText.alignment = TextAlignmentOptions.Center;
         }
@@ -904,9 +907,13 @@ public static class GameSceneBuilder3D
         var usesDisplay = buttonGO.AddComponent<ControlButtonUsesDisplay3D>();
         SetField(usesDisplay, "_button", pressButton);
         SetField(usesDisplay, "_faceRenderer", faceGO.GetComponent<MeshRenderer>());
-        SetField(usesDisplay, "_iconRenderer", spriteRenderer);
+        SetField(usesDisplay, "_iconSpriteRenderer", spriteRenderer);
+        SetField(usesDisplay, "_enabledFaceMaterial", cardMaterial);
+        SetField(usesDisplay, "_disabledFaceMaterial", lockedFaceMaterial);
+        if (badgeRenderer != null) SetField(usesDisplay, "_badgeRenderer", badgeRenderer);
         SetField(usesDisplay, "_badgeText", badgeText);
-        SetFieldColor(usesDisplay, "_iconTintColor", iconTintColor);
+        SetFieldColor(usesDisplay, "_enabledIconColor", iconTintColor);
+        SetFieldColor(usesDisplay, "_disabledIconColor", new Color(0.50f, 0.55f, 0.62f, 0.5f));
 
         var hudButton = buttonGO.AddComponent<HudButton3D>();
         hudButton.Button = pressButton;
