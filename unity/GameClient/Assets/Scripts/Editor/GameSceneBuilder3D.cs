@@ -408,11 +408,11 @@ public static class GameSceneBuilder3D
         // x = 0.17 / 0.5 / 0.83 so the outer buttons' edges line up cleanly
         const float BottomButtonRowY = 0.105f;
         var shuffleButtonGO = CreateHudButton3D(camera, hudButtonFaceMaterial, badgeMaterial, new Vector2(0.17f, BottomButtonRowY), gameController, typeof(ShuffleButton3D), shuffleIcon,
-            lockedFaceMaterial: hudButtonFaceLockedMaterial, faceScale: 0.62f, iconScale: 0.29f);
+            lockedFaceMaterial: hudButtonFaceLockedMaterial, faceScale: 0.62f, iconScale: 0.24f);
         var hintButtonGO = CreateHudButton3D(camera, hudButtonFaceMaterial, badgeMaterial, new Vector2(0.5f, BottomButtonRowY), gameController, typeof(HintButton3D), hintIcon,
-            lockedFaceMaterial: hudButtonFaceLockedMaterial, faceScale: 0.62f, iconScale: 0.29f);
+            lockedFaceMaterial: hudButtonFaceLockedMaterial, faceScale: 0.62f, iconScale: 0.24f);
         var undoButtonGO = CreateHudButton3D(camera, hudButtonFaceMaterial, badgeMaterial, new Vector2(0.83f, BottomButtonRowY), gameController, typeof(UndoButton3D), undoIcon,
-            lockedFaceMaterial: hudButtonFaceLockedMaterial, faceScale: 0.62f, iconScale: 0.29f);
+            lockedFaceMaterial: hudButtonFaceLockedMaterial, faceScale: 0.62f, iconScale: 0.24f);
 
         // ------------------
         // Tray - row of fixed 3D slots in front of the board (restored: the game
