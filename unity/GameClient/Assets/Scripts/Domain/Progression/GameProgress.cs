@@ -18,12 +18,6 @@ namespace GameDomain.Progression
     {
         public int HighestUnlockedLevelId = 1;
         public List<LevelStarEntry> Stars = new List<LevelStarEntry>();
-        // Date key (yyyy-MM-dd) of the last completed daily challenge.
-        public string LastDailyDate = "";
-
-        public bool IsDailyDone(string dateKey) => !string.IsNullOrEmpty(dateKey) && LastDailyDate == dateKey;
-
-        public void MarkDailyDone(string dateKey) => LastDailyDate = dateKey;
 
         public int GetStars(int levelId)
         {

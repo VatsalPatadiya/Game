@@ -649,9 +649,9 @@ public static class GameSceneBuilder3D
             scoreRootGO, trayRootGO, backButtonGO, menuButtonGO,
             shuffleButtonGO, hintButtonGO, undoButtonGO,
         };
-        var levelStartRoot = BuildLevelStartScreen(camera, gameController, hudObjects, hintIcon, undoIcon, shuffleIcon, hudButtonFaceMaterial);
-        var levelSelectRoot = BuildLevelSelectScreen(camera, gameController, hudObjects, levelStartRoot, hudButtonFaceMaterial, hudButtonFaceLockedMaterial);
-        levelStartRoot.SetActive(false); // the level-select screen shows first
+        // Level-start is now the app's first/home screen (level-select removed) -
+        // stays active by default, no initial SetActive(false).
+        var levelStartRoot = BuildLevelStartScreen(camera, gameController, hudObjects, hintIcon, undoIcon, shuffleIcon, hudButtonFaceMaterial, trayBorderMaterial, trayBodyMaterial);
 
         var pauseMenu = BuildPauseMenu(camera, gameController, hudObjects, menuButton, hudButtonFaceMaterial,
             gameOverPopup, trayBorderMaterial, trayBodyMaterial);
@@ -661,7 +661,6 @@ public static class GameSceneBuilder3D
         // Shared back navigation (hardware/gesture back + on-screen back button).
         var backNavGO = new GameObject("BackNavigator");
         var backNav = backNavGO.AddComponent<BackNavigator>();
-        SetField(backNav, "_levelSelectScreen", levelSelectRoot);
         SetField(backNav, "_levelStartScreen", levelStartRoot);
         SetFieldArray(backNav, "_gameHudObjects", hudObjects);
         SetField(backNav, "_pauseMenu", pauseMenu);
@@ -961,7 +960,8 @@ public static class GameSceneBuilder3D
     // calls GameController.BeginLevel.
     private static GameObject BuildLevelStartScreen(
         Camera camera, GameController gameController, GameObject[] hudObjects,
-        Sprite hintIcon, Sprite undoIcon, Sprite shuffleIcon, Material discFaceMaterial)
+        Sprite hintIcon, Sprite undoIcon, Sprite shuffleIcon, Material discFaceMaterial,
+        Material trayBorderMaterial, Material trayBodyMaterial)
     {
         // 7 -> 5.72: this screen's own elements (badge/stars/chips/Play button)
         // are all sized in fixed world units at this fixed distance D,
@@ -982,10 +982,12 @@ public static class GameSceneBuilder3D
 
         var creamDim = new Color(0.796f, 0.749f, 0.643f); // #CBBFA4 (mockup --cream-dim)
         var inkDim = new Color(0.604f, 0.573f, 0.494f);   // #9A927E (mockup --ink-dim)
-        var goldInk = new Color(0.227f, 0.141f, 0.063f);  // dark ink on the gold Play button
 
         // Places a new child at a viewport point on the level-start plane,
-        // parented under the root (keeping the camera-facing pose).
+        // parented under the root (keeping the camera-facing pose). Used for
+        // the card root itself, which must stay at the baseline the card's
+        // own frame/body offsets (local +0.05/+0.03, from
+        // BuildModalPanelBackground) are relative to.
         Transform Place(GameObject go, Vector2 vp)
         {
             go.transform.position = camera.ViewportToWorldPoint(new Vector3(vp.x, vp.y, D));
@@ -994,10 +996,23 @@ public static class GameSceneBuilder3D
             return go.transform;
         }
 
+        // Same as Place, but nudged 0.15 toward the camera (same safety
+        // margin as the pause menu's card content, e.g. PausedTitle/divider)
+        // so screen CONTENT (not the card itself) reliably renders in front
+        // of the card's frame/body instead of relying on the bare,
+        // Z-fight-prone gap to baseline zero.
+        Transform PlaceContent(GameObject go, Vector2 vp)
+        {
+            go.transform.position = camera.ViewportToWorldPoint(new Vector3(vp.x, vp.y, D)) - camera.transform.forward * 0.15f;
+            go.transform.rotation = camera.transform.rotation;
+            go.transform.SetParent(root.transform, true);
+            return go.transform;
+        }
+
         TextMeshPro Label(string labelName, Vector2 vp, string text, float size, Color color, FontStyles style, bool display = true)
         {
             var go = new GameObject(labelName, typeof(TextMeshPro));
-            Place(go, vp);
+            PlaceContent(go, vp);
             var t = go.GetComponent<TextMeshPro>();
             t.text = text;
             t.fontSize = size;
@@ -1009,166 +1024,69 @@ public static class GameSceneBuilder3D
             return t;
         }
 
-        // NOTE ON SCALE: at this depth 1 world unit ≈ 540px on-screen for
-        // meshes/quads, but a TMP fontSize of 1.0 ≈ only ~50px of cap height -
-        // so text needs ~10x larger numeric values than shape scales to look
-        // balanced. Sizes below are calibrated to that (bigger text, smaller
-        // discs) to fix the earlier "huge icons, tiny text" imbalance.
-        Label("Eyebrow", new Vector2(0.5f, 0.605f), "NOW PLAYING", 0.5f, creamDim, FontStyles.Normal);
+        // Card: single bordered panel framing all level-start content, matching
+        // the pause menu's redesign (same BuildModalPanelBackground frame+body
+        // technique, same card-to-screen size fractions and corner radius) so
+        // the two screens read as one consistent design system. See
+        // BuildPauseMenu's own comment for why frustum size is derived from
+        // camera.orthographicSize (this camera is orthographic, not
+        // perspective - fieldOfView has no effect on what actually renders).
+        float frustumHeight = 2f * camera.orthographicSize;
+        float frustumWidth = frustumHeight * camera.aspect;
+        const float CardWidthFrac = 0.84f;
+        const float CardHeightFrac = 0.63f;
+        float cardWidth = CardWidthFrac * frustumWidth;
+        float cardHeight = CardHeightFrac * frustumHeight;
+        var cardRoot = new GameObject("LevelStartCardRoot");
+        Place(cardRoot, new Vector2(0.5f, 0.5f));
+        BuildModalPanelBackground(cardRoot.transform, "LevelStartCard", cardWidth, cardHeight, trayBorderMaterial, trayBodyMaterial, cornerRadius: 0.07f * cardWidth);
+
+        float contentWidth = 0.84f * cardWidth;
+        var stage = new UIStage3D(camera, root.transform, D);
+
+        // Content vertically distributed within the card's own bounds
+        // (vp.y 0.185-0.815) instead of the old layout's wider, looser spread
+        // (0.605-0.145, which pre-dated the card and ran past where the card's
+        // edges now sit).
+        Label("Eyebrow", new Vector2(0.5f, 0.775f), "NOW PLAYING", 0.5f, creamDim, FontStyles.Normal);
 
         // Level badge: dark amber-ring disc (same chrome as the HUD buttons) + "6".
-        // Sizes here are deliberately small - at this camera distance (D=7,
-        // nearer than the HUD's D=11) world units render large, so a modest
-        // badge/chip/button footprint needs small localScale/fontSize values.
         var badgeGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
         badgeGO.name = "LevelBadge";
         Object.DestroyImmediate(badgeGO.GetComponent<Collider>());
-        Place(badgeGO, new Vector2(0.5f, 0.55f));
+        PlaceContent(badgeGO, new Vector2(0.5f, 0.71f));
         badgeGO.transform.localScale = new Vector3(0.4f, 0.4f, 1f);
         badgeGO.GetComponent<MeshRenderer>().sharedMaterial = discFaceMaterial;
-        var badgeNum = Label("BadgeNum", new Vector2(0.5f, 0.55f), "6", 1.6f, CreamHudText, FontStyles.Bold);
+        var badgeNum = Label("BadgeNum", new Vector2(0.5f, 0.71f), "6", 1.6f, CreamHudText, FontStyles.Bold);
         badgeNum.transform.localPosition += new Vector3(0f, 0f, -0.05f); // toward camera, in front of the disc face
 
-        var titleLabel = Label("Title", new Vector2(0.5f, 0.478f), "Level 6", 1.15f, CreamHudText, FontStyles.Bold);
+        var titleLabel = Label("Title", new Vector2(0.5f, 0.635f), "Level 6", 1.15f, CreamHudText, FontStyles.Bold);
 
         // Two filled gold stars + one muted (unearned) star - real generated
         // star sprites, NOT ★/☆ glyphs (LiberationSans, the only font in the
         // project, has no star glyph so those render as tofu boxes).
-        BuildStars(camera, root.transform, D, new Vector2(0.5f, 0.43f));
+        BuildStars(camera, root.transform, D, new Vector2(0.5f, 0.575f));
 
-        var goal = Label("Goal", new Vector2(0.5f, 0.385f), "Collect tiles into the tray and match pairs to clear the board.", 0.55f, inkDim, FontStyles.Normal, display: false);
+        var goal = Label("Goal", new Vector2(0.5f, 0.50f), "Collect tiles into the tray and match pairs to clear the board.", 0.55f, inkDim, FontStyles.Normal, display: false);
         goal.enableWordWrapping = true;
-        goal.rectTransform.sizeDelta = new Vector2(1.7f, 1f); // ~2 wrapped lines like the mockup (was 4.5, wider than the screen so it never wrapped)
+        goal.rectTransform.sizeDelta = new Vector2(1.7f, 1f); // ~2 wrapped lines
 
-        BuildCarryoverChip(camera, root.transform, D, discFaceMaterial, hintIcon,    "icon_hint",    new Vector2(0.37f, 0.24f), "0", GoldIconTint, creamDim);
-        BuildCarryoverChip(camera, root.transform, D, discFaceMaterial, undoIcon,    "icon_undo",    new Vector2(0.50f, 0.24f), "3", CreamHudText, creamDim);
-        BuildCarryoverChip(camera, root.transform, D, discFaceMaterial, shuffleIcon, "icon_shuffle", new Vector2(0.63f, 0.24f), "3", CreamHudText, creamDim);
+        BuildCarryoverChip(camera, root.transform, D, discFaceMaterial, hintIcon,    "icon_hint",    new Vector2(0.37f, 0.36f), "0", GoldIconTint, creamDim);
+        BuildCarryoverChip(camera, root.transform, D, discFaceMaterial, undoIcon,    "icon_undo",    new Vector2(0.50f, 0.36f), "3", CreamHudText, creamDim);
+        BuildCarryoverChip(camera, root.transform, D, discFaceMaterial, shuffleIcon, "icon_shuffle", new Vector2(0.63f, 0.36f), "3", CreamHudText, creamDim);
 
-        // Play button: gold rounded pill + "PLAY". Narrower than before (was
-        // 2.3, which spanned edge-to-edge) so it sits with side margins like
-        // the mockup, and raised slightly for a bottom margin.
-        var playMesh = SaveRoundedTrayMesh("Assets/Meshes/PlayButton.asset", 1.75f, 0.3f, 0.1f, 0.13f);
-        var playGO = new GameObject("PlayButton", typeof(MeshFilter), typeof(MeshRenderer));
-        Place(playGO, new Vector2(0.5f, 0.145f));
-        playGO.GetComponent<MeshFilter>().sharedMesh = playMesh;
-        // Dedicated non-emissive gold (see GetOrCreateNonEmissiveGoldMaterial -
-        // Gold.mat's _EmissionColor is set but its _EMISSION keyword is never
-        // enabled, a classic Unity gotcha: setting the color property alone
-        // does not turn emission rendering on. Depending on when that was
-        // last true, Gold.mat has either always silently rendered as its
-        // plain, unlit-looking base texture, or the keyword got dropped on a
-        // later regeneration - either way, this dedicated material is the
-        // one confirmed to actually render the gold gradient) so it reads as
-        // the mockup's gradient gold pill.
-        var playGold = GetOrCreateNonEmissiveGoldMaterial();
-        playGO.GetComponent<MeshRenderer>().sharedMaterial = playGold;
-        var playCollider = playGO.AddComponent<BoxCollider>();
-        playCollider.size = new Vector3(1.75f, 0.3f, 0.3f);
-        var playButton = playGO.AddComponent<PressScaleButton3D>();
-        SetField(playButton, "_targetCamera", camera);
-
-        var playText = Label("PlayText", new Vector2(0.5f, 0.145f), "PLAY", 0.95f, goldInk, FontStyles.Bold);
-        playText.transform.localPosition += new Vector3(0f, 0f, -0.12f); // in front of the slab
+        // Play button: same CreateSolidButton3D helper (same corner radius,
+        // same gold gradient) as the pause menu's RESUME button, full-width
+        // within the card's content inset instead of the old screen-relative
+        // fixed 1.75-unit pill.
+        var play = CreateSolidButton3D(stage, "Play", new Vector2(0.5f, 0.235f), "PLAY", contentWidth, 0.09f * cardHeight, (0.014f * frustumHeight) / 0.11f, GoldInkText);
 
         var levelStart = root.AddComponent<LevelStartScreen3D>();
-        SetField(levelStart, "_playButton", playButton);
+        SetField(levelStart, "_playButton", play.btn);
         SetField(levelStart, "_gameController", gameController);
         SetFieldArray(levelStart, "_gameHudObjects", hudObjects);
         SetField(levelStart, "_titleText", titleLabel);
         SetField(levelStart, "_badgeText", badgeNum);
-        return root;
-    }
-
-    // Level-select screen (sub-project #4B): a centered row of level tokens
-    // (jade+gold disc + number + star pips), shown before the level-start screen.
-    private static GameObject BuildLevelSelectScreen(
-        Camera camera, GameController gameController, GameObject[] hudObjects,
-        GameObject levelStartRoot, Material discFaceMaterial, Material discLockedMaterial)
-    {
-        const float D = 7f * 0.8175f;
-        var root = new GameObject("LevelSelectScreen");
-        PositionInFrontOfCamera(root.transform, camera, new Vector2(0.5f, 0.5f), D);
-
-        const float BgD = 8f * 0.8175f;
-        BuildScreenFillingBackdrop(camera, root.transform, BgD, GetOrCreateFeltScreenMaterial(), "Backdrop");
-        // BuildLeafDecoration removed as requested
-
-        Transform Place(GameObject go, Vector2 vp)
-        {
-            go.transform.position = camera.ViewportToWorldPoint(new Vector3(vp.x, vp.y, D));
-            go.transform.rotation = camera.transform.rotation;
-            go.transform.SetParent(root.transform, true);
-            return go.transform;
-        }
-        TextMeshPro Label(string name, Vector2 vp, string text, float size, Color color)
-        {
-            var go = new GameObject(name, typeof(TextMeshPro));
-            Place(go, vp);
-            var t = go.GetComponent<TextMeshPro>();
-            t.text = text; t.fontSize = size; t.color = color;
-            t.alignment = TextAlignmentOptions.Center;
-            if (DisplayFont != null) t.font = DisplayFont;
-            return t;
-        }
-
-        Label("SelectTitle", new Vector2(0.5f, 0.72f), "SELECT LEVEL", 0.72f, CreamHudText);
-
-        var levels = GameDomain.Progression.LevelCatalog.Levels;
-        int n = levels.Count;
-        var buttons = new PressScaleButton3D[n];
-        var ids = new int[n];
-        var starTexts = new TextMeshPro[n];
-        var numberTexts = new TextMeshPro[n];
-
-        const float spacing = 0.17f;
-        float x0 = 0.5f - (n - 1) * 0.5f * spacing;
-        for (int i = 0; i < n; i++)
-        {
-            float vx = x0 + i * spacing;
-            ids[i] = levels[i].LevelId;
-
-            var disc = GameObject.CreatePrimitive(PrimitiveType.Quad);
-            disc.name = "LevelToken_" + levels[i].LevelId;
-            Place(disc, new Vector2(vx, 0.5f));
-            disc.transform.localScale = new Vector3(0.55f, 0.55f, 1f);
-            disc.GetComponent<MeshRenderer>().sharedMaterial = discFaceMaterial;
-            Object.DestroyImmediate(disc.GetComponent<Collider>());
-            disc.AddComponent<BoxCollider>();
-            var btn = disc.AddComponent<PressScaleButton3D>();
-            SetField(btn, "_targetCamera", camera);
-            buttons[i] = btn;
-
-            numberTexts[i] = Label("LevelNum_" + levels[i].LevelId, new Vector2(vx, 0.5f),
-                levels[i].LevelId.ToString(), 0.85f, CreamHudText);
-            numberTexts[i].transform.localPosition += new Vector3(0f, 0f, -0.05f); // in front of the disc
-
-            starTexts[i] = Label("LevelStars_" + levels[i].LevelId, new Vector2(vx, 0.42f),
-                "...", 0.4f, new Color(0.96f, 0.82f, 0.42f));
-        }
-
-        // Daily challenge button: a gold pill below the level row.
-        var dailyPill = new GameObject("DailyButton", typeof(MeshFilter), typeof(MeshRenderer));
-        Place(dailyPill, new Vector2(0.5f, 0.30f));
-        dailyPill.GetComponent<MeshFilter>().sharedMesh =
-            SaveRoundedTrayMesh("Assets/Meshes/DailyBtn.asset", 1.7f, 0.34f, 0.1f, 0.16f);
-        dailyPill.GetComponent<MeshRenderer>().sharedMaterial = GetOrCreateNonEmissiveGoldMaterial();
-        var dailyCol = dailyPill.AddComponent<BoxCollider>();
-        dailyCol.size = new Vector3(1.7f, 0.34f, 0.1f);
-        var dailyBtn = dailyPill.AddComponent<PressScaleButton3D>();
-        SetField(dailyBtn, "_targetCamera", camera);
-        var dailyLabel = Label("DailyText", new Vector2(0.5f, 0.30f), "DAILY CHALLENGE", 0.42f, new Color(0.227f, 0.141f, 0.063f));
-        dailyLabel.transform.localPosition += new Vector3(0f, 0f, -0.06f);
-
-        var select = root.AddComponent<LevelSelectScreen3D>();
-        SetFieldArray(select, "_levelButtons", buttons);
-        SetFieldIntArray(select, "_levelIds", ids);
-        SetFieldArray(select, "_starTexts", starTexts);
-        SetFieldArray(select, "_numberTexts", numberTexts);
-        SetField(select, "_levelStartScreen", levelStartRoot);
-        SetFieldArray(select, "_gameHudObjects", hudObjects);
-        SetField(select, "_gameController", gameController);
-        SetField(select, "_dailyButton", dailyBtn);
-        SetField(select, "_dailyLabel", dailyLabel);
         return root;
     }
 
@@ -1530,6 +1448,8 @@ public static class GameSceneBuilder3D
         chipRoot.transform.position = camera.ViewportToWorldPoint(new Vector3(vp.x, vp.y, distance));
         chipRoot.transform.rotation = camera.transform.rotation;
         chipRoot.transform.SetParent(parent, true);
+        // Same card-safety forward nudge as BuildStars - see its comment.
+        chipRoot.transform.localPosition += new Vector3(0f, 0f, -0.15f);
         chipRoot.transform.localScale = Vector3.one * 0.17f; // ~92px disc (was 0.22 - too big vs the text)
 
         var faceGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
@@ -1572,6 +1492,11 @@ public static class GameSceneBuilder3D
         starsRoot.transform.position = camera.ViewportToWorldPoint(new Vector3(vp.x, vp.y, distance));
         starsRoot.transform.rotation = camera.transform.rotation;
         starsRoot.transform.SetParent(parent, true);
+        // Same safety-margin forward nudge as the pause menu's card content
+        // (PausedTitle/divider) - this screen's card sits behind it at
+        // local +0.03/+0.05, and baseline (no offset) is close enough that
+        // this codebase's own prior Z-fighting history argues for a margin.
+        starsRoot.transform.localPosition += new Vector3(0f, 0f, -0.15f);
         BuildStarRow(starsRoot.transform, "LevelStartStar", filledCount: 2);
     }
 
