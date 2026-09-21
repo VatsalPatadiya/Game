@@ -29,7 +29,6 @@ public static class GameSceneBuilder3D
         _displayFont != null ? _displayFont
         : (_displayFont = AssetDatabase.LoadAssetAtPath<TMPro.TMP_FontAsset>("Assets/Fonts/Cinzel SDF.asset"));
     private static readonly Color MutedIconTint = new Color(0.541f, 0.502f, 0.447f, 1f); // #8A8072 - mockup's .chrome-btn.is-locked svg stroke
-    private static readonly Color GoldIconTint = new Color(0.95f, 0.78f, 0.30f, 1f); // hint's lightbulb is colored gold, unlike the other buttons' white/cream glyphs
 
     // BoardView3D.FitCameraToBoard's natural fit distance for the current
     // board layout (6-column layer 0, portrait screen, width is the binding
@@ -651,7 +650,7 @@ public static class GameSceneBuilder3D
         };
         // Level-start is now the app's first/home screen (level-select removed) -
         // stays active by default, no initial SetActive(false).
-        var levelStartRoot = BuildLevelStartScreen(camera, gameController, hudObjects, hintIcon, undoIcon, shuffleIcon, hudButtonFaceMaterial, trayBorderMaterial, trayBodyMaterial);
+        var levelStartRoot = BuildLevelStartScreen(camera, gameController, hudObjects, hudButtonFaceMaterial, trayBorderMaterial, trayBodyMaterial);
 
         var pauseMenu = BuildPauseMenu(camera, gameController, hudObjects, menuButton, hudButtonFaceMaterial,
             gameOverPopup, trayBorderMaterial, trayBodyMaterial);
@@ -960,8 +959,7 @@ public static class GameSceneBuilder3D
     // calls GameController.BeginLevel.
     private static GameObject BuildLevelStartScreen(
         Camera camera, GameController gameController, GameObject[] hudObjects,
-        Sprite hintIcon, Sprite undoIcon, Sprite shuffleIcon, Material discFaceMaterial,
-        Material trayBorderMaterial, Material trayBodyMaterial)
+        Material discFaceMaterial, Material trayBorderMaterial, Material trayBodyMaterial)
     {
         // 7 -> 5.72: this screen's own elements (badge/stars/chips/Play button)
         // are all sized in fixed world units at this fixed distance D,
@@ -1044,36 +1042,36 @@ public static class GameSceneBuilder3D
         float contentWidth = 0.84f * cardWidth;
         var stage = new UIStage3D(camera, root.transform, D);
 
-        // Content vertically distributed within the card's own bounds
-        // (vp.y 0.185-0.815) instead of the old layout's wider, looser spread
-        // (0.605-0.145, which pre-dated the card and ran past where the card's
-        // edges now sit).
-        Label("Eyebrow", new Vector2(0.5f, 0.775f), "NOW PLAYING", 0.5f, creamDim, FontStyles.Normal);
+        // Converts a target "% of screen height" (as measured in the approved
+        // mockup, in cqh units relative to the phone's full height) into a TMP
+        // fontSize - same conversion the pause menu uses (renderedHeight runs
+        // ~fontSize*0.11).
+        float FontSizeForScreenFrac(float frac) => (frac * frustumHeight) / 0.11f;
 
-        // Level badge: dark amber-ring disc (same chrome as the HUD buttons) + "6".
+        // Content vertically distributed within the card's own bounds (vp.y
+        // 0.185-0.815). Simplified per an approved mockup: stars row, the
+        // Hint/Undo/Shuffle carryover row, and the "Level N" title (redundant
+        // with the badge) are all gone - remaining content (eyebrow -> badge
+        // -> goal -> PLAY) is spread across the freed-up space instead of
+        // leaving a gap where the removed rows used to be.
+        Label("Eyebrow", new Vector2(0.5f, 0.752f), "NOW PLAYING", FontSizeForScreenFrac(0.018f), creamDim, FontStyles.Bold);
+
+        // Level badge: dark amber-ring disc (same chrome as the HUD buttons) +
+        // level number - the sole level indicator now that the title is gone,
+        // so it's sized up (0.4 -> 0.58, matching the mockup's 22%->32% of
+        // card width) and given more central room.
         var badgeGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
         badgeGO.name = "LevelBadge";
         Object.DestroyImmediate(badgeGO.GetComponent<Collider>());
-        PlaceContent(badgeGO, new Vector2(0.5f, 0.71f));
-        badgeGO.transform.localScale = new Vector3(0.4f, 0.4f, 1f);
+        PlaceContent(badgeGO, new Vector2(0.5f, 0.601f));
+        badgeGO.transform.localScale = new Vector3(0.58f, 0.58f, 1f);
         badgeGO.GetComponent<MeshRenderer>().sharedMaterial = discFaceMaterial;
-        var badgeNum = Label("BadgeNum", new Vector2(0.5f, 0.71f), "6", 1.6f, CreamHudText, FontStyles.Bold);
+        var badgeNum = Label("BadgeNum", new Vector2(0.5f, 0.601f), "6", 2.33f, CreamHudText, FontStyles.Bold);
         badgeNum.transform.localPosition += new Vector3(0f, 0f, -0.05f); // toward camera, in front of the disc face
 
-        var titleLabel = Label("Title", new Vector2(0.5f, 0.635f), "Level 6", 1.15f, CreamHudText, FontStyles.Bold);
-
-        // Two filled gold stars + one muted (unearned) star - real generated
-        // star sprites, NOT ★/☆ glyphs (LiberationSans, the only font in the
-        // project, has no star glyph so those render as tofu boxes).
-        BuildStars(camera, root.transform, D, new Vector2(0.5f, 0.575f));
-
-        var goal = Label("Goal", new Vector2(0.5f, 0.50f), "Collect tiles into the tray and match pairs to clear the board.", 0.55f, inkDim, FontStyles.Normal, display: false);
+        var goal = Label("Goal", new Vector2(0.5f, 0.450f), "Collect tiles into the tray and match pairs to clear the board.", FontSizeForScreenFrac(0.017f), inkDim, FontStyles.Normal, display: false);
         goal.enableWordWrapping = true;
         goal.rectTransform.sizeDelta = new Vector2(1.7f, 1f); // ~2 wrapped lines
-
-        BuildCarryoverChip(camera, root.transform, D, discFaceMaterial, hintIcon,    "icon_hint",    new Vector2(0.37f, 0.36f), "0", GoldIconTint, creamDim);
-        BuildCarryoverChip(camera, root.transform, D, discFaceMaterial, undoIcon,    "icon_undo",    new Vector2(0.50f, 0.36f), "3", CreamHudText, creamDim);
-        BuildCarryoverChip(camera, root.transform, D, discFaceMaterial, shuffleIcon, "icon_shuffle", new Vector2(0.63f, 0.36f), "3", CreamHudText, creamDim);
 
         // Play button: same CreateSolidButton3D helper (same corner radius,
         // same gold gradient) as the pause menu's RESUME button, full-width
@@ -1085,7 +1083,6 @@ public static class GameSceneBuilder3D
         SetField(levelStart, "_playButton", play.btn);
         SetField(levelStart, "_gameController", gameController);
         SetFieldArray(levelStart, "_gameHudObjects", hudObjects);
-        SetField(levelStart, "_titleText", titleLabel);
         SetField(levelStart, "_badgeText", badgeNum);
         return root;
     }
@@ -1103,8 +1100,8 @@ public static class GameSceneBuilder3D
     // at fontSize 0.30 measured a rendered text height of only ~0.033 world
     // units - 10% of the track's own height, not comparable at all). Any new
     // label's fontSize should be chosen against OTHER fontSize values already
-    // proven legible in this file (BadgeNum=1.6, titleLabel=1.15, scoreText=
-    // 1.05), never against a nearby mesh's width/height number.
+    // proven legible in this file (BadgeNum=2.33, scoreText=1.05), never
+    // against a nearby mesh's width/height number.
     private readonly struct UIStage3D
     {
         public readonly Camera Camera;
@@ -1325,11 +1322,10 @@ public static class GameSceneBuilder3D
         // into a TMP fontSize: renderedHeight (world units) runs ~fontSize*0.11.
         float FontSizeForScreenFrac(float frac) => (frac * frustumHeight) / 0.11f;
 
-        // Title: calibrated against BadgeNum (fontSize 1.6, the level-select
-        // screen's single-digit level number) and titleLabel ("Level 6" at
-        // 1.15) elsewhere in this file - a 6-letter screen title should read
-        // at least as large as those, not smaller. Unchanged by the card pass
-        // - confirmed as the one element already at the right size.
+        // Title: calibrated against BadgeNum (fontSize 2.33, level-start's own
+        // single-digit level number) - a 6-letter screen title should read at
+        // least as large as that, not smaller. Unchanged by the card pass -
+        // confirmed as the one element already at the right size.
         var pausedTitle = CreateLabel3D(stage, "PausedTitle", new Vector2(0.5f, 0.76f), "PAUSED", 1.7f, CreamHudText, useDisplayFont: true, style: FontStyles.Normal);
         pausedTitle.transform.localPosition += new Vector3(0f, 0f, -0.15f);
 
@@ -1434,70 +1430,6 @@ public static class GameSceneBuilder3D
         SetFieldArray(pause, "_gameHudObjects", hudObjects);
         SetField(pause, "_gameOverPopup", gameOverPopup);
         return pause;
-    }
-
-    // One carryover chip on the level-start screen: a small dark disc with a
-    // hint/undo/shuffle icon and a count label below (mockup's .carryover-item).
-    private static void BuildCarryoverChip(
-        Camera camera, Transform parent, float distance, Material discFaceMaterial,
-        Sprite icon, string iconKey, Vector2 vp, string count, Color iconTint, Color countColor)
-    {
-        // The chip is built in "unit" space (face = 1 unit) then scaled down
-        // by chipRoot so face + icon + count shrink together with one factor.
-        var chipRoot = new GameObject("Chip_" + iconKey);
-        chipRoot.transform.position = camera.ViewportToWorldPoint(new Vector3(vp.x, vp.y, distance));
-        chipRoot.transform.rotation = camera.transform.rotation;
-        chipRoot.transform.SetParent(parent, true);
-        // Same card-safety forward nudge as BuildStars - see its comment.
-        chipRoot.transform.localPosition += new Vector3(0f, 0f, -0.15f);
-        chipRoot.transform.localScale = Vector3.one * 0.17f; // ~92px disc (was 0.22 - too big vs the text)
-
-        var faceGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
-        faceGO.name = "Face";
-        Object.DestroyImmediate(faceGO.GetComponent<Collider>());
-        faceGO.transform.SetParent(chipRoot.transform, false);
-        faceGO.transform.localScale = Vector3.one;
-        faceGO.GetComponent<MeshRenderer>().sharedMaterial = discFaceMaterial;
-
-        var iconGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
-        iconGO.name = "Icon";
-        Object.DestroyImmediate(iconGO.GetComponent<Collider>());
-        iconGO.transform.SetParent(chipRoot.transform, false);
-        iconGO.transform.localPosition = new Vector3(0f, 0f, -0.05f);
-        iconGO.transform.localScale = new Vector3(0.5f, 0.5f, 1f); // ~50% of the disc, with padding (was 0.62 - too big)
-        var iconMat = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
-        URPMaterialUtil.SetTransparent(iconMat);
-        URPMaterialUtil.SetAlwaysOnTop(iconMat);
-        iconMat.SetTexture("_BaseMap", icon.texture);
-        iconMat.SetColor("_BaseColor", iconTint);
-        AssetDatabase.CreateAsset(iconMat, "Assets/Materials/LevelStartChip_" + iconKey + ".mat");
-        iconGO.GetComponent<MeshRenderer>().material = iconMat;
-
-        var countGO = new GameObject("Count", typeof(TextMeshPro));
-        countGO.transform.SetParent(chipRoot.transform, false);
-        countGO.transform.localPosition = new Vector3(0f, -0.95f, -0.05f);
-        var t = countGO.GetComponent<TextMeshPro>();
-        t.text = count;
-        t.fontSize = 3.5f; // large in chip space; chipRoot's 0.17 scale brings it to ~24px on-screen
-        t.color = countColor;
-        t.alignment = TextAlignmentOptions.Center;
-    }
-
-    // Three rating stars on the level-start screen (mockup's .stars): two
-    // filled gold, one muted (unearned). Uses a generated 5-point star sprite
-    // because LiberationSans (the project's only font) has no star glyph.
-    private static void BuildStars(Camera camera, Transform parent, float distance, Vector2 vp)
-    {
-        var starsRoot = new GameObject("Stars");
-        starsRoot.transform.position = camera.ViewportToWorldPoint(new Vector3(vp.x, vp.y, distance));
-        starsRoot.transform.rotation = camera.transform.rotation;
-        starsRoot.transform.SetParent(parent, true);
-        // Same safety-margin forward nudge as the pause menu's card content
-        // (PausedTitle/divider) - this screen's card sits behind it at
-        // local +0.03/+0.05, and baseline (no offset) is close enough that
-        // this codebase's own prior Z-fighting history argues for a margin.
-        starsRoot.transform.localPosition += new Vector3(0f, 0f, -0.15f);
-        BuildStarRow(starsRoot.transform, "LevelStartStar", filledCount: 2);
     }
 
     // Shared 3-star row (mockup's .stars): a generated 5-point star sprite

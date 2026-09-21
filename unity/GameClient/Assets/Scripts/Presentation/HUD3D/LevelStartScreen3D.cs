@@ -16,8 +16,8 @@ namespace GameClient.Presentation.HUD3D
         // button-icon glyphs, which would otherwise draw over this screen
         // regardless of depth) stays out of sight until Play is tapped.
         [SerializeField] private GameObject[] _gameHudObjects;
-        // Updated to reflect the level chosen on the level-select screen.
-        [SerializeField] private TMP_Text _titleText;
+        // Updated to reflect the current level. The "Level N" title label was
+        // removed (redundant with this badge) - only the badge number remains.
         [SerializeField] private TMP_Text _badgeText;
 
         private void Awake()
@@ -37,7 +37,6 @@ namespace GameClient.Presentation.HUD3D
         {
             if (_gameController == null) return;
             int id = _gameController.CurrentLevelId;
-            if (_titleText != null) _titleText.text = "Level " + id;
             if (_badgeText != null) _badgeText.text = id.ToString();
         }
 
