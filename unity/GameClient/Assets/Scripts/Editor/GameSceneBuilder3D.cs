@@ -406,7 +406,20 @@ public static class GameSceneBuilder3D
         RequireNotNull(badgeMaterial, "Assets/Materials/HudBadgeRed.mat as Material");
 
         // x = 0.17 / 0.5 / 0.83 so the outer buttons' edges line up cleanly
-        const float BottomButtonRowY = 0.105f;
+        // Y is derived, not hardcoded: BottomButtonRowY = HudRowGap +
+        // buttonHalfHeight puts the row's BOTTOM edge exactly HudRowGap (0.02)
+        // above the screen's bottom edge - the same tight gap this row already
+        // keeps above itself (via bandBottom below), instead of the old fixed
+        // 0.105 which left a ~6.7%-tall dead strip beneath the row while the
+        // gap to the board above was only ~2%. Confirmed via a headless-Editor
+        // measurement that button diameter (faceScale 0.62) barely differs
+        // between the "wrong" fieldOfView-based ScreenHalfHeightFrac formula
+        // and the camera's true orthographic frustum (0.0383 vs 0.0384) - the
+        // two constants (HudDistance/fieldOfView) were apparently tuned to
+        // match the orthographic size, so this derivation is safe to reuse.
+        const float ButtonFaceWorldDiameter = 0.99f * 0.62f;
+        float buttonHalfHeight = ScreenHalfHeightFrac(camera, ButtonFaceWorldDiameter, HudDistance);
+        float BottomButtonRowY = HudRowGap + buttonHalfHeight;
         var shuffleButtonGO = CreateHudButton3D(camera, hudButtonFaceMaterial, badgeMaterial, new Vector2(0.17f, BottomButtonRowY), gameController, typeof(ShuffleButton3D), shuffleIcon,
             lockedFaceMaterial: hudButtonFaceLockedMaterial, faceScale: 0.62f, iconScale: 0.24f);
         var hintButtonGO = CreateHudButton3D(camera, hudButtonFaceMaterial, badgeMaterial, new Vector2(0.5f, BottomButtonRowY), gameController, typeof(HintButton3D), hintIcon,
@@ -434,8 +447,7 @@ public static class GameSceneBuilder3D
         // bottom edge and the button row's top edge (the top cluster eats more
         // screen than the bottom row, so a screen-centred board leaves a bigger
         // gap below - this shifts it to fill the space).
-        const float ButtonFaceWorldDiameter = 0.99f * 0.62f;
-        float buttonHalfHeight = ScreenHalfHeightFrac(camera, ButtonFaceWorldDiameter, HudDistance);
+        // (ButtonFaceWorldDiameter/buttonHalfHeight computed above, reused here.)
         float bandTop = trayY - trayHalfHeight - TightRowGap;
         float bandBottom = BottomButtonRowY + buttonHalfHeight + HudRowGap;
         // Pin the board's TOP edge just under the tray (bandTop) so every board size
