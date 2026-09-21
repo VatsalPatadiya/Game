@@ -8,7 +8,7 @@ namespace GameDomain.Gameplay
 {
     public static class ShuffleService
     {
-        public static bool Shuffle(BoardState board, List<TileSlot> shape, Random random, int maxRestarts = 50)
+        public static bool Shuffle(BoardState board, List<TileSlot> shape, Random random, int modelCount = 42, int maxRestarts = 50)
         {
             if (board.ShufflesRemaining <= 0)
                 return false;
@@ -28,7 +28,7 @@ namespace GameDomain.Gameplay
                 if (removalOrder == null)
                     continue;
 
-                var values = ReverseConstructionSolver.AssignValuesFromRemovalOrder(removalOrder, random, reservedValues);
+                var values = ReverseConstructionSolver.AssignValuesFromRemovalOrder(removalOrder, random, reservedValues, modelCount);
 
                 foreach (var id in remainingIds)
                 {

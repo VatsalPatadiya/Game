@@ -202,8 +202,13 @@ namespace GameClient.Presentation
 
             var tileSet = _boardView != null ? _boardView.TileSet : null;
             int[] clusters = tileSet != null ? tileSet.SimilarityClusterId : null;
-            int modelCount = (tileSet != null && tileSet.FoodModels != null && tileSet.FoodModels.Length > 0)
-                ? tileSet.FoodModels.Length : 26;
+            // Icons.Length (not FoodModels.Length) is authoritative - Icons is
+            // what TileVisual.IconFor actually renders. FoodModels/AccentColors
+            // are unused dead-code paths; deriving modelCount from them let
+            // generation assign values with no corresponding visible icon
+            // (FoodModels.Length was 26 while Icons.Length was only 9).
+            int modelCount = (tileSet != null && tileSet.Icons != null && tileSet.Icons.Length > 0)
+                ? tileSet.Icons.Length : 42;
 
             _board = BoardGenerator.GenerateShaped(level, rng, profile, clusters, modelCount);
             _lastMatchTime = null;
@@ -446,8 +451,14 @@ namespace GameClient.Presentation
 {
     if (IsInputLocked || _board.IsGameOver) return;
 
+    // Same Icons.Length-derived cap as LoadLevel, so a reshuffle can assign
+    // any value the current tile set can actually render.
+    var tileSet = _boardView != null ? _boardView.TileSet : null;
+    int modelCount = (tileSet != null && tileSet.Icons != null && tileSet.Icons.Length > 0)
+        ? tileSet.Icons.Length : 42;
+
     // Attempt shuffle; if no shuffles left, abort.
-    bool shuffled = ShuffleService.Shuffle(_board, _shape, _random);
+    bool shuffled = ShuffleService.Shuffle(_board, _shape, _random, modelCount);
     if (!shuffled) return;
 
     // Record shuffle usage as an aid.

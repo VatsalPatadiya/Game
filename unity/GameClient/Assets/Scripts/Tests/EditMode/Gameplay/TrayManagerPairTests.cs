@@ -78,5 +78,34 @@ namespace GameDomain.Tests.Gameplay
             Assert.That(TrayManager.TryPushToTray(board, slots, "a"), Is.True);
             Assert.That(TrayManager.TryPushToTray(board, slots, "a"), Is.False); // already collected
         }
+
+        [Test]
+        public void TwoDifferentFlowers_StillClearAsAPair()
+        {
+            // 34-37 are the Flower wildcard range (TileMatchRules) - two
+            // DIFFERENT flower designs should still clear together, matching
+            // standard Mahjong Solitaire's "any Flower matches any Flower".
+            var (board, slots) = MakeBoard(("a", "34"), ("b", "36"));
+
+            Assert.That(TrayManager.TryPushToTray(board, slots, "a"), Is.True);
+            Assert.That(TrayManager.TryPushToTray(board, slots, "b"), Is.True);
+
+            Assert.That(board.Cells["a"].Cleared, Is.True);
+            Assert.That(board.Cells["b"].Cleared, Is.True);
+            Assert.That(board.TrayTileIds, Is.Empty);
+        }
+
+        [Test]
+        public void FlowerAndSeason_DoNotMatchEachOther()
+        {
+            var (board, slots) = MakeBoard(("a", "34"), ("b", "38"), ("c", "9"));
+
+            TrayManager.TryPushToTray(board, slots, "a"); // Flower
+            TrayManager.TryPushToTray(board, slots, "b"); // Season - must NOT match the Flower
+
+            Assert.That(board.Cells["a"].Cleared, Is.False);
+            Assert.That(board.Cells["b"].Cleared, Is.False);
+            Assert.That(board.TrayTileIds, Is.EquivalentTo(new[] { "a", "b" }));
+        }
     }
 }

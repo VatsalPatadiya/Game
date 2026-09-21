@@ -20,7 +20,7 @@ namespace GameDomain.Gameplay
                 {
                     var a = freeSlots[i];
                     var b = freeSlots[j];
-                    if (board.Cells[a.Id].Value == board.Cells[b.Id].Value)
+                    if (TileMatchRules.AreCompatible(board.Cells[a.Id].Value, board.Cells[b.Id].Value))
                         return (a.Id, b.Id);
                 }
             }
