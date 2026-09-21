@@ -24,8 +24,13 @@ namespace GameClient.Presentation.Board
         public const float TapConfirmFlashDuration = 0.07f;
         public const float TapAwayDuration = 0.1f;
         public const float TrayFlightDuration = 0.22f;
-        public const float TrayPopInDuration = 0.11f;
-        public const float TrayPopInOvershoot = 1.08f;
+        // Was 0.11s/1.08x on a plain two-segment lerp (0->overshoot, overshoot->1)
+        // joined at a hard corner - a velocity discontinuity right at the peak
+        // that reads as a mechanical snap instead of a spring settling. Now
+        // driven by EaseOutBack (continuous velocity, zero at both ends) with a
+        // slightly longer hold so the "give" is actually perceptible.
+        public const float TrayPopInDuration = 0.16f;
+        public const float TrayPopInOvershoot = 1.7f; // EaseOutBack strength (Penner's standard back constant); peaks around ~1.10x scale
         public const float UndoFlightDuration = 0.38f;
         // The tray's pop-in starts this fraction into the flight (not after it
         // lands), so the tail of the flight and the pop-in's overshoot read as
@@ -33,6 +38,16 @@ namespace GameClient.Presentation.Board
         public const float TrayArrivalOverlapFraction = 0.7f;
 
         public static float EaseOut(float t) => 1f - (1f - t) * (1f - t);
+
+        // Robert Penner's "back" ease: overshoots past 1 then settles, with
+        // continuous velocity throughout (zero at t=0 and t=1) - unlike a
+        // two-segment lerp-to-peak-then-back, there's no corner at the peak.
+        public static float EaseOutBack(float t, float overshoot)
+        {
+            float c3 = overshoot + 1f;
+            float x = t - 1f;
+            return 1f + c3 * x * x * x + overshoot * x * x;
+        }
 
         public static IEnumerator ScaleAndFadeIn(
             Transform target, ITintable[] renderers, Color[] targetColors, float delay, float duration)

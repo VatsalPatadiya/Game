@@ -14,6 +14,7 @@ namespace GameClient.Presentation.HUD3D
         [SerializeField] private Material _emptyMaterial;
         [SerializeField] private Material _filledMaterial;
         [SerializeField] private TrailRenderer _flightTrail;
+        [SerializeField] private Material _landingPuffMaterial;
 
         private MeshRendererTint _bodyTint;
         private MeshRendererTint _emissionTint;
@@ -144,13 +145,70 @@ namespace GameClient.Presentation.HUD3D
             SetFilled(tileSprite);
             if (_popInCoroutine != null) StopCoroutine(_popInCoroutine);
             _popInCoroutine = StartCoroutine(PopInRoutine());
+            PlayLandingPuff();
+        }
+
+        // Soft white puff at the instant a flown tile lands in its slot - gives
+        // the landing a bit of weight/impact instead of the tile just quietly
+        // arriving (reference: a similar mahjong game's tray-landing dust burst,
+        // toned down to a light sparkle-free puff to match this game's calmer look).
+        private const float LandingPuffLifetime = 0.4f;
+
+        private void PlayLandingPuff()
+        {
+            if (_landingPuffMaterial == null) return;
+
+            var go = new GameObject("LandingPuff");
+            go.transform.SetParent(_foodAnchor != null ? _foodAnchor : transform, false);
+            go.transform.localPosition = Vector3.zero;
+            var ps = go.AddComponent<ParticleSystem>();
+
+            var main = ps.main;
+            main.duration = LandingPuffLifetime;
+            main.loop = false;
+            main.startLifetime = new ParticleSystem.MinMaxCurve(LandingPuffLifetime * 0.7f, LandingPuffLifetime);
+            main.startSpeed = new ParticleSystem.MinMaxCurve(0.2f, 0.5f);
+            main.startSize = new ParticleSystem.MinMaxCurve(0.04f, 0.1f);
+            main.startColor = Color.white;
+            main.gravityModifier = 0f;
+            main.maxParticles = 16;
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+
+            var emission = ps.emission;
+            emission.rateOverTime = 0f;
+            emission.SetBursts(new[] { new ParticleSystem.Burst(0f, (short)10, (short)16, 1, 0f) });
+
+            var shape = ps.shape;
+            shape.shapeType = ParticleSystemShapeType.Sphere;
+            shape.radius = 0.08f;
+
+            var sizeOverLifetime = ps.sizeOverLifetime;
+            sizeOverLifetime.enabled = true;
+            sizeOverLifetime.size = new ParticleSystem.MinMaxCurve(1f, new AnimationCurve(
+                new Keyframe(0f, 0f, 0f, 3f),
+                new Keyframe(0.25f, 1f, 0f, 0f),
+                new Keyframe(1f, 0f, -1.5f, 0f)));
+
+            var colorOverLifetime = ps.colorOverLifetime;
+            colorOverLifetime.enabled = true;
+            var gradient = new Gradient();
+            gradient.SetKeys(
+                new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+                new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(0.8f, 0.2f), new GradientAlphaKey(0f, 1f) });
+            colorOverLifetime.color = gradient;
+
+            var psRenderer = go.GetComponent<ParticleSystemRenderer>();
+            psRenderer.material = _landingPuffMaterial;
+            psRenderer.sortingOrder = 20;
+
+            ps.Play();
+            Destroy(go, LandingPuffLifetime + 0.2f);
         }
 
         private IEnumerator PopInRoutine()
         {
             float duration = CardAnimator.TrayPopInDuration;
             float overshoot = CardAnimator.TrayPopInOvershoot;
-            const float overshootFraction = 0.7f;
 
             _foodAnchor.localScale = Vector3.zero;
             float elapsed = 0f;
@@ -158,9 +216,7 @@ namespace GameClient.Presentation.HUD3D
             {
                 elapsed += Time.deltaTime;
                 float t = Mathf.Clamp01(elapsed / duration);
-                float scale = t < overshootFraction
-                    ? Mathf.Lerp(0f, overshoot, t / overshootFraction)
-                    : Mathf.Lerp(overshoot, 1f, (t - overshootFraction) / (1f - overshootFraction));
+                float scale = CardAnimator.EaseOutBack(t, overshoot);
                 _foodAnchor.localScale = Vector3.one * scale;
                 yield return null;
             }

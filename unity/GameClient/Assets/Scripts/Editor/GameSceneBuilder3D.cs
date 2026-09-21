@@ -20,6 +20,7 @@ public static class GameSceneBuilder3D
     private static readonly Color GoldInkText = new Color(0.141f, 0.082f, 0.020f); // #241505, matches the approved mockup's button ink
     private static readonly Color StarGold = new Color(0.96f, 0.78f, 0.36f); // #F5C75C, earned star
     private static readonly Color StarMuted = new Color(0.44f, 0.32f, 0.18f); // dim unearned star
+    private static readonly Color SettingsLabelTint = new Color(0.88f, 0.83f, 0.68f); // pause menu's "SETTINGS" eyebrow label - brightened from an earlier (0.73,0.68,0.55) that was too low-contrast to actually read against the card at its small size
 
     // Premium display font (Cinzel OFL, Pass E) for headings/numbers - LEVEL,
     // score, PLAY. Body text keeps LiberationSans (TMP default).
@@ -789,6 +790,23 @@ public static class GameSceneBuilder3D
         return mat;
     }
 
+    // Solid cream disc material for a toggle switch's knob - stays the same
+    // color regardless of on/off state (only the track recolors), matching
+    // the plain white knob of a standard iOS-style switch.
+    private static Material GetOrCreateToggleKnobMaterial()
+    {
+        const string path = "Assets/Materials/ToggleKnob.mat";
+        var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+        if (mat == null)
+        {
+            mat = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
+            AssetDatabase.CreateAsset(mat, path);
+        }
+        mat.SetColor("_BaseColor", CreamHudText);
+        EditorUtility.SetDirty(mat);
+        return mat;
+    }
+
     // A quad parented to (and facing) the camera, sized to exactly fill the
     // viewport at `distance` - so a baked full-screen texture (the felt
     // radial glow) maps screen-to-texture correctly regardless of the
@@ -1154,9 +1172,190 @@ public static class GameSceneBuilder3D
         return root;
     }
 
-    // Pause menu overlay (sub-project #4D): a full jade screen with PAUSED +
-    // Resume/Restart and Sound/Music toggles. Built on an always-active root that
-    // toggles a child overlay; opened by the top menu button.
+    // ================= Shared 3D HUD widgets =================
+    // Common components any screen-builder method in this class can use, so a
+    // button/label/toggle only needs to be gotten right once. Extracted from
+    // what used to be one-off local functions trapped inside BuildPauseMenu.
+    //
+    // SCALE NOTE (the actual root cause of "text too small" across this file's
+    // history): a mesh's width/height and a TextMeshPro's fontSize are NOT the
+    // same unit even though both are plain floats in "world units" - a fontSize
+    // of 1.0 renders at roughly 1/10th the visual size of a mesh dimension of
+    // 1.0 (confirmed empirically: a toggle track of height 0.32 next to a label
+    // at fontSize 0.30 measured a rendered text height of only ~0.033 world
+    // units - 10% of the track's own height, not comparable at all). Any new
+    // label's fontSize should be chosen against OTHER fontSize values already
+    // proven legible in this file (BadgeNum=1.6, titleLabel=1.15, scoreText=
+    // 1.05), never against a nearby mesh's width/height number.
+    private readonly struct UIStage3D
+    {
+        public readonly Camera Camera;
+        public readonly Transform Parent;
+        public readonly float Distance;
+        public UIStage3D(Camera camera, Transform parent, float distance)
+        {
+            Camera = camera; Parent = parent; Distance = distance;
+        }
+        public Transform Place(GameObject go, Vector2 vp)
+        {
+            go.transform.position = Camera.ViewportToWorldPoint(new Vector3(vp.x, vp.y, Distance));
+            go.transform.rotation = Camera.transform.rotation;
+            go.transform.SetParent(Parent, true);
+            return go.transform;
+        }
+    }
+
+    // Always Center-aligned - confirmed via a minimal live repro (a single bare
+    // Left-aligned TextMeshPro, nothing else in the scene) that Left/Right
+    // alignment simply never renders for a 3D (non-UI) TextMeshPro on this
+    // Unity/TMP version. Callers that need a left-aligned look use
+    // SimulateLeftAlign3D() instead of TextAlignmentOptions.Left.
+    private static TextMeshPro CreateLabel3D(UIStage3D stage, string name, Vector2 vp, string text, float fontSize, Color color, bool useDisplayFont = false, FontStyles style = FontStyles.Bold)
+    {
+        var go = new GameObject(name, typeof(TextMeshPro));
+        stage.Place(go, vp);
+        var t = go.GetComponent<TextMeshPro>();
+        t.text = text; t.fontSize = fontSize; t.color = color;
+        t.fontStyle = style;
+        t.alignment = TextAlignmentOptions.Center;
+        t.textWrappingMode = TextWrappingModes.NoWrap;
+        if (useDisplayFont && DisplayFont != null)
+        {
+            t.font = DisplayFont;
+            // Cinzel's shared material bakes an underlay (drop-shadow) with
+            // _UnderlayOffsetY: -0.5 - reads as a disconnected dark duplicate
+            // of the letters at small sizes. .fontMaterial clones per-instance.
+            t.fontMaterial.SetFloat("_UnderlayOffsetY", -0.08f);
+        }
+        t.ForceMeshUpdate();
+        return t;
+    }
+
+    // Repositions an already-created (already mesh-finalized) label so its LEFT
+    // EDGE lands at `leftX`, using its measured renderedWidth - simulates left
+    // alignment since TextAlignmentOptions.Left doesn't render (see above).
+    private static void SimulateLeftAlign3D(TextMeshPro t, float leftX, float zOffset)
+    {
+        t.transform.localPosition += new Vector3(leftX + t.renderedWidth * 0.5f, 0f, zOffset);
+    }
+
+    // Solid gold pill button + centered label.
+    private static (PressScaleButton3D btn, TextMeshPro lbl) CreateSolidButton3D(UIStage3D stage, string name, Vector2 vp, string text, float width, float height, float fontSize, Color textColor, float cornerRadiusFrac = 0.32f)
+    {
+        var pill = new GameObject(name, typeof(MeshFilter), typeof(MeshRenderer));
+        stage.Place(pill, vp);
+        pill.GetComponent<MeshFilter>().sharedMesh =
+            SaveRoundedTrayMesh("Assets/Meshes/Btn_" + name + ".asset", width, height, 0.1f, height * cornerRadiusFrac);
+        pill.GetComponent<MeshRenderer>().sharedMaterial = GetOrCreateNonEmissiveGoldMaterial();
+        var col = pill.AddComponent<BoxCollider>();
+        col.size = new Vector3(width, height, 0.1f);
+        var b = pill.AddComponent<PressScaleButton3D>();
+        SetField(b, "_targetCamera", stage.Camera);
+        var l = CreateLabel3D(stage, name + "Text", vp, text, fontSize, textColor);
+        l.transform.localPosition += new Vector3(0f, 0f, -0.06f);
+        return (b, l);
+    }
+
+    // Outline ("ghost") button: gold frame, near-empty body, gold ink label -
+    // reads as clearly secondary next to a CreateSolidButton3D. Same layered
+    // frame+body technique as BuildModalPanelBackground, sized to one button.
+    private static (PressScaleButton3D btn, TextMeshPro lbl) CreateOutlineButton3D(UIStage3D stage, string name, Vector2 vp, string text, float width, float height, float fontSize, Material bodyMaterial, Color textColor)
+    {
+        const float stroke = 0.035f;
+        float radius = height * 0.32f;
+
+        var frameMesh = SaveRoundedTrayMesh("Assets/Meshes/" + name + "Frame.asset", width, height, 0.1f, radius);
+        var frameGO = new GameObject(name + "Frame", typeof(MeshFilter), typeof(MeshRenderer));
+        stage.Place(frameGO, vp);
+        frameGO.transform.localPosition += new Vector3(0f, 0f, -0.06f);
+        frameGO.GetComponent<MeshFilter>().sharedMesh = frameMesh;
+        var frameR = frameGO.GetComponent<MeshRenderer>();
+        frameR.sharedMaterial = GetOrCreateNonEmissiveGoldMaterial();
+        frameR.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        frameR.receiveShadows = false;
+
+        var bodyMesh = SaveRoundedTrayMesh("Assets/Meshes/" + name + "Body.asset",
+            width - stroke * 2f, height - stroke * 2f, 0.1f, Mathf.Max(radius - stroke, 0.02f));
+        var bodyGO = new GameObject(name + "Body", typeof(MeshFilter), typeof(MeshRenderer));
+        stage.Place(bodyGO, vp);
+        // 0.02 gap from the frame's own Z, matching BuildModalPanelBackground's
+        // proven separation - but note SaveRoundedTrayMesh's `thickness` extrudes
+        // the mesh symmetrically (+-thickness/2), so at thickness 0.1 the frame's
+        // actual FRONT face sits 0.05 further forward than its nominal Z. Any
+        // label placed in front of both layers needs to clear the BODY's front
+        // face (nominal - 0.05), not just its nominal Z - confirmed live by
+        // toggling each layer's MeshRenderer.enabled and re-screenshotting.
+        bodyGO.transform.localPosition += new Vector3(0f, 0f, -0.08f);
+        bodyGO.GetComponent<MeshFilter>().sharedMesh = bodyMesh;
+        var bodyR = bodyGO.GetComponent<MeshRenderer>();
+        bodyR.sharedMaterial = bodyMaterial;
+        bodyR.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        bodyR.receiveShadows = false;
+
+        var col = frameGO.AddComponent<BoxCollider>();
+        col.size = new Vector3(width, height, 0.1f);
+        var b = frameGO.AddComponent<PressScaleButton3D>();
+        SetField(b, "_targetCamera", stage.Camera);
+
+        var l = CreateLabel3D(stage, name + "Text", vp, text, fontSize, textColor);
+        l.transform.localPosition += new Vector3(0f, 0f, -0.20f); // clears both front faces above
+        return (b, l);
+    }
+
+    // Settings-style row: a left-aligned label + an iOS-style switch on the
+    // right, both offset from the row's own centre in WORLD units (never a
+    // separate viewport-fraction offset - those two scales don't track each
+    // other across aspect ratios, so a fixed vp.x offset drifts past a
+    // world-unit-sized container's actual edge on a different screen aspect).
+    private static (ToggleSwitch3D toggle, TextMeshPro label) CreateToggleRow3D(UIStage3D stage, string name, Vector2 vp, string labelText, float rowHalfWidth, Material trayBodyMaterial, float labelFontSize, float trackW, float trackH, float knobD)
+    {
+        var label = CreateLabel3D(stage, name + "Label", vp, labelText, labelFontSize, CreamHudText);
+        SimulateLeftAlign3D(label, -rowHalfWidth, -0.06f);
+
+        var trackGO = new GameObject(name + "Track", typeof(MeshFilter), typeof(MeshRenderer));
+        stage.Place(trackGO, vp);
+        trackGO.transform.localPosition += new Vector3(rowHalfWidth - trackW * 0.5f, 0f, -0.06f);
+        trackGO.GetComponent<MeshFilter>().sharedMesh =
+            SaveRoundedTrayMesh("Assets/Meshes/Toggle_" + name + "Track.asset", trackW, trackH, 0.08f, trackH * 0.5f);
+        trackGO.GetComponent<MeshRenderer>().sharedMaterial = trayBodyMaterial; // starts "off"-colored; SetOn() below/at runtime recolors
+        var col = trackGO.AddComponent<BoxCollider>();
+        col.size = new Vector3(trackW + 0.3f, trackH + 0.3f, 0.1f); // generous tap target beyond the visual track
+        var btn = trackGO.AddComponent<PressScaleButton3D>();
+        SetField(btn, "_targetCamera", stage.Camera);
+
+        var knobGO = new GameObject(name + "Knob", typeof(MeshFilter), typeof(MeshRenderer));
+        knobGO.transform.SetParent(trackGO.transform, false);
+        knobGO.transform.localPosition = new Vector3(0f, 0f, -0.05f);
+        knobGO.GetComponent<MeshFilter>().sharedMesh =
+            SaveRoundedTrayMesh("Assets/Meshes/Toggle_" + name + "Knob.asset", knobD, knobD, 0.09f, knobD * 0.5f);
+        knobGO.GetComponent<MeshRenderer>().sharedMaterial = GetOrCreateToggleKnobMaterial();
+
+        float halfTravel = (trackW - knobD) * 0.5f - 0.03f; // small inset so the knob never touches the track ends
+        var toggle = trackGO.AddComponent<ToggleSwitch3D>();
+        SetField(toggle, "_trackRenderer", trackGO.GetComponent<MeshRenderer>());
+        SetField(toggle, "_onMaterial", GetOrCreateNonEmissiveGoldMaterial());
+        SetField(toggle, "_offMaterial", trayBodyMaterial);
+        SetField(toggle, "_knob", knobGO.transform);
+        SetFieldFloat(toggle, "_knobOffLocalX", -halfTravel);
+        SetFieldFloat(toggle, "_knobOnLocalX", halfTravel);
+
+        return (toggle, label);
+    }
+
+    // Pause menu overlay (sub-project #4D, redesign pass 5 - borderless):
+    // PAUSED + Resume/Restart/Sound/Vibration all sit directly on the backdrop,
+    // no panel outline and no corner brackets - a later follow-up superseded
+    // pass 4's bordered Settings card and open-corner-bracket framing. Built on
+    // an always-active root that toggles a child overlay; opened by the top
+    // menu button.
+    //
+    // Pass 3 shipped readable-when-zoomed-in-300%-on-a-screenshot text that
+    // was actually too small on the real device: every font size had been
+    // picked as if it were directly comparable to a nearby mesh's world-unit
+    // width/height, which CreateLabel3D's scale note above debunks (fontSize
+    // needs ~10x the numeric value of a mesh dimension for similar visual
+    // weight). Every size below is rebuilt from that ratio instead - see each
+    // value's comment for the specific comparison it's calibrated against.
     private static PauseMenu3D BuildPauseMenu(
         Camera camera, GameController gameController, GameObject[] hudObjects,
         PressScaleButton3D menuButton, Material discFaceMaterial,
@@ -1172,100 +1371,137 @@ public static class GameSceneBuilder3D
         const float BgD = 8f * 0.8175f;
         BuildScreenFillingBackdrop(camera, overlay.transform, BgD, GetOrCreateFeltScreenMaterial(), "Backdrop");
 
-        Transform Place(GameObject go, Vector2 vp)
-        {
-            go.transform.position = camera.ViewportToWorldPoint(new Vector3(vp.x, vp.y, D));
-            go.transform.rotation = camera.transform.rotation;
-            go.transform.SetParent(overlay.transform, true);
-            return go.transform;
-        }
-        // display=false + Bold: button labels use a bold sans, not the Cinzel
-        // display face - Cinzel's thin serif strokes read poorly at small
-        // button-label sizes (mockup used the same sans/bold split: Cinzel only
-        // for the large title, bold body font for buttons).
-        TextMeshPro Label(string name, Vector2 vp, string text, float size, Color color, bool display = true, FontStyles style = FontStyles.Normal)
-        {
-            var go = new GameObject(name, typeof(TextMeshPro));
-            Place(go, vp);
-            var t = go.GetComponent<TextMeshPro>();
-            t.text = text; t.fontSize = size; t.color = color;
-            t.fontStyle = style;
-            t.alignment = TextAlignmentOptions.Center;
-            if (display && DisplayFont != null)
-            {
-                t.font = DisplayFont;
-                // Cinzel's shared material bakes an underlay (drop-shadow) with
-                // _UnderlayOffsetY: -0.5 - at this popup's font size that reads
-                // as a disconnected dark duplicate of the letters floating below
-                // them, not a subtle shadow (it was always there, just went
-                // unnoticed against the plain panel until the divider added
-                // nearby contrast). .fontMaterial clones per-instance, so this
-                // doesn't touch the shared asset used by level-select/start.
-                t.fontMaterial.SetFloat("_UnderlayOffsetY", -0.08f);
-            }
-            return t;
-        }
-        (PressScaleButton3D btn, TextMeshPro lbl) MakeButton(string name, Vector2 vp, string text, float width, float height, float fontSize)
-        {
-            var pill = new GameObject(name, typeof(MeshFilter), typeof(MeshRenderer));
-            Place(pill, vp);
-            pill.GetComponent<MeshFilter>().sharedMesh =
-                SaveRoundedTrayMesh("Assets/Meshes/PauseBtn_" + name + ".asset", width, height, 0.1f, height * 0.47f);
-            pill.GetComponent<MeshRenderer>().sharedMaterial = GetOrCreateNonEmissiveGoldMaterial();
-            var col = pill.AddComponent<BoxCollider>();
-            col.size = new Vector3(width, height, 0.1f);
-            var b = pill.AddComponent<PressScaleButton3D>();
-            SetField(b, "_targetCamera", camera);
-            var l = Label(name + "Text", vp, text, fontSize, GoldInkText, display: false, style: FontStyles.Bold);
-            l.transform.localPosition += new Vector3(0f, 0f, -0.06f);
-            return (b, l);
-        }
+        var stage = new UIStage3D(camera, overlay.transform, D);
 
-        // Shared jade+gold-framed panel behind the title+buttons (was missing
-        // entirely - buttons floated directly on the felt with no container),
-        // matching the same panel the game-over popup now uses. Height/anchor
-        // tightened from an earlier 3.1/0.48 that left uneven dead space above
-        // the title and below the toggle row - this fits the content snugly.
-        var panelAnchor = new GameObject("PausePanelAnchor");
-        Place(panelAnchor, new Vector2(0.5f, 0.495f));
-        BuildModalPanelBackground(panelAnchor.transform, "PausePanel", 2.3f, 2.75f, trayBorderMaterial, trayBodyMaterial);
+        // Card: single bordered panel (same frame+body technique as
+        // GameOverPanel, via BuildModalPanelBackground) framing all pause-menu
+        // content, matching a user-approved HTML mockup built at the phone's
+        // exact 1080x2340 proportions. World-unit sizes below are derived from
+        // the live camera frustum, so they carry the mockup's screen-relative
+        // percentages over exactly rather than via hand-eyeballed constants.
+        // The camera is ORTHOGRAPHIC (see camera.orthographic = true / Build()
+        // top), so frustum size is 2*orthographicSize and is constant at every
+        // distance - fieldOfView has no effect on what actually renders. An
+        // earlier version of this used the perspective formula
+        // (2*D*tan(fov/2)), which under-sized everything here by ~1.57x
+        // (undersized card overflowed by its own content, undersized text/
+        // buttons) since it doesn't apply to this camera's projection mode.
+        float frustumHeight = 2f * camera.orthographicSize;
+        float frustumWidth = frustumHeight * camera.aspect;
+        const float CardWidthFrac = 0.84f;   // 8% inset from each screen edge
+        const float CardHeightFrac = 0.63f;  // spans screen vp.y 0.185-0.815, vertically centered
+        float cardWidth = CardWidthFrac * frustumWidth;
+        float cardHeight = CardHeightFrac * frustumHeight;
+        var cardRoot = new GameObject("PauseCardRoot");
+        stage.Place(cardRoot, new Vector2(0.5f, 0.5f)); // card is vertically centered on screen
+        // cornerRadius matches the mockup's border-radius:7% (of card width) -
+        // the function's own 0.22 default was tuned for GameOverPanel's wider
+        // 3.0-unit panel and reads proportionally too rounded (11%) on this
+        // narrower card.
+        BuildModalPanelBackground(cardRoot.transform, "PauseCard", cardWidth, cardHeight, trayBorderMaterial, trayBodyMaterial, cornerRadius: 0.07f * cardWidth);
 
-        // Explicit, generous forward offset (not the tiny 0.03-0.05 gap the panel
-        // itself uses) - small Z gaps are unreliable at HUD camera distance (see
-        // the ProgressBar3D "coplanar transparent elements render unreliably"
-        // gotcha); this only became visible once the title's viewport position
-        // started spatially overlapping the panel's on-screen footprint.
-        var pausedTitle = Label("PausedTitle", new Vector2(0.5f, 0.62f), "PAUSED", 0.9f, CreamHudText);
+        // Buttons/rows span 84% of the card's own width (mockup's inner content
+        // inset), same as the settings rows below.
+        float contentWidth = 0.84f * cardWidth;
+        // Converts a target "% of screen height" (as measured in the mockup)
+        // into a TMP fontSize: renderedHeight (world units) runs ~fontSize*0.11.
+        float FontSizeForScreenFrac(float frac) => (frac * frustumHeight) / 0.11f;
+
+        // Title: calibrated against BadgeNum (fontSize 1.6, the level-select
+        // screen's single-digit level number) and titleLabel ("Level 6" at
+        // 1.15) elsewhere in this file - a 6-letter screen title should read
+        // at least as large as those, not smaller. Unchanged by the card pass
+        // - confirmed as the one element already at the right size.
+        var pausedTitle = CreateLabel3D(stage, "PausedTitle", new Vector2(0.5f, 0.76f), "PAUSED", 1.7f, CreamHudText, useDisplayFont: true, style: FontStyles.Normal);
         pausedTitle.transform.localPosition += new Vector3(0f, 0f, -0.15f);
 
-        // A bare thin gold accent under the title - the "just text floating on
-        // a panel" look was the missing-polish complaint; this one line gives
-        // the header actual structure, same gold as the buttons for cohesion.
-        var divider = new GameObject("PausedDivider", typeof(MeshFilter), typeof(MeshRenderer));
-        Place(divider, new Vector2(0.5f, 0.585f));
-        divider.transform.localPosition += new Vector3(0f, 0f, -0.15f);
-        divider.GetComponent<MeshFilter>().sharedMesh =
-            SaveRoundedTrayMesh("Assets/Meshes/PausedDivider.asset", 0.9f, 0.022f, 0.05f, 0.011f);
-        var dividerRenderer = divider.GetComponent<MeshRenderer>();
-        dividerRenderer.sharedMaterial = GetOrCreateNonEmissiveGoldMaterial();
-        // ROOT CAUSE of the "ghost text" bug reported after this divider was
-        // added: it was casting a real-time shadow onto the panel body a
-        // fraction of a unit behind it, rendering as a faint patterned smudge
-        // that looked like duplicate text - not a font/underlay/board issue,
-        // confirmed by diffing screenshots from before/after this divider
-        // existed (clean before, smudge after, at the exact same position).
-        dividerRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-        dividerRenderer.receiveShadows = false;
+        // Ornamented divider: two short bars closing on a small rotated-square
+        // "diamond". Same shadowCastingMode fix as elsewhere - a thin gold
+        // element this close to text/backdrop reads as a duplicate-text smudge
+        // if it's allowed to cast a real-time shadow. Geometry scaled by
+        // dividerScale to track the new (narrower) content width - 2.0 is the
+        // previous PauseContentWidth this divider was originally tuned against.
+        float dividerScale = contentWidth / 2.0f;
+        var dividerLineMesh = SaveRoundedTrayMesh("Assets/Meshes/PausedDividerLine.asset", 0.36f * dividerScale, 0.022f * dividerScale, 0.05f, 0.011f * dividerScale);
+        var dividerDiamondMesh = SaveRoundedTrayMesh("Assets/Meshes/PausedDividerDiamond.asset", 0.065f * dividerScale, 0.065f * dividerScale, 0.05f, 0.010f * dividerScale);
+        void MakeDividerPart(string name, Vector2 vp, float xOffset, Mesh mesh, float rotateZ = 0f)
+        {
+            var go = new GameObject(name, typeof(MeshFilter), typeof(MeshRenderer));
+            stage.Place(go, vp);
+            go.transform.localPosition += new Vector3(xOffset, 0f, -0.15f);
+            if (rotateZ != 0f) go.transform.rotation *= Quaternion.Euler(0f, 0f, rotateZ);
+            go.GetComponent<MeshFilter>().sharedMesh = mesh;
+            var r = go.GetComponent<MeshRenderer>();
+            r.sharedMaterial = GetOrCreateNonEmissiveGoldMaterial();
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            r.receiveShadows = false;
+        }
+        var dividerVp = new Vector2(0.5f, 0.702f);
+        MakeDividerPart("PausedDividerLeft", dividerVp, -0.23f * dividerScale, dividerLineMesh);
+        MakeDividerPart("PausedDividerDiamond", dividerVp, 0f, dividerDiamondMesh, rotateZ: 45f);
+        MakeDividerPart("PausedDividerRight", dividerVp, 0.23f * dividerScale, dividerLineMesh);
 
-        // Resume is the primary action (bigger, most prominent); Restart is
-        // secondary at the same size as the toggles below it, not competing
-        // with Resume for attention.
-        var resume = MakeButton("Resume", new Vector2(0.5f, 0.53f), "RESUME", 1.9f, 0.42f, 0.46f);
-        var restart = MakeButton("Restart", new Vector2(0.5f, 0.435f), "RESTART", 1.6f, 0.32f, 0.38f);
-        // Sound/Music are settings toggles, not primary actions - side by side
-        // and narrower so they read as a distinct, lower-priority row.
-        var sound = MakeButton("SoundToggle", new Vector2(0.30f, 0.345f), "Sound: ON", 0.95f, 0.30f, 0.32f);
-        var music = MakeButton("MusicToggle", new Vector2(0.70f, 0.345f), "Music: ON", 0.95f, 0.30f, 0.32f);
+        // Resume is the primary action - solid gold fill. Restart is secondary:
+        // same family (same corner radius, same gold), but an outline instead
+        // of a fill, so the two stop competing for attention despite Restart
+        // being the more destructive of the two. Both span the card's full
+        // content width (matching the Settings rows below) rather than a
+        // narrower centered pill, and sit vertically centered in the gap
+        // between the divider and the section rule above Settings.
+        var resume = CreateSolidButton3D(stage, "Resume", new Vector2(0.5f, 0.607f), "RESUME", contentWidth, 0.09f * cardHeight, FontSizeForScreenFrac(0.014f), GoldInkText);
+        var restart = CreateOutlineButton3D(stage, "Restart", new Vector2(0.5f, 0.528f), "RESTART", contentWidth, 0.08f * cardHeight, FontSizeForScreenFrac(0.0125f), trayBodyMaterial, GoldChrome);
+
+        // Section rule: thin gold hairline separating the Resume/Restart
+        // actions from the Settings group below, inside the card - reuses the
+        // divider's line mesh technique (single continuous bar, no diamond).
+        var sectionRuleMesh = SaveRoundedTrayMesh("Assets/Meshes/PauseSectionRule.asset", contentWidth, 0.01f, 0.05f, 0.005f);
+        var sectionRuleGO = new GameObject("SectionRule", typeof(MeshFilter), typeof(MeshRenderer));
+        stage.Place(sectionRuleGO, new Vector2(0.5f, 0.437f));
+        sectionRuleGO.transform.localPosition += new Vector3(0f, 0f, -0.15f);
+        sectionRuleGO.GetComponent<MeshFilter>().sharedMesh = sectionRuleMesh;
+        var sectionRuleRenderer = sectionRuleGO.GetComponent<MeshRenderer>();
+        sectionRuleRenderer.sharedMaterial = GetOrCreateNonEmissiveGoldMaterial();
+        sectionRuleRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        sectionRuleRenderer.receiveShadows = false;
+
+        // Settings rows sit directly on the card, no separate bordered card of
+        // their own - the outer card (built above) already provides that
+        // frame. Same contentWidth as the buttons above so the row
+        // label/toggle group lines up with them instead of sitting narrower.
+        float settingsHalfWidth = contentWidth * 0.5f;
+
+        // Settings eyebrow: smaller than the row labels below it (it's a
+        // caption, not content) but still legible.
+        var settingsLabel = CreateLabel3D(stage, "SettingsLabel", new Vector2(0.5f, 0.391f), "SETTINGS", FontSizeForScreenFrac(0.016f), SettingsLabelTint);
+        SimulateLeftAlign3D(settingsLabel, -settingsHalfWidth, -0.09f);
+
+        // ALL-CAPS, not "Sound"/"Vibration": live-tested in isolation (a bare
+        // TextMeshPro, nothing else in the scene) and confirmed mixed-case
+        // "Vibration" specifically renders as overlapping/garbled glyphs on this
+        // font asset - "VIBRATION" (and "SOUND") render clean. Also matches the
+        // ALL-CAPS convention every other label on this screen already uses.
+        // Track/knob sized as a fraction of contentWidth (matching the
+        // mockup's row-relative percentages) - noticeably smaller than pass 5,
+        // which read as oversized next to the row label text.
+        float toggleTrackW = 0.165f * contentWidth;
+        float toggleTrackH = 0.087f * contentWidth;
+        float toggleKnobD = 0.76f * toggleTrackH;
+        float rowLabelFontSize = FontSizeForScreenFrac(0.018f);
+        var sound = CreateToggleRow3D(stage, "SoundToggle", new Vector2(0.5f, 0.332f), "SOUND", settingsHalfWidth, trayBodyMaterial, rowLabelFontSize, toggleTrackW, toggleTrackH, toggleKnobD);
+        var vibration = CreateToggleRow3D(stage, "VibrationToggle", new Vector2(0.5f, 0.259f), "VIBRATION", settingsHalfWidth, trayBodyMaterial, rowLabelFontSize, toggleTrackW, toggleTrackH, toggleKnobD);
+
+        // WORKAROUND for a confirmed Editor-time quirk: whichever TextMeshPro is
+        // the LAST one created inside this method never commits its post-creation
+        // position offset into the saved scene (reproduced repeatedly by swapping
+        // Sound/Vibration's creation order - the bug always follows whoever is
+        // built last, regardless of word/content; the identical position mutation
+        // applied live at runtime, after the scene is already loaded, sticks
+        // immediately, so this is specific to edit-time construction/serialization,
+        // not a real ToggleSwitch3D/TextMeshPro bug). Rather than fight that
+        // serialization path directly, this harmless off-screen placeholder simply
+        // absorbs being "last" so VibrationToggleLabel isn't.
+        var endOfBuildMarker = CreateLabel3D(stage, "PauseMenuBuildEndMarker", new Vector2(0.5f, 0.259f), " ", 0.01f, Color.clear);
+        endOfBuildMarker.transform.localPosition += new Vector3(0f, -50f, 0f); // parked far off-screen either way
 
         overlay.SetActive(false); // hidden until the menu button is tapped
 
@@ -1274,10 +1510,8 @@ public static class GameSceneBuilder3D
         SetField(pause, "_menuButton", menuButton);
         SetField(pause, "_resumeButton", resume.btn);
         SetField(pause, "_restartButton", restart.btn);
-        SetField(pause, "_soundToggle", sound.btn);
-        SetField(pause, "_musicToggle", music.btn);
-        SetField(pause, "_soundLabel", sound.lbl);
-        SetField(pause, "_musicLabel", music.lbl);
+        SetField(pause, "_soundToggle", sound.toggle);
+        SetField(pause, "_vibrationToggle", vibration.toggle);
         SetField(pause, "_gameController", gameController);
         SetFieldArray(pause, "_gameHudObjects", hudObjects);
         SetField(pause, "_gameOverPopup", gameOverPopup);
@@ -1510,10 +1744,9 @@ public static class GameSceneBuilder3D
     // the same "uniform corner stroke" rule the tray/score-bar borders use.
     private static void BuildModalPanelBackground(
         Transform parent, string namePrefix, float width, float height,
-        Material borderMaterial, Material bodyMaterial)
+        Material borderMaterial, Material bodyMaterial,
+        float cornerRadius = 0.22f, float strokeWidth = 0.05f)
     {
-        const float cornerRadius = 0.22f;
-        const float strokeWidth = 0.05f;
         const float thickness = 0.12f;
 
         var frameMesh = SaveRoundedTrayMesh(
@@ -1621,6 +1854,12 @@ public static class GameSceneBuilder3D
         trail.emitting = false;
         trail.enabled = false;
 
+        // Landing-impact puff (soft white burst the instant a flown tile lands
+        // in this slot - see TraySlotView3D.PlayLandingPuff); reuses the same
+        // baked glow sprite the match celebration uses (run MatchParticleGenerator first).
+        var landingPuffMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/MatchParticleGlow.mat");
+        RequireNotNull(landingPuffMaterial, "Assets/Materials/MatchParticleGlow.mat (run MatchParticleGenerator first)");
+
         var slotView = root.AddComponent<TraySlotView3D>();
         SetField(slotView, "_content", content.transform);
         SetField(slotView, "_bodyRenderer", body.GetComponent<MeshRenderer>());
@@ -1628,6 +1867,7 @@ public static class GameSceneBuilder3D
         SetField(slotView, "_emptyMaterial", cardMaterial);
         SetField(slotView, "_filledMaterial", tileFaceMaterial);
         SetField(slotView, "_flightTrail", trail);
+        SetField(slotView, "_landingPuffMaterial", landingPuffMaterial);
 
         Directory.CreateDirectory("Assets/Prefabs");
         var prefab = PrefabUtility.SaveAsPrefabAsset(root, "Assets/Prefabs/TraySlot3D.prefab");

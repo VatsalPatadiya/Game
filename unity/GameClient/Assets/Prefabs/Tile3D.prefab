@@ -70,7 +70,6 @@ MonoBehaviour:
   _bodyRenderer: {fileID: 7298028665171419416}
   _bodyCollider: {fileID: 5567145662034241304}
   _freeCardColor: {r: 1, g: 1, b: 1, a: 1}
-  _blockedCardColor: {r: 0.95, g: 0.95, b: 0.95, a: 1}
   _highlightColor: {r: 1, g: 0.9, b: 0.6, a: 1}
 --- !u!1 &4253288249187546299
 GameObject:

@@ -1,26 +1,24 @@
 using System.Collections;
 using GameClient.Presentation;
 using GameDomain.Progression;
-using TMPro;
 using UnityEngine;
 
 namespace GameClient.Presentation.HUD3D
 {
     // Pause menu overlay (sub-project #4D): opened by the top menu (hamburger)
-    // button. Offers Resume, Restart, and Sound/Music toggles. Settings persist
-    // via SaveSystem (audio wiring pending audio assets - the toggles record the
-    // preference now). Built by GameSceneBuilder3D on an always-active root that
-    // toggles a child overlay.
+    // button. Offers Resume, Restart, and Sound/Vibration toggles. Settings
+    // persist via SaveSystem; sound mutes GameController's AudioSource and
+    // vibration gates its Handheld.Vibrate() call, both applied live via the
+    // toggle handlers below. Built by GameSceneBuilder3D on an always-active
+    // root that toggles a child overlay.
     public sealed class PauseMenu3D : MonoBehaviour
     {
         [SerializeField] private GameObject _overlay;
         [SerializeField] private PressScaleButton3D _menuButton; // top hamburger - opens the overlay
         [SerializeField] private PressScaleButton3D _resumeButton;
         [SerializeField] private PressScaleButton3D _restartButton;
-        [SerializeField] private PressScaleButton3D _soundToggle;
-        [SerializeField] private PressScaleButton3D _musicToggle;
-        [SerializeField] private TMP_Text _soundLabel;
-        [SerializeField] private TMP_Text _musicLabel;
+        [SerializeField] private ToggleSwitch3D _soundToggle;
+        [SerializeField] private ToggleSwitch3D _vibrationToggle;
         [SerializeField] private GameController _gameController;
         // Hidden while the pause overlay is up (their always-on-top icon glyphs
         // would otherwise draw over the overlay regardless of depth).
@@ -59,9 +57,9 @@ namespace GameClient.Presentation.HUD3D
             // Awake and left them half-height (the retry bug). TraySlotView3D is
             // also defensively lazy-init now, but this keeps the intent clear.
             if (_restartButton != null) _restartButton.OnClick += () => { Hide(); _gameController?.RestartLevel(); };
-            if (_soundToggle != null) _soundToggle.OnClick += () => { _settings.SoundOn = !_settings.SoundOn; Persist(); };
-            if (_musicToggle != null) _musicToggle.OnClick += () => { _settings.MusicOn = !_settings.MusicOn; Persist(); };
-            RefreshLabels();
+            if (_soundToggle != null) _soundToggle.OnToggled += on => { _settings.SoundOn = on; SaveSystem.SaveSettings(_settings); _gameController?.SetSoundEnabled(on); };
+            if (_vibrationToggle != null) _vibrationToggle.OnToggled += on => { _settings.VibrationOn = on; SaveSystem.SaveSettings(_settings); };
+            SyncToggles();
         }
 
         public void Show()
@@ -79,7 +77,7 @@ namespace GameClient.Presentation.HUD3D
                 if (_showAnimation != null) StopCoroutine(_showAnimation);
                 _showAnimation = StartCoroutine(PlayShowAnimation(_overlay.transform));
             }
-            RefreshLabels();
+            SyncToggles();
         }
 
         public void Hide()
@@ -118,17 +116,14 @@ namespace GameClient.Presentation.HUD3D
                 if (go != null) go.SetActive(active);
         }
 
-        private void Persist()
-        {
-            SaveSystem.SaveSettings(_settings);
-            RefreshLabels();
-        }
-
-        private void RefreshLabels()
+        // No animation here - this only fires on Awake/Start (before the
+        // overlay has ever been shown) and each time Show() reopens it, so
+        // the knobs should already be in their resting position, not sliding.
+        private void SyncToggles()
         {
             if (_settings == null) _settings = new SettingsData();
-            if (_soundLabel != null) _soundLabel.text = "Sound: " + (_settings.SoundOn ? "ON" : "OFF");
-            if (_musicLabel != null) _musicLabel.text = "Music: " + (_settings.MusicOn ? "ON" : "OFF");
+            if (_soundToggle != null) _soundToggle.SetOn(_settings.SoundOn, animate: false);
+            if (_vibrationToggle != null) _vibrationToggle.SetOn(_settings.VibrationOn, animate: false);
         }
     }
 }

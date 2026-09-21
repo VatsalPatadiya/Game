@@ -40,7 +40,6 @@ public static class TileMeshGenerator
         serialized.FindProperty("_bodyRenderer").objectReferenceValue = bodyRenderer;
         serialized.FindProperty("_bodyCollider").objectReferenceValue = collider;
         serialized.FindProperty("_freeCardColor").colorValue = Color.white;
-        serialized.FindProperty("_blockedCardColor").colorValue = new Color(0.6f, 0.6f, 0.6f, 1f);
         serialized.FindProperty("_highlightColor").colorValue = new Color(1f, 0.9f, 0.6f, 1f);
         serialized.ApplyModifiedPropertiesWithoutUndo();
 

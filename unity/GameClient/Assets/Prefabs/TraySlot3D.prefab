@@ -324,6 +324,7 @@ MonoBehaviour:
   _emptyMaterial: {fileID: 2100000, guid: 184e386bd12154a15b3ee10c28d87166, type: 2}
   _filledMaterial: {fileID: 2100000, guid: 0c36938ace3cc40ffb856021a2612e9f, type: 2}
   _flightTrail: {fileID: 3403428066631263788}
+  _landingPuffMaterial: {fileID: 2100000, guid: 167fb6f9e714d45d18dc914df56b0ad3, type: 2}
 --- !u!1 &8943654531387973699
 GameObject:
   m_ObjectHideFlags: 0

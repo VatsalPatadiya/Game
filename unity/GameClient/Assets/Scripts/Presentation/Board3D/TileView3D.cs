@@ -11,7 +11,6 @@ namespace GameClient.Presentation.Board3D
         [SerializeField] private BoxCollider _bodyCollider;
         
         [SerializeField] private Color _freeCardColor = Color.white;
-        [SerializeField] private Color _blockedCardColor = new Color(0.6f, 0.6f, 0.6f, 1f);
         [SerializeField] private Color _highlightColor = new Color(1f, 0.9f, 0.6f, 1f);
 
         private const float DragLiftDistance = 1.5f;
@@ -24,7 +23,6 @@ namespace GameClient.Presentation.Board3D
         private Vector3 _shadowBaseScale;
         private Vector3 _shadowBasePos;
 
-        private bool _isFree;
         private bool _isSelected;
         private Coroutine _shakeCoroutine;
         private Coroutine _clearCoroutine;
@@ -70,19 +68,20 @@ namespace GameClient.Presentation.Board3D
                 }
             }
 
-            RefreshCardColor(true);
+            RefreshCardColor();
         }
 
+        // Covered tiles remain untappable (enforced by FreedomRuleCalculator
+        // via MatchValidator/TrayManager) but no longer grey out visually -
+        // every tile renders in _freeCardColor regardless of free/covered state.
         public void SetFree(bool isFree)
         {
-            _isFree = isFree;
-            RefreshCardColor(isFree);
         }
 
-        private void RefreshCardColor(bool isFree)
+        private void RefreshCardColor()
         {
             if (_isSelected) return;
-            if (_bodyTint != null) _bodyTint.Color = isFree ? _freeCardColor : _blockedCardColor;
+            if (_bodyTint != null) _bodyTint.Color = _freeCardColor;
         }
 
         // Plays a single pulsing glow for ~2.5 seconds then returns to normal.
@@ -97,7 +96,7 @@ namespace GameClient.Presentation.Board3D
 
         private IEnumerator HintGlowRoutine()
         {
-            Color baseColor = _isFree ? _freeCardColor : _blockedCardColor;
+            Color baseColor = _freeCardColor;
             const float rampUpTime   = 0.35f;
             const float holdTime     = 1.6f;
             const float rampDownTime = 0.55f;
@@ -128,7 +127,7 @@ namespace GameClient.Presentation.Board3D
             }
 
             _highlightCoroutine = null;
-            RefreshCardColor(_isFree);
+            RefreshCardColor();
         }
 
         public void SetSelected(bool selected)
@@ -141,7 +140,7 @@ namespace GameClient.Presentation.Board3D
             }
             else
             {
-                RefreshCardColor(_isFree);
+                RefreshCardColor();
                 UpdateSortingOrder();
             }
 
@@ -251,7 +250,7 @@ namespace GameClient.Presentation.Board3D
             }
 
             transform.localRotation = originalRot;
-            RefreshCardColor(false);
+            RefreshCardColor();
         }
 
         public void BeginDrag()

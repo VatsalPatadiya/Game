@@ -68,6 +68,10 @@ namespace GameClient.Presentation
         private bool _paused;
         public void SetPaused(bool paused) => _paused = paused;
 
+        // Set by the pause menu's sound toggle so it takes effect immediately,
+        // without waiting for the next scene load to re-read SettingsData.
+        public void SetSoundEnabled(bool enabled) => _audioSource.mute = !enabled;
+
         private void Awake()
         {
             // Ensure an AudioListener exists (required for any audio output).
@@ -78,6 +82,7 @@ namespace GameClient.Presentation
             _audioSource.playOnAwake = false;
             _audioSource.volume = 1.0f;
             _audioSource.spatialBlend = 0f; // Force 2D – no 3D distance rolloff
+            _audioSource.mute = !SaveSystem.LoadSettings().SoundOn;
 
             _tilesSettledClip = Resources.Load<AudioClip>("SFX/TilesSettled");
             if (_tilesSettledClip != null)
@@ -251,7 +256,7 @@ namespace GameClient.Presentation
             {
                 _boardView.GetTileView(slotId)?.PlayShake();
 #if UNITY_ANDROID || UNITY_IOS
-                Handheld.Vibrate();
+                if (SaveSystem.LoadSettings().VibrationOn) Handheld.Vibrate();
 #endif
                 if (_invalidTapClip != null && _audioSource != null)
                     _audioSource.PlayOneShot(_invalidTapClip);
@@ -288,14 +293,18 @@ namespace GameClient.Presentation
             // The tile now lives in the tray (domain-side), so take it off the board.
             _boardView.RemoveTileInstant(slotId);
 
-            // Fly a card from the board up to the slot it landed in. The tray's
-            // arrival pop-in starts before the flight lands (see CardAnimator.
+            // Fly a card from the board up to the slot it landed in, on the same
+            // arced/smoothstep curve as the undo flight (CardAnimator.
+            // MoveTransformSmooth) instead of a dead-straight lerp - board tiles
+            // can be far from the tray, and a straight line covered in ~220ms
+            // reads as a teleport/pop rather than a flight. The tray's arrival
+            // pop-in starts before the flight lands (see CardAnimator.
             // TrayArrivalOverlapFraction) so the two read as one continuous motion.
             int landingIndex = oldTray.Count;
             var flight = _trayView.SpawnFlightCard(tileSprite, startPos);
             Vector3 slotPos = _trayView.GetSlotWorldPosition(landingIndex);
-            var flightRoutine = StartCoroutine(
-                CardAnimator.MoveTransform(flight.transform, startPos, slotPos, CardAnimator.TrayFlightDuration));
+            var flightRoutine = StartCoroutine(CardAnimator.MoveTransformSmooth(
+                flight.transform, startPos, slotPos, Quaternion.identity, CardAnimator.TrayFlightDuration));
             yield return new WaitForSeconds(CardAnimator.TrayFlightDuration * CardAnimator.TrayArrivalOverlapFraction);
             _trayView.PlayArrivalPopIn(landingIndex, tileSprite);
             yield return flightRoutine;
