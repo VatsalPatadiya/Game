@@ -1111,27 +1111,12 @@ public static class GameSceneBuilder3D
         BuildScreenFillingBackdrop(camera, root.transform, BgD, GetOrCreateFeltScreenMaterial(), "Backdrop");
         // BuildLeafDecoration removed as requested
 
-        var creamDim = new Color(0.796f, 0.749f, 0.643f); // #CBBFA4 (mockup --cream-dim)
-        var inkDim = new Color(0.604f, 0.573f, 0.494f);   // #9A927E (mockup --ink-dim)
-
         // Places a new child at a viewport point on the level-start plane,
-        // parented under the root (keeping the camera-facing pose). Used for
-        // the card root itself, which must stay at the baseline the card's
-        // own frame/body offsets (local +0.05/+0.03, from
-        // BuildModalPanelBackground) are relative to.
-        Transform Place(GameObject go, Vector2 vp)
-        {
-            go.transform.position = camera.ViewportToWorldPoint(new Vector3(vp.x, vp.y, D));
-            go.transform.rotation = camera.transform.rotation;
-            go.transform.SetParent(root.transform, true);
-            return go.transform;
-        }
-
-        // Same as Place, but nudged 0.15 toward the camera (same safety
-        // margin as the pause menu's card content, e.g. PausedTitle/divider)
-        // so screen CONTENT (not the card itself) reliably renders in front
-        // of the card's frame/body instead of relying on the bare,
-        // Z-fight-prone gap to baseline zero.
+        // nudged 0.15 toward the camera (same safety margin as the pause
+        // menu's card content, e.g. PausedTitle/divider) so screen content
+        // reliably renders in front of the door background (see
+        // BuildDoorPanel's own +0.15-behind comment) instead of relying on a
+        // bare, Z-fight-prone gap to baseline zero.
         Transform PlaceContent(GameObject go, Vector2 vp)
         {
             go.transform.position = camera.ViewportToWorldPoint(new Vector3(vp.x, vp.y, D)) - camera.transform.forward * 0.15f;
@@ -1155,68 +1140,114 @@ public static class GameSceneBuilder3D
             return t;
         }
 
-        // Card: single bordered panel framing all level-start content, matching
-        // the pause menu's redesign (same BuildModalPanelBackground frame+body
-        // technique, same card-to-screen size fractions and corner radius) so
-        // the two screens read as one consistent design system. See
-        // BuildPauseMenu's own comment for why frustum size is derived from
-        // camera.orthographicSize (this camera is orthographic, not
-        // perspective - fieldOfView has no effect on what actually renders).
+        // Frustum size, derived from camera.orthographicSize (this camera is
+        // orthographic, not perspective - fieldOfView has no effect on what
+        // actually renders; see BuildPauseMenu's own comment).
         float frustumHeight = 2f * camera.orthographicSize;
         float frustumWidth = frustumHeight * camera.aspect;
-        const float CardWidthFrac = 0.84f;
-        const float CardHeightFrac = 0.63f;
-        float cardWidth = CardWidthFrac * frustumWidth;
-        float cardHeight = CardHeightFrac * frustumHeight;
-        var cardRoot = new GameObject("LevelStartCardRoot");
-        Place(cardRoot, new Vector2(0.5f, 0.5f));
-        BuildModalPanelBackground(cardRoot.transform, "LevelStartCard", cardWidth, cardHeight, trayBorderMaterial, trayBodyMaterial, cornerRadius: 0.07f * cardWidth);
-
-        float contentWidth = 0.84f * cardWidth;
         var stage = new UIStage3D(camera, root.transform, D);
 
-        // Converts a target "% of screen height" (as measured in the approved
-        // mockup, in cqh units relative to the phone's full height) into a TMP
-        // fontSize - same conversion the pause menu uses (renderedHeight runs
-        // ~fontSize*0.11).
+        // Converts a target "% of screen height" into a TMP fontSize - same
+        // conversion the pause menu uses (renderedHeight runs ~fontSize*0.11).
         float FontSizeForScreenFrac(float frac) => (frac * frustumHeight) / 0.11f;
 
-        // Content vertically distributed within the card's own bounds (vp.y
-        // 0.185-0.815). Simplified per an approved mockup: stars row, the
-        // Hint/Undo/Shuffle carryover row, and the "Level N" title (redundant
-        // with the badge) are all gone - remaining content (eyebrow -> badge
-        // -> goal -> PLAY) is spread across the freed-up space instead of
-        // leaving a gap where the removed rows used to be.
-        Label("Eyebrow", new Vector2(0.5f, 0.752f), "NOW PLAYING", FontSizeForScreenFrac(0.018f), creamDim, FontStyles.Bold);
+        // Door-split background: two halves of a designer-provided arched
+        // door (Assets/Sprites/Decor/DoorPanel{Left,Right}.png) ARE this
+        // screen's visual (no separate card) - the level badge and PLAY
+        // button sit directly on top of it. Closed/visible at rest; slides
+        // apart to reveal the game HUD/board when Play is tapped - see
+        // LevelStartScreen3D.HandlePlay.
+        var doorLeftSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Sprites/Decor/DoorPanelLeft.png");
+        var doorRightSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Sprites/Decor/DoorPanelRight.png");
+        RequireNotNull(doorLeftSprite, "Assets/Sprites/Decor/DoorPanelLeft.png");
+        RequireNotNull(doorRightSprite, "Assets/Sprites/Decor/DoorPanelRight.png");
 
-        // Level badge: dark amber-ring disc (same chrome as the HUD buttons) +
-        // level number - the sole level indicator now that the title is gone,
-        // so it's sized up (0.4 -> 0.58, matching the mockup's 22%->32% of
-        // card width) and given more central room.
+        // "Cover" scaling: the door art's own aspect ratio doesn't match the
+        // portrait screen, so each half is sized to guarantee it covers its
+        // half of the screen width AND the full height, even if that
+        // overflows the opposite edge (harmless - it ends up off-screen).
+        float doorAspect = (float)doorLeftSprite.rect.width / doorLeftSprite.rect.height;
+        float doorPanelHeight = Mathf.Max(frustumHeight, (frustumWidth * 0.5f) / doorAspect);
+        float doorPanelWidth = doorPanelHeight * doorAspect;
+
+        GameObject BuildDoorPanel(string name, Sprite sprite, float centerX)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            go.name = name;
+            Object.DestroyImmediate(go.GetComponent<Collider>());
+            go.transform.SetParent(root.transform, false);
+            // +0.15: BEHIND the root's own z=0 baseline (positive local Z
+            // under this camera-facing root points away from the camera),
+            // so the badge/Play button below - placed via the usual
+            // PlaceContent(-0.15)/stage(z=0) conventions - sit clearly in
+            // front of the door art instead of z-fighting with it.
+            go.transform.localPosition = new Vector3(centerX, 0f, 0.15f);
+            go.transform.localScale = new Vector3(doorPanelWidth, doorPanelHeight, 1f);
+
+            string matPath = "Assets/Materials/" + name + ".mat";
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(matPath);
+            bool isNew = mat == null;
+            if (isNew) mat = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
+            URPMaterialUtil.SetTransparent(mat);
+            mat.SetTexture("_BaseMap", sprite.texture);
+            mat.SetColor("_BaseColor", Color.white);
+            if (isNew) AssetDatabase.CreateAsset(mat, matPath);
+            else EditorUtility.SetDirty(mat);
+
+            var doorRenderer = go.GetComponent<MeshRenderer>();
+            doorRenderer.sharedMaterial = mat;
+            doorRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            doorRenderer.receiveShadows = false;
+            // Active by default - the door IS this screen's background, not
+            // just a transition effect (closed/visible at rest).
+            return go;
+        }
+
+        var doorLeftGO = BuildDoorPanel("DoorPanelLeft", doorLeftSprite, -doorPanelWidth * 0.5f);
+        var doorRightGO = BuildDoorPanel("DoorPanelRight", doorRightSprite, doorPanelWidth * 0.5f);
+
+        // Level badge and PLAY button sit directly on the door art (no
+        // separate card). Positions chosen against the door's own
+        // composition: the badge sits in the upper arched panel, the button
+        // in the lower panel where the reference "Level N" pill sits.
         var badgeGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
         badgeGO.name = "LevelBadge";
         Object.DestroyImmediate(badgeGO.GetComponent<Collider>());
-        PlaceContent(badgeGO, new Vector2(0.5f, 0.601f));
+        PlaceContent(badgeGO, new Vector2(0.5f, 0.68f));
         badgeGO.transform.localScale = new Vector3(0.58f, 0.58f, 1f);
         badgeGO.GetComponent<MeshRenderer>().sharedMaterial = discFaceMaterial;
-        var badgeNum = Label("BadgeNum", new Vector2(0.5f, 0.601f), "6", 2.33f, CreamHudText, FontStyles.Bold);
+        var badgeNum = Label("BadgeNum", new Vector2(0.5f, 0.68f), "6", 2.33f, CreamHudText, FontStyles.Bold);
         badgeNum.transform.localPosition += new Vector3(0f, 0f, -0.05f); // toward camera, in front of the disc face
 
-        var goal = Label("Goal", new Vector2(0.5f, 0.450f), "Collect tiles into the tray and match pairs to clear the board.", FontSizeForScreenFrac(0.017f), inkDim, FontStyles.Normal, display: false);
-        goal.enableWordWrapping = true;
-        goal.rectTransform.sizeDelta = new Vector2(1.7f, 1f); // ~2 wrapped lines
+        // Same CreateSolidButton3D helper (same corner radius, same gold
+        // gradient) as the pause menu's RESUME button. Width/height are
+        // fractions of the full screen now (no card to size against).
+        var play = CreateSolidButton3D(stage, "Play", new Vector2(0.5f, 0.30f), "PLAY", 0.55f * frustumWidth, 0.06f * frustumHeight, (0.014f * frustumHeight) / 0.11f, GoldInkText);
 
-        // Play button: same CreateSolidButton3D helper (same corner radius,
-        // same gold gradient) as the pause menu's RESUME button, full-width
-        // within the card's content inset instead of the old screen-relative
-        // fixed 1.75-unit pill.
-        var play = CreateSolidButton3D(stage, "Play", new Vector2(0.5f, 0.235f), "PLAY", contentWidth, 0.09f * cardHeight, (0.014f * frustumHeight) / 0.11f, GoldInkText);
+        // Grouped under one toggle so LevelStartScreen3D can hide all four
+        // pieces (badge disc, badge number, button pill, button label) in a
+        // single call the instant Play is tapped - they used to be four
+        // separate objects nothing ever hid, so they stayed floating over
+        // the revealed board/HUD for the whole door-open transition and
+        // after (confirmed on-device). SetParent(.., true) preserves each
+        // one's already-baked world position, so re-parenting here doesn't
+        // move anything.
+        var overlayContent = new GameObject("LevelStartOverlayContent");
+        overlayContent.transform.SetParent(root.transform, false);
+        badgeGO.transform.SetParent(overlayContent.transform, true);
+        badgeNum.transform.SetParent(overlayContent.transform, true);
+        play.btn.transform.SetParent(overlayContent.transform, true);
+        play.lbl.transform.SetParent(overlayContent.transform, true);
 
         var levelStart = root.AddComponent<LevelStartScreen3D>();
         SetField(levelStart, "_playButton", play.btn);
         SetField(levelStart, "_gameController", gameController);
         SetFieldArray(levelStart, "_gameHudObjects", hudObjects);
         SetField(levelStart, "_badgeText", badgeNum);
+        SetField(levelStart, "_doorLeft", doorLeftGO.transform);
+        SetField(levelStart, "_doorRight", doorRightGO.transform);
+        SetFieldFloat(levelStart, "_doorSlideDistance", doorPanelWidth);
+        SetField(levelStart, "_overlayContent", overlayContent);
         return root;
     }
 
