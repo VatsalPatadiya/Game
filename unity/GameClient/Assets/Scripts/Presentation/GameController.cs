@@ -330,7 +330,7 @@ namespace GameClient.Presentation
             // the board to complete a pair).
             bool anyOnBoard = _board.Cells.Any(kv => !kv.Value.Cleared && !_board.TrayTileIds.Contains(kv.Key));
             if (_board.IsGameOver || !anyOnBoard)
-                _gameOverPopup?.ShowLose(this);
+                _gameOverPopup?.ShowLose(this, _board.TrayTileIds.Count, _board.MaxTraySize);
         }
 
         // Hint: highlight a free board tile that completes a tray pair (or a free

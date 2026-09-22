@@ -13,12 +13,23 @@ namespace GameClient.Presentation.HUD3D
         // 3 star quads built by GameSceneBuilder3D.BuildStarRow; colored at
         // runtime per the actual result instead of a fixed sample.
         public MeshRenderer[] starRenderers;
+        // Lose-only: 4 tray-slot chips + a caption ("N OF 4 SLOTS · NO
+        // PAIR") that shows WHY the tray is full, instead of just saying so.
+        public GameObject trayChipRow;
+        public MeshRenderer[] trayChipRenderers;
+        public TextMeshPro trayChipCaption;
+        // Win-only: score split out of the message sentence into its own
+        // eyebrow + big Cinzel numeral, reading as a result instead of a caption.
+        public GameObject scoreBlock;
+        public TextMeshPro scoreValueText;
         // So a win/lose/stuck popup can never render underneath an open Pause
         // overlay - each one force-closes the other before showing itself.
         public PauseMenu3D pauseMenu;
 
         private static readonly Color StarGold = new Color(0.96f, 0.78f, 0.36f);
         private static readonly Color StarMuted = new Color(0.44f, 0.32f, 0.18f);
+        private static readonly Color ChipFilled = new Color(0.97f, 0.93f, 0.82f); // cream ivory
+        private static readonly Color ChipEmpty = new Color(0.060f, 0.080f, 0.100f); // TrayRecess dark well
 
         public bool IsShowing => gameObject.activeSelf;
 
@@ -35,10 +46,17 @@ namespace GameClient.Presentation.HUD3D
         {
             _gameController = controller;
             pauseMenu?.Hide();
-            if (titleText != null) titleText.text = "Well done!";
-            if (messageText != null) messageText.text = "The board is clear! Final score: " + score;
-            if (primaryButtonText != null) primaryButtonText.text = "Next Level";
+            SetTitle("Well done!");
+            if (messageText != null) messageText.gameObject.SetActive(false);
+            SetButtonLabel("NEXT LEVEL"); // all-caps, matches Resume/Restart/Play
             SetStars(starsEarned);
+            if (trayChipRow != null) trayChipRow.SetActive(false);
+            if (scoreBlock != null) scoreBlock.SetActive(true);
+            if (scoreValueText != null)
+            {
+                scoreValueText.text = score.ToString("N0");
+                scoreValueText.ForceMeshUpdate();
+            }
             ShowPopup();
         }
 
@@ -46,21 +64,25 @@ namespace GameClient.Presentation.HUD3D
         {
             _gameController = controller;
             pauseMenu?.Hide();
-            if (titleText != null) titleText.text = "No matches left";
-            if (messageText != null) messageText.text = "Try shuffling, or start a fresh board.";
-            if (primaryButtonText != null) primaryButtonText.text = "Try Again";
+            SetTitle("No matches left");
+            SetMessage("Try shuffling, or start a fresh board.");
+            SetButtonLabel("TRY AGAIN"); // all-caps, matches Resume/Restart/Play
             SetStars(-1);
+            if (trayChipRow != null) trayChipRow.SetActive(false);
+            if (scoreBlock != null) scoreBlock.SetActive(false);
             ShowPopup();
         }
 
-        public void ShowLose(GameController controller)
+        public void ShowLose(GameController controller, int trayCount, int trayMax)
         {
             _gameController = controller;
             pauseMenu?.Hide();
-            if (titleText != null) titleText.text = "Tray full!";
-            if (messageText != null) messageText.text = "No more matches possible. Try again!";
-            if (primaryButtonText != null) primaryButtonText.text = "Try Again";
+            SetTitle("Tray full!");
+            SetMessage("No more matches possible. Try again!");
+            SetButtonLabel("TRY AGAIN"); // all-caps, matches Resume/Restart/Play
             SetStars(-1);
+            if (scoreBlock != null) scoreBlock.SetActive(false);
+            SetTrayChips(trayCount, trayMax);
             ShowPopup();
         }
 
@@ -97,6 +119,34 @@ namespace GameClient.Presentation.HUD3D
             target.localScale = endScale;
         }
 
+        // TextMeshPro doesn't rebuild its mesh the instant .text is set - it
+        // normally catches up next frame, but a capture/screenshot taken
+        // immediately after (or two popups opened back-to-back the same
+        // frame) can observe stale glyphs. ForceMeshUpdate matches the same
+        // defensive call GameSceneBuilder3D.CreateLabel3D already makes at
+        // build time, applied here to the runtime-changed labels too.
+        private void SetTitle(string text)
+        {
+            if (titleText == null) return;
+            titleText.text = text;
+            titleText.ForceMeshUpdate();
+        }
+
+        private void SetMessage(string text)
+        {
+            if (messageText == null) return;
+            messageText.gameObject.SetActive(true);
+            messageText.text = text;
+            messageText.ForceMeshUpdate();
+        }
+
+        private void SetButtonLabel(string text)
+        {
+            if (primaryButtonText == null) return;
+            primaryButtonText.text = text;
+            primaryButtonText.ForceMeshUpdate();
+        }
+
         // filledCount < 0 hides the row entirely (loses/stuck/daily have no
         // star rating).
         private void SetStars(int filledCount)
@@ -109,6 +159,25 @@ namespace GameClient.Presentation.HUD3D
                 if (r == null) continue;
                 r.gameObject.SetActive(show);
                 if (show) r.material.SetColor("_BaseColor", i < filledCount ? StarGold : StarMuted);
+            }
+        }
+
+        private void SetTrayChips(int filledCount, int totalCount)
+        {
+            if (trayChipRow != null) trayChipRow.SetActive(true);
+            if (trayChipRenderers != null)
+            {
+                for (int i = 0; i < trayChipRenderers.Length; i++)
+                {
+                    var r = trayChipRenderers[i];
+                    if (r == null) continue;
+                    r.material.SetColor("_BaseColor", i < filledCount ? ChipFilled : ChipEmpty);
+                }
+            }
+            if (trayChipCaption != null)
+            {
+                trayChipCaption.text = $"{filledCount} OF {totalCount} SLOTS · NO PAIR";
+                trayChipCaption.ForceMeshUpdate();
             }
         }
     }

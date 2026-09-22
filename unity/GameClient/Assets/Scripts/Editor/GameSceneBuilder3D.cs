@@ -568,13 +568,59 @@ public static class GameSceneBuilder3D
         var popupGO = new GameObject("GameOverPopup", typeof(GameOverPopup3D));
         PositionInFrontOfCamera(popupGO.transform, camera, new Vector2(0.5f, 0.5f), PopupDistance);
 
+        // The camera is orthographic (see Build() top), so its frustum size is
+        // constant at every distance - used both to size the full-screen dim
+        // scrim below and, later, to place the shared-component button.
+        float frustumHeight = 2f * camera.orthographicSize;
+        float frustumWidth = frustumHeight * camera.aspect;
+        float FontSizeForScreenFrac(float frac) => (frac * frustumHeight) / 0.11f;
+
+        // Full-screen dim scrim, behind the card but in front of the board/HUD
+        // (PopupDistance=7.35 vs HudDistance=9 - a 1.0 unit push still lands
+        // safely closer than the HUD, so it keeps occluding/dimming it).
+        // Alpha-blended Transparent materials sort back-to-front by DISTANCE
+        // (see URPMaterialUtil.SetAlphaCutout's comment) - this huge scrim
+        // quad was intermittently winning that sort against the card's own
+        // Transparent-queue TextMeshPro elements a fraction of a unit away
+        // and painting over them. A render-queue override alone didn't stick
+        // (URP's Lit/Unlit ShaderGUI re-validates and resets a script-set
+        // custom queue back to the surface type's default on the next
+        // reimport/domain reload - the same "ShaderGUI silently undoes a
+        // script property" trap URPMaterialUtil.SetTransparent's own header
+        // comment warns about). A full 1.0-unit gap - instead of the
+        // originally-tried 0.05 - removes the ambiguity outright: nothing
+        // else on the card sits anywhere near that far back, so the sort
+        // isn't a near-tie regardless of what the queue value resolves to.
+        var scrimGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        scrimGO.name = "Scrim";
+        Object.DestroyImmediate(scrimGO.GetComponent<Collider>());
+        scrimGO.transform.SetParent(popupGO.transform, false);
+        scrimGO.transform.localPosition = new Vector3(0f, 0f, 1.0f);
+        scrimGO.transform.localScale = new Vector3(frustumWidth, frustumHeight, 1f);
+        // Load-or-create, not a bare CreateAsset: on a re-generation the asset
+        // already exists at this path, and AssetDatabase.CreateAsset silently
+        // no-ops against an existing path instead of overwriting it.
+        const string scrimMaterialPath = "Assets/Materials/GameOverScrim.mat";
+        var scrimMaterial = AssetDatabase.LoadAssetAtPath<Material>(scrimMaterialPath);
+        bool scrimMaterialIsNew = scrimMaterial == null;
+        if (scrimMaterialIsNew) scrimMaterial = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
+        URPMaterialUtil.SetTransparent(scrimMaterial);
+        scrimMaterial.SetColor("_BaseColor", new Color(0.02f, 0.03f, 0.02f, 0.55f));
+        scrimMaterial.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent - 1;
+        if (scrimMaterialIsNew) AssetDatabase.CreateAsset(scrimMaterial, scrimMaterialPath);
+        else EditorUtility.SetDirty(scrimMaterial);
+        var scrimRenderer = scrimGO.GetComponent<MeshRenderer>();
+        scrimRenderer.sharedMaterial = scrimMaterial;
+        scrimRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        scrimRenderer.receiveShadows = false;
+
         BuildModalPanelBackground(popupGO.transform, "GameOverPanel", 3.0f, 2.7f, trayBorderMaterial, trayBodyMaterial);
 
         var titleGO = new GameObject("Title", typeof(TextMeshPro));
         titleGO.transform.SetParent(popupGO.transform, false);
         titleGO.transform.localPosition = new Vector3(0f, 0.95f, -0.15f); // generous gap, see PausedTitle's depth-test comment
         var titleText = titleGO.GetComponent<TextMeshPro>();
-        titleText.fontSize = 1.1f;
+        titleText.fontSize = 1.3f;
         titleText.alignment = TextAlignmentOptions.Center;
         titleText.color = CreamHudText;
         if (DisplayFont != null)
@@ -588,9 +634,18 @@ public static class GameSceneBuilder3D
 
         // Same thin gold accent as PauseMenu3D's divider, for a consistent
         // "structured header" look across both popups instead of bare text.
+        // Y positions below (divider/chips-or-stars/caption-or-eyebrow/
+        // message-or-value) are laid out on one even rhythm: a consistent
+        // ~0.16 gap between every element's own visual edge, not just its
+        // center - computed from each element's measured half-height
+        // (fontSize*0.11/2 for text, mesh-height/2 for shapes) so a visually
+        // bigger element (the tray chips) still gets the same whitespace
+        // around it as a thin text line. Previously the divider sat almost
+        // flush against the chip row (~0.02 gap) while other gaps varied
+        // widely - this was the fix.
         var gameOverDivider = new GameObject("TitleDivider", typeof(MeshFilter), typeof(MeshRenderer));
         gameOverDivider.transform.SetParent(popupGO.transform, false);
-        gameOverDivider.transform.localPosition = new Vector3(0f, 0.78f, -0.15f);
+        gameOverDivider.transform.localPosition = new Vector3(0f, 0.70f, -0.15f);
         gameOverDivider.GetComponent<MeshFilter>().sharedMesh =
             SaveRoundedTrayMesh("Assets/Meshes/GameOverDivider.asset", 1.1f, 0.022f, 0.05f, 0.011f);
         var gameOverDividerRenderer = gameOverDivider.GetComponent<MeshRenderer>();
@@ -604,43 +659,104 @@ public static class GameSceneBuilder3D
 
         var starsRootGO = new GameObject("Stars");
         starsRootGO.transform.SetParent(popupGO.transform, false);
-        starsRootGO.transform.localPosition = new Vector3(0f, 0.55f, -0.15f);
+        starsRootGO.transform.localPosition = new Vector3(0f, 0.41f, -0.15f);
         starsRootGO.transform.localScale = Vector3.one * 1.6f; // bigger than the level-start sample (closer camera distance here)
         var starRenderers = BuildStarRow(starsRootGO.transform, "GameOverStar", filledCount: 0); // ShowWin sets the real count at runtime
 
+        // Lose-only: 4 tray-slot chips (same 4 slots as BoardState.MaxTraySize)
+        // + a caption, so the popup shows WHY the tray is full instead of just
+        // saying so. Shares the stars row's Y slot - the two are mutually
+        // exclusive per popup state, toggled at runtime by ShowWin/ShowLose.
+        var trayChipRowGO = new GameObject("TrayChipRow");
+        trayChipRowGO.transform.SetParent(popupGO.transform, false);
+        trayChipRowGO.transform.localPosition = new Vector3(0f, 0.34f, -0.15f);
+        const int chipCount = 4; // matches BoardState.MaxTraySize
+        const float chipWidth = 0.34f;
+        const float chipHeight = 0.36f;
+        const float chipGap = 0.10f;
+        float chipsTotalWidth = chipCount * chipWidth + (chipCount - 1) * chipGap;
+        float chipStartX = -chipsTotalWidth * 0.5f + chipWidth * 0.5f;
+        var chipMesh = SaveRoundedTrayMesh("Assets/Meshes/GameOverTrayChip.asset", chipWidth, chipHeight, 0.08f, chipWidth * 0.22f);
+        var chipRenderers = new MeshRenderer[chipCount];
+        for (int i = 0; i < chipCount; i++)
+        {
+            var chipGO = new GameObject("Chip" + i, typeof(MeshFilter), typeof(MeshRenderer));
+            chipGO.transform.SetParent(trayChipRowGO.transform, false);
+            chipGO.transform.localPosition = new Vector3(chipStartX + i * (chipWidth + chipGap), 0f, 0f);
+            chipGO.GetComponent<MeshFilter>().sharedMesh = chipMesh;
+            var chipMat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+            chipMat.SetColor("_BaseColor", new Color(0.060f, 0.080f, 0.100f)); // placeholder empty tint; SetTrayChips sets the real state at runtime
+            AssetDatabase.CreateAsset(chipMat, "Assets/Materials/GameOverTrayChip" + i + ".mat");
+            var chipRenderer = chipGO.GetComponent<MeshRenderer>();
+            chipRenderer.material = chipMat;
+            chipRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            chipRenderer.receiveShadows = false;
+            chipRenderers[i] = chipRenderer;
+        }
+
+        var trayChipCaptionGO = new GameObject("TrayChipCaption", typeof(TextMeshPro));
+        trayChipCaptionGO.transform.SetParent(popupGO.transform, false);
+        trayChipCaptionGO.transform.localPosition = new Vector3(0f, -0.03f, -0.15f);
+        var trayChipCaptionText = trayChipCaptionGO.GetComponent<TextMeshPro>();
+        trayChipCaptionText.fontSize = 0.42f;
+        trayChipCaptionText.alignment = TextAlignmentOptions.Center;
+        trayChipCaptionText.fontStyle = FontStyles.Bold;
+        trayChipCaptionText.color = GoldChrome;
+
         var messageGO = new GameObject("Message", typeof(TextMeshPro));
         messageGO.transform.SetParent(popupGO.transform, false);
-        messageGO.transform.localPosition = new Vector3(0f, 0.15f, -0.15f);
+        messageGO.transform.localPosition = new Vector3(0f, -0.32f, -0.15f);
         var messageText = messageGO.GetComponent<TextMeshPro>();
-        messageText.fontSize = 0.66f;
+        messageText.fontSize = 0.78f;
         messageText.alignment = TextAlignmentOptions.Center;
         messageText.color = CreamHudText;
 
-        // Primary button: a rounded-pill MESH (real width/height baked into the
-        // mesh itself), not a scaled Cube - the old Cube's thin Z-scale (0.15)
-        // silently shrank its child text's -0.1 local offset to -0.015, landing
-        // the text BEHIND the cube's own front face (-0.075) so it was fully
-        // occluded. The label here is a sibling of the button (both children of
-        // popupGO, which has no scale), so no parent-scale can distort it again.
-        var primaryBtnGO = new GameObject("PrimaryButton", typeof(MeshFilter), typeof(MeshRenderer));
-        primaryBtnGO.transform.SetParent(popupGO.transform, false);
-        primaryBtnGO.transform.localPosition = new Vector3(0f, -0.75f, -0.1f);
-        primaryBtnGO.GetComponent<MeshFilter>().sharedMesh =
-            SaveRoundedTrayMesh("Assets/Meshes/GameOverPrimaryBtn.asset", 2.0f, 0.5f, 0.12f, 0.2f);
-        primaryBtnGO.GetComponent<MeshRenderer>().sharedMaterial = GetOrCreateNonEmissiveGoldMaterial();
-        var primaryBtnCollider = primaryBtnGO.AddComponent<BoxCollider>();
-        primaryBtnCollider.size = new Vector3(2.0f, 0.5f, 0.12f);
-        var restartButton = primaryBtnGO.AddComponent<PressScaleButton3D>();
-        SetField(restartButton, "_targetCamera", camera);
+        // Win-only: score split out of the message sentence into its own
+        // eyebrow + big Cinzel numeral (a result, not a caption). Shares the
+        // message row's general area - mutually exclusive with it per state.
+        var scoreBlockGO = new GameObject("ScoreBlock");
+        scoreBlockGO.transform.SetParent(popupGO.transform, false);
 
-        var primaryBtnTextGO = new GameObject("PrimaryButtonText", typeof(TextMeshPro));
-        primaryBtnTextGO.transform.SetParent(popupGO.transform, false); // sibling of the button, see comment above
-        primaryBtnTextGO.transform.localPosition = new Vector3(0f, -0.75f, -0.16f);
-        var restartText = primaryBtnTextGO.GetComponent<TextMeshPro>();
-        restartText.fontSize = 0.5f;
-        restartText.alignment = TextAlignmentOptions.Center;
-        restartText.fontStyle = FontStyles.Bold; // bold sans, not Cinzel - matches PauseMenu3D's button labels (see MakeButton)
-        restartText.color = GoldInkText; // dark ink on the gold pill, matching every other gold button
+        var scoreEyebrowGO = new GameObject("ScoreEyebrow", typeof(TextMeshPro));
+        scoreEyebrowGO.transform.SetParent(scoreBlockGO.transform, false);
+        scoreEyebrowGO.transform.localPosition = new Vector3(0f, 0.13f, -0.15f);
+        var scoreEyebrowText = scoreEyebrowGO.GetComponent<TextMeshPro>();
+        scoreEyebrowText.text = "BOARD CLEARED · FINAL SCORE";
+        scoreEyebrowText.fontSize = 0.40f;
+        scoreEyebrowText.alignment = TextAlignmentOptions.Center;
+        scoreEyebrowText.fontStyle = FontStyles.Bold;
+        scoreEyebrowText.color = CreamHudText;
+
+        var scoreValueGO = new GameObject("ScoreValue", typeof(TextMeshPro));
+        scoreValueGO.transform.SetParent(scoreBlockGO.transform, false);
+        scoreValueGO.transform.localPosition = new Vector3(0f, -0.14f, -0.15f);
+        var scoreValueText = scoreValueGO.GetComponent<TextMeshPro>();
+        scoreValueText.fontSize = 1.5f;
+        scoreValueText.alignment = TextAlignmentOptions.Center;
+        scoreValueText.color = GoldChrome;
+        if (DisplayFont != null)
+        {
+            scoreValueText.font = DisplayFont;
+            scoreValueText.fontMaterial.SetFloat("_UnderlayOffsetY", -0.08f);
+        }
+
+        // Primary button: the SAME CreateSolidButton3D helper Resume/Play use
+        // (not a hand-rolled mesh) - so a future press-scale or corner-radius
+        // tweak on that shared helper propagates here too. Width is 84% of
+        // the card's own width (GameOverCardWidth), matching Resume/Play's
+        // own contentWidth = 0.84*cardWidth convention on the (narrower)
+        // pause/level-start cards - a fixed 2.0 width read proportionally
+        // narrower here since this card is wider. frustumHeight/
+        // FontSizeForScreenFrac are the same ones computed above for the scrim -
+        // the orthographic camera makes them constant at every distance, letting
+        // a popup-local UIStage3D reproduce the exact same local-offset layout
+        // the old hand-placed button used.
+        const float GameOverCardWidth = 3.0f; // matches BuildModalPanelBackground's width, above
+        const float GameOverButtonWidth = 0.84f * GameOverCardWidth;
+        const float primaryButtonLocalY = -0.70f; // same even 0.16 rhythm as the content above it
+        var popupStage = new UIStage3D(camera, popupGO.transform, PopupDistance);
+        var primaryButtonVp = new Vector2(0.5f, 0.5f + primaryButtonLocalY / frustumHeight);
+        var (restartButton, restartText) = CreateSolidButton3D(popupStage, "PrimaryButton", primaryButtonVp, "TRY AGAIN", GameOverButtonWidth, 0.24f, FontSizeForScreenFrac(0.014f), GoldInkText);
 
         var gameOverPopup = popupGO.GetComponent<GameOverPopup3D>();
         SetField(gameOverPopup, "restartButton", restartButton);
@@ -648,6 +764,11 @@ public static class GameSceneBuilder3D
         SetField(gameOverPopup, "messageText", messageText);
         SetField(gameOverPopup, "primaryButtonText", restartText);
         SetFieldArray(gameOverPopup, "starRenderers", starRenderers);
+        SetField(gameOverPopup, "trayChipRow", trayChipRowGO);
+        SetFieldArray(gameOverPopup, "trayChipRenderers", chipRenderers);
+        SetField(gameOverPopup, "trayChipCaption", trayChipCaptionText);
+        SetField(gameOverPopup, "scoreBlock", scoreBlockGO);
+        SetField(gameOverPopup, "scoreValueText", scoreValueText);
         SetField(gameController, "_gameOverPopup", gameOverPopup);
         popupGO.SetActive(false); // hidden by default
 
@@ -1375,7 +1496,7 @@ public static class GameSceneBuilder3D
         // narrower centered pill, and sit vertically centered in the gap
         // between the divider and the section rule above Settings.
         var resume = CreateSolidButton3D(stage, "Resume", new Vector2(0.5f, 0.607f), "RESUME", contentWidth, 0.09f * cardHeight, FontSizeForScreenFrac(0.014f), GoldInkText);
-        var restart = CreateOutlineButton3D(stage, "Restart", new Vector2(0.5f, 0.528f), "RESTART", contentWidth, 0.08f * cardHeight, FontSizeForScreenFrac(0.0125f), trayBodyMaterial, GoldChrome);
+        var restart = CreateOutlineButton3D(stage, "Restart", new Vector2(0.5f, 0.528f), "RESTART", contentWidth, 0.09f * cardHeight, FontSizeForScreenFrac(0.0125f), trayBodyMaterial, GoldChrome);
 
         // Section rule: thin gold hairline separating the Resume/Restart
         // actions from the Settings group below, inside the card - reuses the
