@@ -180,10 +180,15 @@ namespace GameClient.Presentation.Board3D
             _fadeCoroutine = StartCoroutine(TapAwayRoutine(onComplete));
         }
 
+        // No highlight-color flash here (used to snap the body tint to
+        // _highlightColor and hold for TapConfirmFlashDuration before
+        // shrinking) - that read as an abrupt yellow "blink" with a dead
+        // pause before any motion, on top of the fact that the flight card
+        // already gives instant feedback the moment the tap lands. The
+        // shrink-and-fade alone is a clear, smooth "this tile is leaving"
+        // cue with no extra step in front of it.
         private IEnumerator TapAwayRoutine(System.Action onComplete)
         {
-            if (_bodyTint != null) _bodyTint.Color = _highlightColor;
-            yield return new WaitForSeconds(CardAnimator.TapConfirmFlashDuration);
             yield return CardAnimator.ScaleDownAndFadeOut(transform, new ITintable[] { _bodyTint }, CardAnimator.TapAwayDuration, onComplete);
         }
 

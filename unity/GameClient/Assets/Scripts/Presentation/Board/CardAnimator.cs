@@ -21,7 +21,6 @@ namespace GameClient.Presentation.Board
         // catchable even at 10fps sampling, so the whole thing (flash + away)
         // must resolve in well under 150ms; the tray's own pop-in runs
         // concurrently on a separate, slightly longer/overshooting curve.
-        public const float TapConfirmFlashDuration = 0.07f;
         public const float TapAwayDuration = 0.1f;
         public const float TrayFlightDuration = 0.22f;
         // Was 0.11s/1.08x on a plain two-segment lerp (0->overshoot, overshoot->1)

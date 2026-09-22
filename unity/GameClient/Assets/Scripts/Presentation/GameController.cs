@@ -257,17 +257,19 @@ namespace GameClient.Presentation
                 ? tileView.transform.position
                 : _trayView.GetSlotWorldPosition(0);
 
-            // Give the tapped tile a beat of feedback (flash + shrink) before it
-            // leaves the board, instead of vanishing with no acknowledgement.
+            // The tapped tile's own feedback (flash + shrink) and its removal
+            // from the board run on their own timeline via this callback,
+            // decoupled from the flight below - they used to run strictly
+            // sequentially (wait for the FULL shrink to finish, only THEN
+            // start the flight), which read as a dead "hold" before the tile
+            // moved at all. Now the flight starts on the same frame as the
+            // tap, and the shrinking original tile is simply a separate visual
+            // (SpawnFlightCard below is its own object) that cleans itself up
+            // whenever its own animation naturally completes.
             if (tileView != null)
-            {
-                bool tapAwayDone = false;
-                tileView.PlayTapAway(() => tapAwayDone = true);
-                yield return new WaitUntil(() => tapAwayDone);
-            }
-
-            // The tile now lives in the tray (domain-side), so take it off the board.
-            _boardView.RemoveTileInstant(slotId);
+                tileView.PlayTapAway(() => _boardView.RemoveTileInstant(slotId));
+            else
+                _boardView.RemoveTileInstant(slotId);
 
             // Fly a card from the board up to the slot it landed in, on the same
             // arced/smoothstep curve as the undo flight (CardAnimator.
