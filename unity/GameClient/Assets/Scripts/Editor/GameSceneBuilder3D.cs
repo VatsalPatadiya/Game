@@ -1246,7 +1246,18 @@ public static class GameSceneBuilder3D
         SetField(levelStart, "_badgeText", badgeNum);
         SetField(levelStart, "_doorLeft", doorLeftGO.transform);
         SetField(levelStart, "_doorRight", doorRightGO.transform);
-        SetFieldFloat(levelStart, "_doorSlideDistance", doorPanelWidth);
+        // NOT doorPanelWidth: that's sized to cover the full screen HEIGHT
+        // (the door art is narrower/taller than the screen), so it's much
+        // wider than a half-screen actually needs to be - sliding a door
+        // that far means it already exits the visible frustum around
+        // half-way through the tween, then keeps moving invisibly for the
+        // rest of LevelStartScreen3D's DoorSlideDuration before the reveal
+        // is allowed to proceed (measured on-device: a ~1s dead gap after
+        // the door visually finishes). frustumWidth*0.5 is exactly the
+        // distance for the door's inner edge to reach the screen's outer
+        // edge; the 1.2x pads it comfortably past that so no sliver of door
+        // lingers at the edge on any aspect ratio.
+        SetFieldFloat(levelStart, "_doorSlideDistance", frustumWidth * 0.5f * 1.2f);
         SetField(levelStart, "_overlayContent", overlayContent);
         return root;
     }

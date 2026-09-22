@@ -36,7 +36,21 @@ namespace GameClient.Presentation.HUD3D
         // not on it as a child, so nothing moved them when the door slid -
         // hidden explicitly, the instant Play is tapped, instead.
         [SerializeField] private GameObject _overlayContent;
-        private const float DoorSlideDuration = 2.0f; // 0.45 -> 0.9 -> 1.4 -> 2.0, plus switching the easing curve below to smoothstep
+        // 0.45 -> 0.9 -> 1.4 -> 2.0 (plus switching the easing curve to
+        // smoothstep) tuned the door's on-screen glide to feel unhurried.
+        // But _doorSlideDistance used to overshoot (see GameSceneBuilder3D),
+        // so the door was actually only ever VISIBLE for the first ~1.05s of
+        // that 2.0s - the rest was already off-screen. Now that the slide
+        // distance is sized to just clear the screen, 2.0s of that same
+        // curve would replay the whole on-screen crossing in slow motion;
+        // 1.1s reproduces the pacing that was actually being seen before.
+        private const float DoorSlideDuration = 1.1f;
+        // Deliberate pause between the door finishing and tiles starting to
+        // appear, so the reveal doesn't feel instantaneous/jarring - NOT
+        // where the old 1-2s gap came from (that was GameController.
+        // PrepareLevel's board-generation cost landing after the door
+        // closed; HandlePlay now runs it before the door even starts).
+        private const float RevealDelaySeconds = 0.3f;
         private Vector3 _doorLeftClosedLocalPos;
         private Vector3 _doorRightClosedLocalPos;
 
@@ -78,6 +92,14 @@ namespace GameClient.Presentation.HUD3D
         {
             if (_playButton != null) _playButton.Interactable = false; // guard a second tap mid-transition
             if (_overlayContent != null) _overlayContent.SetActive(false); // badge/Play button vanish immediately, don't linger over the reveal
+            // Board generation (shape + solvability search) is the expensive
+            // synchronous part - run it now, right at the tap, while the door
+            // is still static and closed, so its cost is absorbed here rather
+            // than showing up as a dead-air gap after the door finishes
+            // sliding. Nothing is animating yet at this exact instant, so a
+            // brief hitch here just reads as the door starting a beat after
+            // the tap, not a stutter mid-animation.
+            _gameController?.PrepareLevel();
             StartCoroutine(PlayDoorTransition());
         }
 
@@ -85,8 +107,8 @@ namespace GameClient.Presentation.HUD3D
         {
             // Board/HUD stay untouched (inactive) while the doors slide, so
             // nothing is visible behind the widening gap. Only once both
-            // doors have fully finished opening do we load and reveal the
-            // board, all at once.
+            // doors have fully finished opening do we reveal the
+            // already-prepared board.
             Coroutine leftRoutine = null, rightRoutine = null;
             if (_doorLeft != null)
             {
@@ -103,9 +125,11 @@ namespace GameClient.Presentation.HUD3D
             if (leftRoutine != null) yield return leftRoutine;
             if (rightRoutine != null) yield return rightRoutine;
 
-            // Doors are fully open now - reveal the board only at this point.
+            yield return new WaitForSeconds(RevealDelaySeconds);
+
+            // Doors are fully open now - reveal the already-prepared board.
             SetHudActive(true);
-            _gameController?.BeginLevel();
+            _gameController?.RevealPreparedLevel();
 
             gameObject.SetActive(false); // doors + everything else on this screen; OnEnable resets them closed next time
         }

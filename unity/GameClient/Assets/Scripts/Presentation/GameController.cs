@@ -135,17 +135,24 @@ namespace GameClient.Presentation
         // Entry point from the level-start screen's Play button.
         public void BeginLevel()
         {
-            LoadLevel();
+            PrepareLevel();
+            RevealPreparedLevel();
         }
 
         public void RestartLevel()
         {
             if (_gameOverPopup != null)
                 _gameOverPopup.Hide();
-            LoadLevel();
+            PrepareLevel();
+            RevealPreparedLevel();
         }
 
-        private void LoadLevel()
+        // Heavy, purely-synchronous board generation (shape + solvability
+        // search) with no visual side effects - safe to run while the door
+        // is still closed/sliding, so its cost is absorbed before the door
+        // even starts moving instead of showing up as a dead-air gap after
+        // it finishes (see LevelStartScreen3D.HandlePlay).
+        public void PrepareLevel()
         {
             var levelData = LevelCatalog.Get(_currentLevelId) ?? LevelCatalog.Levels[0];
             int difficulty = levelData.Difficulty;
@@ -185,18 +192,24 @@ namespace GameClient.Presentation
             _lastMatchTime = null;
             _comboCount = 0;
             _aidsUsed = 0;
+        }
 
+        // Cheap: instantiates tiles from the already-generated board and kicks
+        // off their deal-in - call once the door is fully open (plus whatever
+        // reveal delay) since this is what the player actually sees appear.
+        public void RevealPreparedLevel()
+        {
             // The tray holds tapped tiles until 2 identical ones collect and
             // clear; slot count matches the board's MaxTraySize (4).
             if (_trayView != null)
                 _trayView.Initialize(_board.MaxTraySize);
 
             IsInputLocked = true;
-            
+
             // Play the level-start sound once.
             if (_tilesSettledClip != null && _audioSource != null)
                 _audioSource.PlayOneShot(_tilesSettledClip);
-            
+
             _boardView.Build(_board, _slotsById, animateDealIn: true, onDealInComplete: () => {
                 IsInputLocked = false;
             });

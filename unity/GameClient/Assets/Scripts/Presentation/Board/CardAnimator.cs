@@ -13,7 +13,11 @@ namespace GameClient.Presentation.Board
         public const float ClearDuration = 0.2f;
         // 120-150ms per spec (measured from actual gameplay footage); 130ms picked as the midpoint.
         public const float DealInDuration = 0.13f;
-        public const float DealInFlyDuration = 0.15f;
+        // Was 0.15s with ease-out-cubic - felt like a snap even after slowing
+        // the door the same way. 0.22s + smoothstep (see FlyAndFadeIn) was
+        // still too fast for a near-full-screen-width horizontal glide;
+        // 0.35s reads as an unhurried slide instead of a dart across.
+        public const float DealInFlyDuration = 0.35f;
         public const float FastFadeDuration = 0.1f;
         public const float HighlightHoldDuration = 0.13f;
 
@@ -107,11 +111,14 @@ namespace GameClient.Presentation.Board
             {
                 elapsed += Time.deltaTime;
                 float raw = Mathf.Clamp01(elapsed / duration);
-                // Ease-out cubic for smooth deceleration as tile settles
-                float t = 1f - (1f - raw) * (1f - raw) * (1f - raw);
+                // Cubic smoothstep: gentle launch AND gentle settle, unlike
+                // ease-out-cubic (peak velocity at raw=0) which read as an
+                // abrupt snap off the edge even with the deceleration at the
+                // other end - same fix as the level-start door slide.
+                float t = raw * raw * (3f - 2f * raw);
                 target.localPosition = Vector3.Lerp(startLocalPos, endLocalPos, t);
-                // Quick fade-in over the first 40% of the animation
-                float alphaT = Mathf.Clamp01(raw / 0.4f);
+                // Fade-in over the first half of the animation
+                float alphaT = Mathf.Clamp01(raw / 0.5f);
                 for (int i = 0; i < renderers.Length; i++)
                 {
                     if (renderers[i] == null) continue;

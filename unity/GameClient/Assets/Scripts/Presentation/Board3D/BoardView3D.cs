@@ -122,10 +122,21 @@ namespace GameClient.Presentation.Board3D
 
             int tileCount = orderedCells.Count;
 
-            // Drop height: each tile starts this far ABOVE its own final
-            // position and drops straight down into place, creating a
-            // natural cascade effect (like the reference Mahjong Master game).
-            const float DropHeight = 2.0f;
+            // Tiles fly in horizontally rather than dropping from above: the
+            // board splits down its own centre column, left-half tiles enter
+            // from off the left edge of the screen and right-half tiles from
+            // off the right edge, each sliding along its own row into place
+            // (reference: competitor's cat-mahjong deal-in). The camera is
+            // always orthographic for the board (see GameSceneBuilder3D),
+            // so orthographicSize*aspect is the frustum half-width at any
+            // depth - offscreenX just needs to clear that plus a tile of
+            // margin so tiles never visibly pop in already on-screen.
+            float boardCenterX = orderedCells.Count > 0
+                ? (orderedCells.Min(kv => slotsById[kv.Key].X) + orderedCells.Max(kv => slotsById[kv.Key].X)) / 2f * _cellWidth
+                : 0f;
+            float offscreenX = _camera != null
+                ? _camera.orthographicSize * _camera.aspect + _cellWidth * 3f
+                : _cellWidth * 20f;
 
             var batchIndexByPosition = new int[orderedCells.Count];
             int batchCount = 0;
@@ -160,9 +171,13 @@ namespace GameClient.Presentation.Board3D
                 if (animateDealIn)
                 {
                     float delay = batchIndexByPosition[i] * stagger;
-                    // Each tile drops from directly above its own final position
+                    // Slide in from off-screen on whichever side of the
+                    // board's centre this tile's own row-final X falls on,
+                    // staying at that row's Y/Z the whole way - a pure
+                    // horizontal entrance, not a diagonal one.
                     var finalPos = view.transform.localPosition;
-                    var startPos = finalPos + new Vector3(0f, DropHeight * _cellHeight, 0f);
+                    bool isLeftHalf = finalPos.x <= boardCenterX;
+                    var startPos = new Vector3(isLeftHalf ? -offscreenX : offscreenX, finalPos.y, finalPos.z);
                     view.PlayDealIn(delay, startPos, () =>
                     {
                         pendingDealIns--;
