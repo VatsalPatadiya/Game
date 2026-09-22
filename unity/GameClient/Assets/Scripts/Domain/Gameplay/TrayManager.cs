@@ -51,32 +51,25 @@ namespace GameDomain.Gameplay
 
         private static void CheckForMatches(BoardState board)
         {
-            // Group tray tiles by bucket key (exact value for ordinary tiles,
-            // shared FLOWER/SEASON label for wildcard tiles - see
-            // TileMatchRules) and clear the first group that reaches
-            // MatchSize compatible tiles. The bucket key is only a grouping
-            // key, never stored - matched tiles keep their own real per-tile
-            // Value below, since ShuffleService/UndoStack need actual
-            // reusable value strings, not a wildcard-group label.
-            var bucketToSlotIds = new Dictionary<string, List<string>>();
+            // Group tray tiles by value and clear the first group that reaches
+            // MatchSize identical tiles.
+            var valueToSlotIds = new Dictionary<string, List<string>>();
             foreach (var id in board.TrayTileIds)
             {
-                var bucket = TileMatchRules.BucketKey(board.Cells[id].Value);
-                if (!bucketToSlotIds.TryGetValue(bucket, out var list))
+                var val = board.Cells[id].Value;
+                if (!valueToSlotIds.TryGetValue(val, out var list))
                 {
                     list = new List<string>();
-                    bucketToSlotIds[bucket] = list;
+                    valueToSlotIds[val] = list;
                 }
                 list.Add(id);
             }
 
-            foreach (var kv in bucketToSlotIds)
+            foreach (var kv in valueToSlotIds)
             {
                 if (kv.Value.Count >= MatchSize)
                 {
                     var matched = kv.Value.GetRange(0, MatchSize);
-                    var valueA = board.Cells[matched[0]].Value;
-                    var valueB = board.Cells[matched[1]].Value;
 
                     foreach (var id in matched)
                     {
@@ -90,10 +83,10 @@ namespace GameDomain.Gameplay
                         // the pair-based ShuffleService/UndoStack (deferred powerups).
                         SlotIdA = matched[0],
                         SlotIdB = matched[1],
-                        ValueA = valueA,
-                        ValueB = valueB,
+                        ValueA = kv.Key,
+                        ValueB = kv.Key,
                         ClearedSlotIds = matched,
-                        Value = valueA
+                        Value = kv.Key
                     });
 
                     board.Score += 100;

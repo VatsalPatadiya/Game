@@ -10,27 +10,9 @@ public static class DataAssetGenerator
     // list directly. Do not point this back at Assets/Textures/Icons/icon_*.png
     // (an older, superseded generation pass) - that set has no card backing
     // and makes board tiles render as floating bare symbols.
-    //
-    // Index order below is GAMEPLAY-LOAD-BEARING, not cosmetic: a tile's
-    // assigned value indexes directly into this array (TileVisual.IconFor),
-    // and TileMatchRules.BucketKey() reserves index ranges 34-37 and 38-41
-    // as the Flower/Season wildcard groups (any tile in one of those ranges
-    // matches any other tile in the SAME range, regardless of exact value -
-    // standard Mahjong Solitaire rule). Reordering this array without
-    // updating TileMatchRules breaks that mapping.
     private static readonly string[] IconNames =
     {
-        // 0-33: the 34 exact-match suit/honor tiles - only an identical
-        // value matches another identical value.
-        "dots_1", "dots_2", "dots_3", "dots_4", "dots_5", "dots_6", "dots_7", "dots_8", "dots_9",
-        "bamboo_1", "bamboo_2", "bamboo_3", "bamboo_4", "bamboo_5", "bamboo_6", "bamboo_7", "bamboo_8", "bamboo_9",
-        "characters_1", "characters_2", "characters_3", "characters_4", "characters_5", "characters_6", "characters_7", "characters_8", "characters_9",
-        "wind_east", "wind_north", "wind_south", "wind_west",
-        "dragon_green", "dragon_red", "dragon_white",
-        // 34-37: Flowers - wildcard group, order among these four doesn't matter.
-        "flower_bamboo_leaf", "flower_chrysanthemum", "flower_orchid", "flower_plum",
-        // 38-41: Seasons - wildcard group, order among these four doesn't matter.
-        "season_autumn", "season_spring", "season_summer", "season_winter",
+        "Tile_1", "Tile_2", "Tile_3", "Tile_4", "Tile_5", "Tile_6", "Tile_7", "Tile_8", "Tile_9"
     };
 
     private const string IconFolder = "Assets/Sprites/Tiles/";
@@ -47,20 +29,15 @@ public static class DataAssetGenerator
     {
         Directory.CreateDirectory("Assets/Data");
 
-        const string tokensPath = "Assets/Data/DefaultAccessibilityTokens.asset";
-        if (AssetDatabase.LoadAssetAtPath<AccessibilityTokens>(tokensPath) != null)
-            AssetDatabase.DeleteAsset(tokensPath);
         var tokens = ScriptableObject.CreateInstance<AccessibilityTokens>();
-        AssetDatabase.CreateAsset(tokens, tokensPath);
+        AssetDatabase.CreateAsset(tokens, "Assets/Data/DefaultAccessibilityTokens.asset");
 
         var tileSet = ScriptableObject.CreateInstance<TileSetAsset>();
         tileSet.TileSetId = "default";
         tileSet.Icons = new Sprite[IconNames.Length];
         for (int i = 0; i < IconNames.Length; i++)
         {
-            string path = IconFolder + IconNames[i] + ".png";
-            EnsureSpriteImportSettings(path);
-            var sprite = AssetDatabase.LoadAssetAtPath<Sprite>(path);
+            var sprite = AssetDatabase.LoadAssetAtPath<Sprite>(IconFolder + IconNames[i] + ".png");
             if (sprite == null)
                 throw new System.Exception(
                     "DATA_ASSET_GENERATOR_MISSING_ICON: " + IconNames[i] + " - expected hand-authored tile art at " + IconFolder);
@@ -82,36 +59,15 @@ public static class DataAssetGenerator
             tileSet.FoodModels[i] = prefab;
         }
 
-        const string tileSetPath = "Assets/Data/DefaultTileSet.asset";
-        if (AssetDatabase.LoadAssetAtPath<TileSetAsset>(tileSetPath) != null)
-            AssetDatabase.DeleteAsset(tileSetPath);
-        AssetDatabase.CreateAsset(tileSet, tileSetPath);
+        AssetDatabase.CreateAsset(tileSet, "Assets/Data/DefaultTileSet.asset");
 
-        const string levelPath = "Assets/Data/SmallTestLevel.asset";
-        if (AssetDatabase.LoadAssetAtPath<LevelShapeAsset>(levelPath) != null)
-            AssetDatabase.DeleteAsset(levelPath);
         var level = ScriptableObject.CreateInstance<LevelShapeAsset>();
         level.LevelId = 1;
         level.RowLengthsByLayer = new[] { 8 };
         level.TileSetId = "default";
-        AssetDatabase.CreateAsset(level, levelPath);
+        AssetDatabase.CreateAsset(level, "Assets/Data/SmallTestLevel.asset");
 
         AssetDatabase.SaveAssets();
         Debug.Log("DATA_ASSET_GENERATOR_DONE");
-    }
-
-    // Freshly-copied PNGs land with Unity's Default texture-import settings,
-    // which AssetDatabase.LoadAssetAtPath<Sprite> can't resolve (returns
-    // null) - force Sprite/Single, same fix as UpdateTileSetAsset.cs.
-    private static void EnsureSpriteImportSettings(string path)
-    {
-        AssetDatabase.ImportAsset(path);
-        if (AssetImporter.GetAtPath(path) is TextureImporter importer)
-        {
-            bool changed = false;
-            if (importer.textureType != TextureImporterType.Sprite) { importer.textureType = TextureImporterType.Sprite; changed = true; }
-            if (importer.spriteImportMode != SpriteImportMode.Single) { importer.spriteImportMode = SpriteImportMode.Single; changed = true; }
-            if (changed) importer.SaveAndReimport();
-        }
     }
 }

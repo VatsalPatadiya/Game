@@ -18,25 +18,21 @@ namespace GameDomain.Gameplay
                 board.Cells.Where(kv => !kv.Value.Cleared && !board.TrayTileIds.Contains(kv.Key)).Select(kv => kv.Key));
             var free = FreedomRuleCalculator.ComputeFreeSlots(slotsById, remaining);
 
-            // Bucket keys (see TileMatchRules): exact value for ordinary tiles,
-            // shared FLOWER/SEASON label for wildcard tiles - so a free Flower
-            // counts as a match for any Flower already in the tray, not just
-            // an identical one.
-            var trayBuckets = new HashSet<string>(board.TrayTileIds.Select(id => TileMatchRules.BucketKey(board.Cells[id].Value)));
+            var trayValues = new HashSet<string>(board.TrayTileIds.Select(id => board.Cells[id].Value));
 
-            // 1. A free tile compatible with something already in the tray -> instant clear.
+            // 1. A free tile whose value is already in the tray -> instant clear.
             foreach (var s in free)
-                if (trayBuckets.Contains(TileMatchRules.BucketKey(board.Cells[s.Id].Value)))
+                if (trayValues.Contains(board.Cells[s.Id].Value))
                     return (s.Id, null);
 
-            // 2. Two free board tiles that are compatible with each other.
-            var seenByBucket = new Dictionary<string, string>();
+            // 2. Two free board tiles sharing a value.
+            var seenByValue = new Dictionary<string, string>();
             foreach (var s in free)
             {
-                var bucket = TileMatchRules.BucketKey(board.Cells[s.Id].Value);
-                if (seenByBucket.TryGetValue(bucket, out var partner))
+                var v = board.Cells[s.Id].Value;
+                if (seenByValue.TryGetValue(v, out var partner))
                     return (partner, s.Id);
-                seenByBucket[bucket] = s.Id;
+                seenByValue[v] = s.Id;
             }
 
             return (null, null);

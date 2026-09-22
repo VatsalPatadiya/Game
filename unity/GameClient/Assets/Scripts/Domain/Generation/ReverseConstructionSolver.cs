@@ -68,15 +68,15 @@ namespace GameDomain.Generation
             return order;
         }
 
-        // Assigns each triple a distinct value (mod modelCount), so every value
-        // appears exactly 3 times on the board.
+        // Assigns each triple a distinct value (mod 26), so every value appears
+        // exactly 3 times on the board.
         public static Dictionary<string, string> AssignValuesFromRemovalOrderTriples(
-            List<string[]> removalOrder, Random random, int modelCount = 42)
+            List<string[]> removalOrder, Random random)
         {
             int groupCount = removalOrder.Count;
             var pool = new List<string>(groupCount);
             for (int i = 0; i < groupCount; i++)
-                pool.Add((i % modelCount).ToString());
+                pool.Add((i % 9).ToString());
 
             for (int i = pool.Count - 1; i > 0; i--)
             {
@@ -95,7 +95,7 @@ namespace GameDomain.Generation
         }
 
         public static Dictionary<string, string> AssignValuesFromRemovalOrder(
-            List<(string a, string b)> removalOrder, Random random, HashSet<string> excludedValues = null, int modelCount = 42)
+            List<(string a, string b)> removalOrder, Random random, HashSet<string> excludedValues = null)
         {
             int pairCount = removalOrder.Count;
             var pool = new List<string>(pairCount);
@@ -107,11 +107,10 @@ namespace GameDomain.Generation
             int attempts = 0;
             while (pool.Count < pairCount && attempts < 1000)
             {
-                // Modulo modelCount (the tile set's actual icon count) so every
-                // value maps to a real, distinct tile face - two tiles that look
-                // identical always share the same string value, preventing the
-                // "identical tiles not matching" bug.
-                string value = (candidate % modelCount).ToString();
+                // Modulo 9 because we only have 9 unique PNG tiles. This ensures that
+                // any two tiles that look identical visually also share the same
+                // string value, preventing the "identical tiles not matching" bug.
+                string value = (candidate % 9).ToString(); 
                 candidate++;
                 attempts++;
                 if (excludedValues != null && excludedValues.Contains(value))

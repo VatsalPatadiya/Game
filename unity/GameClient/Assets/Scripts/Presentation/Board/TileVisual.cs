@@ -3,13 +3,11 @@ using UnityEngine;
 
 namespace GameClient.Presentation.Board
 {
-    // Icons is 1:1 with the value range a tile can be assigned (42 entries -
-    // see DataAssetGenerator.IconNames and TileMatchRules for the exact
-    // ordering/wildcard ranges), so IconFor alone already gives every value
-    // its own distinct tile face - no accent-color multiplier needed.
-    // AccentColorFor/FoodModelFor below are unused by the live render path
-    // (TileView3D.Initialize takes a single Sprite) - kept for now, not
-    // wired to anything.
+    // Icons.Length (7) * AccentColors.Length (4) = 28 unique combinations, which
+    // covers the full 0-25 value range the domain layer can assign (values are
+    // capped at mod 26 by ReverseConstructionSolver), so no two distinct pair
+    // values ever render as the same icon+color combo. Shared by BoardView and
+    // TrayView so a tile looks identical on the board and in the tray.
     public static class TileVisual
     {
         public static Sprite IconFor(TileSetAsset tileSet, string value)
@@ -25,6 +23,10 @@ namespace GameClient.Presentation.Board
             return tileSet.AccentColors[colorIndex];
         }
 
+        // 26 distinct food models, one per value (values are capped at mod 26
+        // by ReverseConstructionSolver, see the comment above) - each value
+        // already gets a visually unique model, so no accent-color tinting is
+        // layered on top the way IconFor/AccentColorFor combine.
         public static GameObject FoodModelFor(TileSetAsset tileSet, string value)
         {
             int index = int.Parse(value);

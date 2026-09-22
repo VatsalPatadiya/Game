@@ -17,7 +17,7 @@ namespace GameDomain.Gameplay
             if (!board.Cells.TryGetValue(slotIdB, out var cellB) || cellB.Cleared)
                 return false;
 
-            if (!TileMatchRules.AreCompatible(cellA.Value, cellB.Value))
+            if (cellA.Value != cellB.Value)
                 return false;
 
             var remaining = new HashSet<string>(

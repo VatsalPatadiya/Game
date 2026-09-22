@@ -16,7 +16,7 @@ public static class TileMeshGenerator
         body.transform.SetParent(root.transform, false);
         
         var bodyRenderer = body.AddComponent<SpriteRenderer>();
-        var sprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Sprites/Tiles/dots_1.png");
+        var sprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Sprites/Tiles/Tile_1.png");
         bodyRenderer.sprite = sprite;
         
         if (sprite != null)
