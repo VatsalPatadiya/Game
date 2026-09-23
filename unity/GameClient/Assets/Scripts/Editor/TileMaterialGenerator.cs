@@ -1,4 +1,5 @@
 using System.IO;
+using GameClient.Data;
 using GameClient.Presentation.Board3D;
 using UnityEditor;
 using UnityEngine;
@@ -147,5 +148,43 @@ public static class TileMaterialGenerator
         EditorUtility.SetDirty(baseMat);
 
         AssetDatabase.SaveAssets();
+    }
+
+    [MenuItem("Tools/Mahjong/Generate Tile Back")]
+    public static void GenerateCardBack()
+    {
+        Directory.CreateDirectory("Assets/Sprites/Tiles");
+
+        const int texW = 512;
+        int texH = Mathf.RoundToInt(texW / CardStyle.CardAspectRatio);
+        // Inverted contrast from the front face (solid jade fill, thin
+        // ivory frame, no icon) - reads as clearly "not a value card" at a
+        // glance without needing bespoke art.
+        var tex = TileFaceTexture.Build(texW, texH, Jade, Jade, IvoryTop,
+            framePadding: 0.028f, frameThickness: 0.011f, cornerRadius: 0.15f,
+            bevelStrength: 0.45f, sheenStrength: 0.05f);
+        File.WriteAllBytes("Assets/Sprites/Tiles/TileBack.png", tex.EncodeToPNG());
+        Object.DestroyImmediate(tex);
+        AssetDatabase.ImportAsset("Assets/Sprites/Tiles/TileBack.png");
+
+        var importer = (TextureImporter)AssetImporter.GetAtPath("Assets/Sprites/Tiles/TileBack.png");
+        importer.textureType = TextureImporterType.Sprite;
+        importer.spriteImportMode = SpriteImportMode.Single;
+        importer.spritePixelsToUnits = 100;
+        importer.mipmapEnabled = false;
+        importer.wrapMode = TextureWrapMode.Clamp;
+        importer.filterMode = FilterMode.Bilinear;
+        importer.maxTextureSize = 2048;
+        importer.SaveAndReimport();
+
+        var tileSetAsset = AssetDatabase.LoadAssetAtPath<TileSetAsset>("Assets/Data/DefaultTileSet.asset");
+        if (tileSetAsset != null)
+        {
+            tileSetAsset.CardBack = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Sprites/Tiles/TileBack.png");
+            EditorUtility.SetDirty(tileSetAsset);
+            AssetDatabase.SaveAssets();
+        }
+
+        Debug.Log("TILE_BACK_GENERATOR_DONE");
     }
 }
