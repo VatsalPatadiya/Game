@@ -30,12 +30,43 @@ namespace GameDomain.Progression
             new LevelData { LevelId = 5, Name = "Level 5", TileCount = 144, Difficulty = 5, ParAids = 1 },
         };
 
-        public static LevelData Get(int levelId) => Levels.FirstOrDefault(l => l.LevelId == levelId);
+        // Levels beyond the last authored one are generated procedurally so
+        // progression never dead-ends - Difficulty ramps 1->5 one step every
+        // RampLevelsPerDifficultyStep levels, then plateaus at 5 forever.
+        // ParAids steps down as difficulty rises (floored at 1 so a 2nd star
+        // always stays reachable). Mode stays Pair - Triple levels are a
+        // deliberately curated variant, not something to auto-assign here.
+        private const int RampLevelsPerDifficultyStep = 8;
 
-        public static int NextLevelId(int levelId)
+        public static LevelData Get(int levelId)
         {
-            int idx = Levels.FindIndex(l => l.LevelId == levelId);
-            return (idx >= 0 && idx + 1 < Levels.Count) ? Levels[idx + 1].LevelId : levelId;
+            var authored = Levels.FirstOrDefault(l => l.LevelId == levelId);
+            if (authored != null) return authored;
+
+            int lastAuthoredId = Levels[Levels.Count - 1].LevelId;
+            return levelId > lastAuthoredId ? GenerateProcedural(levelId, lastAuthoredId) : null;
         }
+
+        private static LevelData GenerateProcedural(int levelId, int lastAuthoredId)
+        {
+            int stepsIn = (levelId - lastAuthoredId - 1) / RampLevelsPerDifficultyStep;
+            int difficulty = 1 + stepsIn;
+            if (difficulty > 5) difficulty = 5;
+
+            int parAids = 4 - difficulty;
+            if (parAids < 1) parAids = 1;
+            if (parAids > 3) parAids = 3;
+
+            return new LevelData
+            {
+                LevelId = levelId,
+                Name = "Level " + levelId,
+                Difficulty = difficulty,
+                ParAids = parAids,
+                Mode = GameDomain.Generation.MatchMode.Pair,
+            };
+        }
+
+        public static int NextLevelId(int levelId) => levelId + 1;
     }
 }

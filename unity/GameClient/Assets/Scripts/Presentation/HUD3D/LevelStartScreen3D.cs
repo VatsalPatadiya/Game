@@ -1,5 +1,6 @@
 using System.Collections;
 using GameClient.Presentation.Board;
+using GameDomain.Progression;
 using TMPro;
 using UnityEngine;
 
@@ -21,6 +22,10 @@ namespace GameClient.Presentation.HUD3D
         // Updated to reflect the current level. The "Level N" title label was
         // removed (redundant with this badge) - only the badge number remains.
         [SerializeField] private TMP_Text _badgeText;
+        // Player-facing EASY/MEDIUM/HARD relabeling of the level's internal
+        // 1-5 Difficulty (see DifficultyTier) - display only, no effect on
+        // generation.
+        [SerializeField] private TMP_Text _difficultyText;
 
         // Two halves of the arched door art (GameSceneBuilder3D.
         // BuildLevelStartScreen) - this screen's actual background, closed/
@@ -80,6 +85,11 @@ namespace GameClient.Presentation.HUD3D
             if (_gameController == null) return;
             int id = _gameController.CurrentLevelId;
             if (_badgeText != null) _badgeText.text = id.ToString();
+            if (_difficultyText != null)
+            {
+                int difficulty = LevelCatalog.Get(id)?.Difficulty ?? 1;
+                _difficultyText.text = DifficultyTier.For(difficulty);
+            }
         }
 
         private void Start()

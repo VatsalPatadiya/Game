@@ -98,8 +98,9 @@ namespace GameClient.Presentation
             // Load progress in Awake so it's ready before other components'
             // OnEnable (the level-select screen reads it there to show lock/stars).
             _progress = SaveSystem.Load();
-            _currentLevelId = Mathf.Clamp(_progress.HighestUnlockedLevelId, 1,
-                LevelCatalog.Levels[LevelCatalog.Levels.Count - 1].LevelId);
+            // No upper bound: levels beyond the authored catalog are generated
+            // procedurally (LevelCatalog.Get), so progression never dead-ends.
+            _currentLevelId = Mathf.Max(_progress.HighestUnlockedLevelId, 1);
         }
 
         private void Start()

@@ -1219,6 +1219,14 @@ public static class GameSceneBuilder3D
         var badgeNum = Label("BadgeNum", new Vector2(0.5f, 0.68f), "6", 2.33f, CreamHudText, FontStyles.Bold);
         badgeNum.transform.localPosition += new Vector3(0f, 0f, -0.05f); // toward camera, in front of the disc face
 
+        // EASY/MEDIUM/HARD relabeling of the level's Difficulty (see
+        // DifficultyTier) - small eyebrow-style caption below the badge,
+        // same tint/sizing convention as the pause menu's "SETTINGS" label
+        // (SettingsLabelTint / FontSizeForScreenFrac(0.016f)), default font
+        // (not Cinzel) since small-caps eyebrow text reads better in body font.
+        var difficultyLabel = Label("DifficultyLabel", new Vector2(0.5f, 0.585f), "EASY",
+            FontSizeForScreenFrac(0.016f), SettingsLabelTint, FontStyles.Bold, display: false);
+
         // Same CreateSolidButton3D helper (same corner radius, same gold
         // gradient) as the pause menu's RESUME button. Width/height are
         // fractions of the full screen now (no card to size against).
@@ -1236,6 +1244,7 @@ public static class GameSceneBuilder3D
         overlayContent.transform.SetParent(root.transform, false);
         badgeGO.transform.SetParent(overlayContent.transform, true);
         badgeNum.transform.SetParent(overlayContent.transform, true);
+        difficultyLabel.transform.SetParent(overlayContent.transform, true);
         play.btn.transform.SetParent(overlayContent.transform, true);
         play.lbl.transform.SetParent(overlayContent.transform, true);
 
@@ -1244,6 +1253,7 @@ public static class GameSceneBuilder3D
         SetField(levelStart, "_gameController", gameController);
         SetFieldArray(levelStart, "_gameHudObjects", hudObjects);
         SetField(levelStart, "_badgeText", badgeNum);
+        SetField(levelStart, "_difficultyText", difficultyLabel);
         SetField(levelStart, "_doorLeft", doorLeftGO.transform);
         SetField(levelStart, "_doorRight", doorRightGO.transform);
         // NOT doorPanelWidth: that's sized to cover the full screen HEIGHT

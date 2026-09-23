@@ -72,17 +72,75 @@ namespace GameDomain.Tests.Progression
         }
 
         [Test]
-        public void LevelCatalog_NextLevelId_AdvancesThenClampsAtLast()
+        public void LevelCatalog_NextLevelId_AdvancesPastAuthoredLevels()
         {
             Assert.That(LevelCatalog.NextLevelId(1), Is.EqualTo(2));
-            int lastId = LevelCatalog.Levels[LevelCatalog.Levels.Count - 1].LevelId;
-            Assert.That(LevelCatalog.NextLevelId(lastId), Is.EqualTo(lastId));
+            int lastAuthoredId = LevelCatalog.Levels[LevelCatalog.Levels.Count - 1].LevelId;
+            Assert.That(LevelCatalog.NextLevelId(lastAuthoredId), Is.EqualTo(lastAuthoredId + 1));
+            Assert.That(LevelCatalog.NextLevelId(lastAuthoredId + 1), Is.EqualTo(lastAuthoredId + 2));
+        }
+
+        [Test]
+        public void LevelCatalog_Get_Level6_StartsProceduralRampAtDifficulty1()
+        {
+            Assert.That(LevelCatalog.Get(6)?.Difficulty, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void LevelCatalog_Get_RampsOneDifficultyStepEvery8Levels()
+        {
+            Assert.That(LevelCatalog.Get(13)?.Difficulty, Is.EqualTo(1));
+            Assert.That(LevelCatalog.Get(14)?.Difficulty, Is.EqualTo(2));
+            Assert.That(LevelCatalog.Get(22)?.Difficulty, Is.EqualTo(3));
+            Assert.That(LevelCatalog.Get(30)?.Difficulty, Is.EqualTo(4));
+            Assert.That(LevelCatalog.Get(38)?.Difficulty, Is.EqualTo(5));
+        }
+
+        [Test]
+        public void LevelCatalog_Get_PlateausAtDifficulty5_ForVeryHighLevels()
+        {
+            Assert.That(LevelCatalog.Get(1000)?.Difficulty, Is.EqualTo(5));
+        }
+
+        [Test]
+        public void LevelCatalog_Get_ProceduralLevel_HasPairModeAndParAidsAtLeastOne()
+        {
+            var level = LevelCatalog.Get(6);
+            Assert.That(level.Mode, Is.EqualTo(GameDomain.Generation.MatchMode.Pair));
+            Assert.That(level.ParAids, Is.GreaterThanOrEqualTo(1));
         }
 
         [Test]
         public void LevelData_DefaultsToPairMode()
         {
             Assert.That(new GameDomain.Progression.LevelData().Mode, Is.EqualTo(GameDomain.Generation.MatchMode.Pair));
+        }
+
+        [Test]
+        public void DifficultyTier_Difficulty1And2_AreEasy()
+        {
+            Assert.That(DifficultyTier.For(1), Is.EqualTo("EASY"));
+            Assert.That(DifficultyTier.For(2), Is.EqualTo("EASY"));
+        }
+
+        [Test]
+        public void DifficultyTier_Difficulty3_IsMedium()
+        {
+            Assert.That(DifficultyTier.For(3), Is.EqualTo("MEDIUM"));
+        }
+
+        [Test]
+        public void DifficultyTier_Difficulty4And5_AreHard()
+        {
+            Assert.That(DifficultyTier.For(4), Is.EqualTo("HARD"));
+            Assert.That(DifficultyTier.For(5), Is.EqualTo("HARD"));
+        }
+
+        [Test]
+        public void DifficultyTier_OutOfRangeDifficulty_Clamps()
+        {
+            Assert.That(DifficultyTier.For(0), Is.EqualTo("EASY"));
+            Assert.That(DifficultyTier.For(99), Is.EqualTo("HARD"));
         }
     }
 }
