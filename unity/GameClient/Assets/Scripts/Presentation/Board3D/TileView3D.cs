@@ -17,6 +17,23 @@ namespace GameClient.Presentation.Board3D
         private const float DragSnapBackDuration = 0.18f;
         private const float SelectLift = 0.35f;
 
+        // Dynamically scale a sprite so its world width is precisely 0.626f -
+        // matches the _cellWidth logic in BoardView3D and prevents horizontal
+        // overlap. Shared by Initialize and the flip routines below so
+        // swapping between the front icon and the back sprite (which may not
+        // share exactly the same source aspect) always re-fits correctly
+        // instead of carrying over a stale scale from whichever sprite was
+        // showing before.
+        private const float TargetWidth = 0.626f;
+
+        private void ApplyFitScale(Sprite sprite)
+        {
+            if (sprite == null) return;
+            float spriteWidthUnits = sprite.bounds.size.x;
+            float scale = spriteWidthUnits > 0 ? (TargetWidth / spriteWidthUnits) : 1f;
+            _bodyRenderer.transform.localScale = new Vector3(scale, scale, 1f);
+        }
+
         private SpriteRendererTint _bodyTint;
         private Vector3 _originalLocalPos;
         private Transform _dropShadow;
@@ -29,6 +46,7 @@ namespace GameClient.Presentation.Board3D
         private Coroutine _fadeCoroutine;
         private Coroutine _dragSnapCoroutine;
         private Coroutine _highlightCoroutine;
+        private Coroutine _flipCoroutine;
 
         public string SlotId { get; private set; }
         public int Layer { get; private set; }
@@ -43,16 +61,7 @@ namespace GameClient.Presentation.Board3D
             // Initial order, will be correctly set by BoardView after placement
             _bodyRenderer.sortingOrder = layer * 10000;
 
-            if (tileSprite != null)
-            {
-                // Dynamically scale the sprite so its world width is precisely 0.626f.
-                // This perfectly matches the _cellWidth logic in BoardView3D and prevents 
-                // the horizontal overlapping seen when sprites are naturally too wide.
-                float targetWidth = 0.626f;
-                float spriteWidthUnits = tileSprite.bounds.size.x;
-                float scale = spriteWidthUnits > 0 ? (targetWidth / spriteWidthUnits) : 1f;
-                _bodyRenderer.transform.localScale = new Vector3(scale, scale, 1f);
-            }
+            ApplyFitScale(tileSprite);
 
             _originalLocalPos = transform.localPosition;
             transform.localScale = Vector3.one;
@@ -256,6 +265,53 @@ namespace GameClient.Presentation.Board3D
 
             transform.localRotation = originalRot;
             RefreshCardColor();
+        }
+
+        private const float FlipHalfDuration = 0.15f;
+
+        public void PlayFlipToFaceUp(Sprite frontSprite)
+        {
+            if (_flipCoroutine != null) StopCoroutine(_flipCoroutine);
+            _flipCoroutine = StartCoroutine(FlipRoutine(frontSprite));
+        }
+
+        public void PlayFlipToFaceDown(Sprite backSprite)
+        {
+            if (_flipCoroutine != null) StopCoroutine(_flipCoroutine);
+            _flipCoroutine = StartCoroutine(FlipRoutine(backSprite));
+        }
+
+        // Classic card-flip: scale X to zero (edge-on), swap the sprite at
+        // the midpoint, then scale back out. ApplyFitScale is recomputed for
+        // the NEW sprite so the front/back don't need identical source aspect.
+        private IEnumerator FlipRoutine(Sprite newSprite)
+        {
+            var t = _bodyRenderer.transform;
+            float startX = t.localScale.x;
+            float elapsed = 0f;
+            while (elapsed < FlipHalfDuration)
+            {
+                elapsed += Time.deltaTime;
+                float p = Mathf.Clamp01(elapsed / FlipHalfDuration);
+                t.localScale = new Vector3(Mathf.Lerp(startX, 0f, p), t.localScale.y, t.localScale.z);
+                yield return null;
+            }
+
+            _bodyRenderer.sprite = newSprite;
+            ApplyFitScale(newSprite);
+            float targetX = t.localScale.x;
+            t.localScale = new Vector3(0f, t.localScale.y, t.localScale.z);
+
+            elapsed = 0f;
+            while (elapsed < FlipHalfDuration)
+            {
+                elapsed += Time.deltaTime;
+                float p = Mathf.Clamp01(elapsed / FlipHalfDuration);
+                t.localScale = new Vector3(Mathf.Lerp(0f, targetX, p), t.localScale.y, t.localScale.z);
+                yield return null;
+            }
+            t.localScale = new Vector3(targetX, t.localScale.y, t.localScale.z);
+            _flipCoroutine = null;
         }
 
         public void BeginDrag()
