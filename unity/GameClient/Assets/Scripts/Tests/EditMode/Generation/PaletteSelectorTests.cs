@@ -57,5 +57,23 @@ namespace GameDomain.Tests.Generation
                 return m >= 0 && m < 6;
             }));
         }
+
+        // Regression guard for the "identical tiles don't match in the tray" bug:
+        // the caller must size value generation off how many distinct icons can
+        // actually be rendered, not off an unrelated, possibly-larger asset list
+        // (e.g. a 3D model array left over from a reverted feature). Otherwise two
+        // different values can render as the same icon while comparing unequal
+        // everywhere match/hint/shuffle logic checks raw Value equality.
+        [Test]
+        public void ResolveModelCount_UsesIconCount_WhenPositive()
+        {
+            Assert.That(PaletteSelector.ResolveModelCount(9), Is.EqualTo(9));
+        }
+
+        [Test]
+        public void ResolveModelCount_FallsBackToDefault_WhenIconCountIsZero()
+        {
+            Assert.That(PaletteSelector.ResolveModelCount(0), Is.EqualTo(26));
+        }
     }
 }

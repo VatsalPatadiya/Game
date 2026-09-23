@@ -10,6 +10,16 @@ namespace GameDomain.Generation
     // groups may share a value when variety runs out (safe: only adds match options).
     public static class PaletteSelector
     {
+        // The number of distinct values a level may draw from must never exceed
+        // the number of icons that can actually render them, or two different
+        // values can land on the same icon (Icons[value % Icons.Length]) while
+        // still comparing unequal everywhere match/hint/shuffle logic checks raw
+        // Value equality - tiles that look identical then never clear together.
+        // Callers should pass the live tile set's icon count; iconCount <= 0
+        // (tile set not yet available) falls back to a safe default.
+        public static int ResolveModelCount(int iconCount, int fallback = 26) =>
+            iconCount > 0 ? iconCount : fallback;
+
         public static Dictionary<string, string> AssignValues(
             List<string[]> removalOrder, int[] clusterIdByModel, int modelCount,
             int confusabilityLevel, Random random)

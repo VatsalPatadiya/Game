@@ -185,8 +185,11 @@ namespace GameClient.Presentation
 
             var tileSet = _boardView != null ? _boardView.TileSet : null;
             int[] clusters = tileSet != null ? tileSet.SimilarityClusterId : null;
-            int modelCount = (tileSet != null && tileSet.FoodModels != null && tileSet.FoodModels.Length > 0)
-                ? tileSet.FoodModels.Length : 26;
+            // Value generation must be capped at how many icons TileVisual.IconFor
+            // can actually render (Icons.Length), not FoodModels.Length - see
+            // PaletteSelector.ResolveModelCount.
+            int iconCount = (tileSet != null && tileSet.Icons != null) ? tileSet.Icons.Length : 0;
+            int modelCount = PaletteSelector.ResolveModelCount(iconCount);
 
             _board = BoardGenerator.GenerateShaped(level, rng, profile, clusters, modelCount);
             _lastMatchTime = null;
