@@ -193,6 +193,7 @@ namespace GameClient.Presentation
             int modelCount = PaletteSelector.ResolveModelCount(iconCount);
 
             _board = BoardGenerator.GenerateShaped(level, rng, profile, clusters, modelCount);
+            HiddenTileSelector.Apply(_board, difficulty, rng);
             _lastMatchTime = null;
             _comboCount = 0;
             _aidsUsed = 0;
