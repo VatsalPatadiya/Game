@@ -16,6 +16,10 @@ namespace GameClient.Presentation.Board
             return tileSet.Icons[index % tileSet.Icons.Length];
         }
 
+        // The shared face-down sprite for hidden tiles - not value-indexed,
+        // since there is exactly one "back" regardless of what's underneath.
+        public static Sprite BackIcon(TileSetAsset tileSet) => tileSet.CardBack;
+
         public static Color AccentColorFor(TileSetAsset tileSet, string value)
         {
             int index = int.Parse(value);
