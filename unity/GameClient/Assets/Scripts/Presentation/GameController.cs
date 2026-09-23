@@ -404,6 +404,10 @@ namespace GameClient.Presentation
                 yield break;
             }
 
+            // Undoing a hidden tile fully reverses the reveal too, not just
+            // the collection - it goes back to face-down.
+            if (_board.Cells[popped].IsHiddenTile) _board.Cells[popped].Revealed = false;
+
             _aidsUsed++;
             NotifyUsesChanged();
 
