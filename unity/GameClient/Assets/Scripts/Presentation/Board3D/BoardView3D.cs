@@ -165,7 +165,11 @@ namespace GameClient.Presentation.Board3D
                 var slot = slotsById[kv.Key];
                 var view = Instantiate(_tilePrefab, transform);
                 PlaceTileView(view, slot);
-                view.Initialize(slot.Id, slot.Layer, TileVisual.IconFor(_tileSet, kv.Value.Value));
+                var cell = kv.Value;
+                Sprite startSprite = cell.Revealed
+                    ? TileVisual.IconFor(_tileSet, cell.Value)
+                    : TileVisual.BackIcon(_tileSet);
+                view.Initialize(slot.Id, slot.Layer, startSprite);
                 _tileViews[kv.Key] = view;
 
                 if (animateDealIn)
@@ -381,7 +385,10 @@ namespace GameClient.Presentation.Board3D
 
             var view = Instantiate(_tilePrefab, transform);
             PlaceTileView(view, slot);
-            view.Initialize(slot.Id, slot.Layer, TileVisual.IconFor(_tileSet, cell.Value));
+            Sprite startSprite = cell.Revealed
+                ? TileVisual.IconFor(_tileSet, cell.Value)
+                : TileVisual.BackIcon(_tileSet);
+            view.Initialize(slot.Id, slot.Layer, startSprite);
             _tileViews[slotId] = view;
             return view;
         }
