@@ -465,6 +465,16 @@ namespace GameClient.Presentation
     bool shuffled = ShuffleService.Shuffle(_board, _shape, _random);
     if (!shuffled) return;
 
+    // A shuffle reassigns values across every uncleared on-board cell,
+    // including under a currently-peeked hidden tile - reset concealment so
+    // it doesn't keep showing a reveal of a value that no longer belongs to
+    // that slot.
+    if (_board.PeekedTileId != null)
+    {
+        _board.Cells[_board.PeekedTileId].Revealed = false;
+        _board.PeekedTileId = null;
+    }
+
     // Record shuffle usage as an aid.
     _aidsUsed++;
 
