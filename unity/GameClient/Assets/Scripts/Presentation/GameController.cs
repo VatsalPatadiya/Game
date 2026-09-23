@@ -242,6 +242,25 @@ namespace GameClient.Presentation
             if (_board.IsGameOver) return;
             if (_board.Cells.Values.All(c => c.Cleared)) return;
 
+            var cell = _board.Cells[slotId];
+            if (!cell.Revealed)
+            {
+                if (TileReveal.TryReveal(_board, _slotsById, slotId, out string reHiddenId))
+                {
+                    _boardView.GetTileView(slotId)?.PlayFlipToFaceUp(TileVisual.IconFor(_boardView.TileSet, cell.Value));
+                    if (reHiddenId != null)
+                        _boardView.GetTileView(reHiddenId)?.PlayFlipToFaceDown(TileVisual.BackIcon(_boardView.TileSet));
+                    return;
+                }
+                _boardView.GetTileView(slotId)?.PlayShake();
+#if UNITY_ANDROID || UNITY_IOS
+                if (SaveSystem.LoadSettings().VibrationOn) Handheld.Vibrate();
+#endif
+                if (_invalidTapClip != null && _audioSource != null)
+                    _audioSource.PlayOneShot(_invalidTapClip);
+                return;
+            }
+
             var oldTray = new List<string>(_board.TrayTileIds);
 
             // TrayManager runs the freedom check itself (excluding tray tiles) and
@@ -257,7 +276,7 @@ namespace GameClient.Presentation
                 return;
             }
 
-
+            if (_board.PeekedTileId == slotId) _board.PeekedTileId = null;
 
             var newTray = new List<string>(_board.TrayTileIds);
             StartCoroutine(AnimateTapToTray(slotId, oldTray, newTray));
