@@ -2,7 +2,7 @@ using System.IO;
 using UnityEditor;
 using UnityEngine;
 
-// Procedurally draws the "Mahjong Sanctuary" brand mark - a circular seal
+// Procedurally draws the "Celestial Tiles Mahjong" brand mark - a circular seal
 // (echoing LevelStartScreen3D's circular level badge) containing an arched
 // gate silhouette (echoing that same screen's arched double-door), rendered
 // in the project's own established palette (TileMaterialGenerator's Ivory/
@@ -20,7 +20,7 @@ public static class LogoGenerator
 
     private const int Size = 1024;
 
-    [MenuItem("Tools/Branding/Generate Mahjong Sanctuary Logo")]
+    [MenuItem("Tools/Branding/Generate Celestial Tiles Mahjong Logo")]
     public static void Generate()
     {
         Directory.CreateDirectory("Assets/Textures/Branding");

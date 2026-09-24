@@ -14,3 +14,10 @@ unity/GameClient/Assets/GeneratedLocalRepo.meta
 # Google's own CDN) - see unity/GameClient/GooglePackages/README.md to
 # regenerate before opening the project fresh.
 unity/GameClient/GooglePackages/*.tgz
+
+# EDM4U-generated from the committed Assets/google-services.json - regenerated
+# automatically on asset import, not hand-authored source.
+unity/GameClient/Assets/Plugins/Android/FirebaseApp.androidlib/
+unity/GameClient/Assets/Plugins/Android/FirebaseApp.androidlib.meta
+unity/GameClient/Assets/StreamingAssets/
+unity/GameClient/Assets/StreamingAssets.meta

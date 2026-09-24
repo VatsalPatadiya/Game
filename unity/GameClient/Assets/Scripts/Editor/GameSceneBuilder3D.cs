@@ -1099,7 +1099,7 @@ public static class GameSceneBuilder3D
     // calls GameController.BeginLevel.
     // Branded splash: the jade felt backdrop (same material every other
     // screen uses, for consistency), the circular Logo_Mark seal centered,
-    // and the "MAHJONG SANCTUARY" wordmark in Cinzel/gold beneath it.
+    // and the "CELESTIAL TILES MAHJONG" wordmark in Cinzel/gold beneath it.
     // AppSplashScreen3D (attached here) hides the whole root after a fixed
     // delay - see that component for why no fade animation yet.
     private static void BuildAppSplashScreen(Camera camera)
@@ -1140,7 +1140,7 @@ public static class GameSceneBuilder3D
         backdropRenderer.receiveShadows = false;
 
         var logoTexture = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/Branding/Logo_Mark.png");
-        RequireNotNull(logoTexture, "Assets/Textures/Branding/Logo_Mark.png (run Tools/Branding/Generate Mahjong Sanctuary Logo first)");
+        RequireNotNull(logoTexture, "Assets/Textures/Branding/Logo_Mark.png (run Tools/Branding/Generate Celestial Tiles Mahjong Logo first)");
 
         var logoGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
         logoGO.name = "LogoMark";
@@ -1171,8 +1171,8 @@ public static class GameSceneBuilder3D
         wordmarkGO.transform.rotation = camera.transform.rotation;
         wordmarkGO.transform.SetParent(root.transform, true);
         var wordmark = wordmarkGO.GetComponent<TextMeshPro>();
-        wordmark.text = "MAHJONG SANCTUARY";
-        wordmark.fontSize = (0.032f * frustumHeight) / 0.11f;
+        wordmark.text = "CELESTIAL TILES MAHJONG";
+        wordmark.fontSize = (0.024f * frustumHeight) / 0.11f;
         wordmark.color = GoldChrome;
         wordmark.fontStyle = FontStyles.Bold;
         wordmark.alignment = TextAlignmentOptions.Center;

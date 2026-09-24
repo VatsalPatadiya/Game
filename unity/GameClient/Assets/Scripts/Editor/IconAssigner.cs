@@ -8,7 +8,7 @@ using UnityEngine;
 // per layer is enough - Unity bakes down to each DPI bucket at build time.
 public static class IconAssigner
 {
-    [MenuItem("Tools/Branding/Assign Mahjong Sanctuary App Icon")]
+    [MenuItem("Tools/Branding/Assign Celestial Tiles Mahjong App Icon")]
     public static void Assign()
     {
         var foreground = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/Branding/Icon_Foreground.png");
@@ -21,11 +21,11 @@ public static class IconAssigner
             return;
         }
 
-        var target = NamedBuildTarget.Android;
+        var androidTarget = NamedBuildTarget.Android;
 
-        foreach (var kind in PlayerSettings.GetSupportedIconKinds(target))
+        foreach (var kind in PlayerSettings.GetSupportedIconKinds(androidTarget))
         {
-            var icons = PlayerSettings.GetPlatformIcons(target, kind);
+            var icons = PlayerSettings.GetPlatformIcons(androidTarget, kind);
             bool isAdaptive = kind.ToString().StartsWith("Adaptive");
 
             foreach (var icon in icons)
@@ -41,8 +41,20 @@ public static class IconAssigner
                 }
             }
 
-            PlayerSettings.SetPlatformIcons(target, kind, icons);
+            PlayerSettings.SetPlatformIcons(androidTarget, kind, icons);
         }
+
+        // iOS has no adaptive-layer concept (that's PlatformIconKind, Android-only) -
+        // it uses the legacy IconKind.Application slot set (App Store, Spotlight,
+        // Settings, etc. sizes), all filled from the same opaque flat mark.
+        var iosTarget = NamedBuildTarget.iOS;
+        var iosSizeCount = PlayerSettings.GetIconSizes(iosTarget, IconKind.Application).Length;
+        var iosIcons = new Texture2D[iosSizeCount];
+        for (int i = 0; i < iosSizeCount; i++)
+        {
+            iosIcons[i] = flatMark;
+        }
+        PlayerSettings.SetIcons(iosTarget, iosIcons, IconKind.Application);
 
         AssetDatabase.SaveAssets();
         Debug.Log("ICON_ASSIGNER_DONE");

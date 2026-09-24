@@ -1,4 +1,4 @@
-# Mahjong Sanctuary
+# Celestial Tiles Mahjong
 
 A premium mahjong solitaire game for mobile, built around a calm, elegant jade-and-gold aesthetic.
 

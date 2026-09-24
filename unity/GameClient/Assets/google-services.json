@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "22001105482",
+    "project_id": "mahjong-sanctuary",
+    "storage_bucket": "mahjong-sanctuary.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:22001105482:android:0a989c548589d0bf31c4b3",
+        "android_client_info": {
+          "package_name": "com.gameclient.mahjong"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAOZdPniLggyej_A5H-zwfUUhWwcc7dot4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
