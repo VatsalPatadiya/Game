@@ -95,6 +95,18 @@ namespace GameClient.Presentation.Board3D
                         col.b = Mathf.Clamp01(col.b + sheen);
                     }
 
+                    // Clip to the rounded-rect silhouette: without this, every pixel
+                    // in the four sharp texture corners (outside the frame's rounded
+                    // curve) stays painted with the base fill color, since the frame
+                    // band above only ever blends TOWARD jade near its own outline -
+                    // it never clears the fill farther out. Normally invisible (icon
+                    // art draws the eye elsewhere, and ivory-on-light-table is low
+                    // contrast), but a bold/no-icon treatment (the card back) makes
+                    // it obvious under zoom. Reuses the same outer SDF the bevel rim
+                    // already computes, with ~2px smooth AA at the edge.
+                    float dOuter = OuterSdf(x, y, cx, cy, ohx, ohy, orad);
+                    col.a = 1f - SmoothStep01(-1f, 1f, dOuter);
+
                     tex.SetPixel(x, y, col);
                 }
             }

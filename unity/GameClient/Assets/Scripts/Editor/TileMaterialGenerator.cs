@@ -157,11 +157,14 @@ public static class TileMaterialGenerator
 
         const int texW = 512;
         int texH = Mathf.RoundToInt(texW / CardStyle.CardAspectRatio);
-        // Inverted contrast from the front face (solid jade fill, thin
-        // ivory frame, no icon) - reads as clearly "not a value card" at a
-        // glance without needing bespoke art.
-        var tex = TileFaceTexture.Build(texW, texH, Jade, Jade, IvoryTop,
-            framePadding: 0.028f, frameThickness: 0.011f, cornerRadius: 0.15f,
+        // Same ivory body as the front face - reads as "part of the same
+        // deck," distinguished purely by having no icon - with a bold jade
+        // border (4x the front face's hairline) so the fill clearly reads as
+        // contained rather than bleeding to the tile edge. An earlier pass
+        // inverted this (dark jade fill, thin ivory frame) but read as too
+        // dark/heavy on the table; approved direction is this lighter one.
+        var tex = TileFaceTexture.Build(texW, texH, IvoryTop, IvoryBottom, Jade,
+            framePadding: 0.028f, frameThickness: 0.045f, cornerRadius: 0.15f,
             bevelStrength: 0.45f, sheenStrength: 0.05f);
         File.WriteAllBytes("Assets/Sprites/Tiles/TileBack.png", tex.EncodeToPNG());
         Object.DestroyImmediate(tex);
@@ -174,6 +177,10 @@ public static class TileMaterialGenerator
         importer.mipmapEnabled = false;
         importer.wrapMode = TextureWrapMode.Clamp;
         importer.filterMode = FilterMode.Bilinear;
+        // Now that TileFaceTexture.Build clips to the rounded silhouette (alpha=0
+        // outside it), this avoids color fringing at that alpha edge under
+        // compression - same reasoning as the drop-shadow sprite's importer below.
+        importer.alphaIsTransparency = true;
         importer.maxTextureSize = 2048;
         importer.SaveAndReimport();
 
