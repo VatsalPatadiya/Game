@@ -95,6 +95,8 @@ namespace GameClient.Presentation
             if (_invalidTapClip != null)
                 _invalidTapClip.LoadAudioData();
 
+            AnalyticsService.Initialize();
+
             // Load progress in Awake so it's ready before other components'
             // OnEnable (the level-select screen reads it there to show lock/stars).
             _progress = SaveSystem.Load();
@@ -136,12 +138,14 @@ namespace GameClient.Presentation
         // Entry point from the level-start screen's Play button.
         public void BeginLevel()
         {
+            AnalyticsService.LevelStart(_currentLevelId);
             PrepareLevel();
             RevealPreparedLevel();
         }
 
         public void RestartLevel()
         {
+            AnalyticsService.LevelStart(_currentLevelId);
             if (_gameOverPopup != null)
                 _gameOverPopup.Hide();
             PrepareLevel();
@@ -250,6 +254,7 @@ namespace GameClient.Presentation
                     _boardView.GetTileView(slotId)?.PlayFlipToFaceUp(TileVisual.IconFor(_boardView.TileSet, cell.Value));
                     if (reHiddenId != null)
                         _boardView.GetTileView(reHiddenId)?.PlayFlipToFaceDown(TileVisual.BackIcon(_boardView.TileSet));
+                    AnalyticsService.HiddenTileRevealed(_currentLevelId);
                     return;
                 }
                 _boardView.GetTileView(slotId)?.PlayShake();
@@ -339,6 +344,8 @@ namespace GameClient.Presentation
                     
                 _matchCelebration?.PlayMatchCelebration(slotPos, isCombo);
                 ComboChanged?.Invoke(_comboCount);
+                AnalyticsService.TileMatched(_currentLevelId, _comboCount);
+                AnalyticsService.ComboReached(_currentLevelId, _comboCount);
                 yield return _trayView.ResolveAfterPush(oldTray, slotId, newTray, _board);
             }
 
@@ -355,6 +362,7 @@ namespace GameClient.Presentation
             if (_board.Cells.Values.All(c => c.Cleared))
             {
                 int stars = RecordWin();
+                AnalyticsService.LevelComplete(_currentLevelId, stars, _board.Score);
                 _gameOverPopup?.ShowWin(this, _board.Score, stars);
                 return;
             }
@@ -364,7 +372,10 @@ namespace GameClient.Presentation
             // the board to complete a pair).
             bool anyOnBoard = _board.Cells.Any(kv => !kv.Value.Cleared && !_board.TrayTileIds.Contains(kv.Key));
             if (_board.IsGameOver || !anyOnBoard)
+            {
+                AnalyticsService.LevelFailed(_currentLevelId);
                 _gameOverPopup?.ShowLose(this, _board.TrayTileIds.Count, _board.MaxTraySize);
+            }
         }
 
         // Hint: highlight a free board tile that completes a tray pair (or a free
@@ -379,6 +390,7 @@ namespace GameClient.Presentation
             _aidsUsed++;
             _boardView.GetTileView(a)?.Highlight();
             if (b != null) _boardView.GetTileView(b)?.Highlight();
+            AnalyticsService.HintUsed(_currentLevelId, _board.HintsRemaining);
             NotifyUsesChanged();
         }
 
@@ -409,6 +421,7 @@ namespace GameClient.Presentation
             if (_board.Cells[popped].IsHiddenTile) _board.Cells[popped].Revealed = false;
 
             _aidsUsed++;
+            AnalyticsService.UndoUsed(_currentLevelId, _board.UndosRemaining);
             NotifyUsesChanged();
 
             Vector3 trayPos = _trayView != null && trayIndex >= 0
@@ -477,6 +490,7 @@ namespace GameClient.Presentation
 
     // Record shuffle usage as an aid.
     _aidsUsed++;
+    AnalyticsService.ShuffleUsed(_currentLevelId, _board.ShufflesRemaining);
 
     // Commit current progress.
     SaveSystem.Save(_progress);

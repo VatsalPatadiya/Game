@@ -785,6 +785,13 @@ public static class GameSceneBuilder3D
         // stays active by default, no initial SetActive(false).
         var levelStartRoot = BuildLevelStartScreen(camera, gameController, hudObjects, hudButtonFaceMaterial, trayBorderMaterial, trayBodyMaterial);
 
+        // Branded splash, shown after Unity's own mandatory splash (Unity
+        // Personal cannot disable that one - see the design discussion) and
+        // in front of the level-start screen for a few seconds before
+        // AppSplashScreen3D hides itself. Built LAST and at a distance closer
+        // than LevelStartScreen3D's own D (~5.72) so it renders in front of it.
+        BuildAppSplashScreen(camera);
+
         var pauseMenu = BuildPauseMenu(camera, gameController, hudObjects, menuButton, hudButtonFaceMaterial,
             gameOverPopup, trayBorderMaterial, trayBodyMaterial);
         SetField(gameOverPopup, "pauseMenu", pauseMenu);
@@ -1090,6 +1097,89 @@ public static class GameSceneBuilder3D
     // background, matching the mockup's felt screen. LevelStartScreen3D hides
     // the passed-in hudObjects until Play is tapped, then reveals them and
     // calls GameController.BeginLevel.
+    // Branded splash: the jade felt backdrop (same material every other
+    // screen uses, for consistency), the circular Logo_Mark seal centered,
+    // and the "MAHJONG SANCTUARY" wordmark in Cinzel/gold beneath it.
+    // AppSplashScreen3D (attached here) hides the whole root after a fixed
+    // delay - see that component for why no fade animation yet.
+    private static void BuildAppSplashScreen(Camera camera)
+    {
+        const float D = 4.5f; // closer than LevelStartScreen3D's ~5.72, so this renders in front of it
+        const float BgD = 4.9f; // backdrop sits just behind the logo/text but still well in front of LevelStartScreen3D
+
+        var root = new GameObject("AppSplashScreen", typeof(AppSplashScreen3D));
+        PositionInFrontOfCamera(root.transform, camera, new Vector2(0.5f, 0.5f), D);
+
+        // NOT BuildScreenFillingBackdrop/BackgroundRadial3D - that component
+        // always forces orthographic backdrops to a fixed, very-far Z (75),
+        // for the deep background layer every OTHER screen shares. A splash
+        // needs to be an OPAQUE COVER in front of the already-built
+        // LevelStartScreen3D, so this is a manually-sized full-screen quad
+        // at a near distance instead (same math BuildDoorPanel already uses:
+        // orthographic apparent size is distance-independent, so the same
+        // frustumHeight/frustumWidth figures work at any Z).
+        float frustumHeightBg = 2f * camera.orthographicSize;
+        float frustumWidthBg = frustumHeightBg * camera.aspect;
+        var backdropGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        backdropGO.name = "Backdrop";
+        Object.DestroyImmediate(backdropGO.GetComponent<Collider>());
+        backdropGO.transform.position = camera.ViewportToWorldPoint(new Vector3(0.5f, 0.5f, BgD));
+        backdropGO.transform.rotation = camera.transform.rotation;
+        backdropGO.transform.SetParent(root.transform, true);
+        backdropGO.transform.localScale = new Vector3(frustumWidthBg * 1.4f, frustumHeightBg * 1.4f, 1f); // generous over-cover so no edge gap at any aspect ratio
+        const string backdropMatPath = "Assets/Materials/SplashBackdrop.mat";
+        var backdropMat = AssetDatabase.LoadAssetAtPath<Material>(backdropMatPath);
+        bool backdropMatIsNew = backdropMat == null;
+        if (backdropMatIsNew) backdropMat = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
+        backdropMat.SetColor("_BaseColor", new Color(0.141f, 0.200f, 0.259f)); // TileMaterialGenerator.Jade - same value, cross-class literal
+        if (backdropMatIsNew) AssetDatabase.CreateAsset(backdropMat, backdropMatPath);
+        else EditorUtility.SetDirty(backdropMat);
+        var backdropRenderer = backdropGO.GetComponent<MeshRenderer>();
+        backdropRenderer.sharedMaterial = backdropMat;
+        backdropRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        backdropRenderer.receiveShadows = false;
+
+        var logoTexture = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/Branding/Logo_Mark.png");
+        RequireNotNull(logoTexture, "Assets/Textures/Branding/Logo_Mark.png (run Tools/Branding/Generate Mahjong Sanctuary Logo first)");
+
+        var logoGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        logoGO.name = "LogoMark";
+        Object.DestroyImmediate(logoGO.GetComponent<Collider>());
+        logoGO.transform.position = camera.ViewportToWorldPoint(new Vector3(0.5f, 0.58f, D)) - camera.transform.forward * 0.1f;
+        logoGO.transform.rotation = camera.transform.rotation;
+        logoGO.transform.SetParent(root.transform, true);
+        float frustumHeight = 2f * camera.orthographicSize;
+        float logoSize = frustumHeight * 0.32f;
+        logoGO.transform.localScale = new Vector3(logoSize, logoSize, 1f);
+
+        const string logoMatPath = "Assets/Materials/SplashLogoMark.mat";
+        var logoMat = AssetDatabase.LoadAssetAtPath<Material>(logoMatPath);
+        bool logoMatIsNew = logoMat == null;
+        if (logoMatIsNew) logoMat = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
+        URPMaterialUtil.SetTransparent(logoMat);
+        logoMat.SetTexture("_BaseMap", logoTexture);
+        logoMat.SetColor("_BaseColor", Color.white);
+        if (logoMatIsNew) AssetDatabase.CreateAsset(logoMat, logoMatPath);
+        else EditorUtility.SetDirty(logoMat);
+        var logoRenderer = logoGO.GetComponent<MeshRenderer>();
+        logoRenderer.sharedMaterial = logoMat;
+        logoRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        logoRenderer.receiveShadows = false;
+
+        var wordmarkGO = new GameObject("Wordmark", typeof(TextMeshPro));
+        wordmarkGO.transform.position = camera.ViewportToWorldPoint(new Vector3(0.5f, 0.34f, D)) - camera.transform.forward * 0.1f;
+        wordmarkGO.transform.rotation = camera.transform.rotation;
+        wordmarkGO.transform.SetParent(root.transform, true);
+        var wordmark = wordmarkGO.GetComponent<TextMeshPro>();
+        wordmark.text = "MAHJONG SANCTUARY";
+        wordmark.fontSize = (0.032f * frustumHeight) / 0.11f;
+        wordmark.color = GoldChrome;
+        wordmark.fontStyle = FontStyles.Bold;
+        wordmark.alignment = TextAlignmentOptions.Center;
+        wordmark.characterSpacing = 6f;
+        if (DisplayFont != null) wordmark.font = DisplayFont;
+    }
+
     private static GameObject BuildLevelStartScreen(
         Camera camera, GameController gameController, GameObject[] hudObjects,
         Material discFaceMaterial, Material trayBorderMaterial, Material trayBodyMaterial)

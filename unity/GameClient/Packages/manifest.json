@@ -1,6 +1,9 @@
 {
   "enableReleasePreviewPackages": true,
   "dependencies": {
+    "com.google.external-dependency-manager": "file:../GooglePackages/com.google.external-dependency-manager-1.2.186.tgz",
+    "com.google.firebase.app": "file:../GooglePackages/com.google.firebase.app-13.17.0.tgz",
+    "com.google.firebase.analytics": "file:../GooglePackages/com.google.firebase.analytics-13.17.0.tgz",
     "com.unity.vectorgraphics": "3.0.0-preview.7",
     "com.unity.render-pipelines.universal": "17.0.4",
     "com.unity.ugui": "2.0.0",
