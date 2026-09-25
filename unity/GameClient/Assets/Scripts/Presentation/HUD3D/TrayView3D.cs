@@ -41,6 +41,21 @@ namespace GameClient.Presentation.HUD3D
 
         public Vector3 GetSlotWorldPosition(int index) => _slots[index].transform.position;
 
+        // How far above the tray's top slot the incoming-tile flight should
+        // apex, in units of the tray's own slot-to-slot spacing (derived from
+        // the actual slot 0/1 world positions so it stays correct regardless
+        // of camera tilt) - anchored to slot 0 (not the landing slot) so every
+        // tile clears the whole tray box before descending, even one landing
+        // in the bottom slot.
+        private const float FlightApexAboveTopFactor = 1.0f;
+
+        public Vector3 GetFlightApexWorldPosition()
+        {
+            Vector3 topSlotPos = _slots[0].transform.position;
+            Vector3 traySlotUp = _slots[0].transform.position - _slots[1].transform.position;
+            return topSlotPos + traySlotUp * FlightApexAboveTopFactor;
+        }
+
         public void RenderTray(List<string> trayTileIds, BoardState board)
         {
             for (int i = 0; i < _slots.Count; i++)

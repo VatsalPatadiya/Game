@@ -32,8 +32,13 @@ public static class IconAssigner
             {
                 if (isAdaptive)
                 {
-                    icon.SetTexture(foreground, 0);
-                    icon.SetTexture(background, 1);
+                    // Layer index 0 -> ic_launcher_background, index 1 ->
+                    // ic_launcher_foreground in Unity's actual Android
+                    // export (verified by unzipping a built APK's res/
+                    // mipmap-xxxhdpi-v4/ - opposite of what the layer names
+                    // "foreground"/"background" would suggest).
+                    icon.SetTexture(background, 0);
+                    icon.SetTexture(foreground, 1);
                 }
                 else
                 {

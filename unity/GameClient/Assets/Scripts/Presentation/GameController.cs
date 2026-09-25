@@ -313,18 +313,19 @@ namespace GameClient.Presentation
             else
                 _boardView.RemoveTileInstant(slotId);
 
-            // Fly a card from the board up to the slot it landed in, on the same
-            // arced/smoothstep curve as the undo flight (CardAnimator.
-            // MoveTransformSmooth) instead of a dead-straight lerp - board tiles
-            // can be far from the tray, and a straight line covered in ~220ms
-            // reads as a teleport/pop rather than a flight. The tray's arrival
-            // pop-in starts before the flight lands (see CardAnimator.
-            // TrayArrivalOverlapFraction) so the two read as one continuous motion.
+            // Fly a card from the board up to the slot it landed in, bent through
+            // an apex above the tray (CardAnimator.MoveTransformViaApex) instead
+            // of a straight lerp - a direct line from a board tile to a slot
+            // below the tray's top edge would visibly enter from underneath the
+            // tray. The tray's arrival pop-in starts before the flight lands
+            // (see CardAnimator.TrayArrivalOverlapFraction) so the two read as
+            // one continuous motion.
             int landingIndex = oldTray.Count;
             var flight = _trayView.SpawnFlightCard(tileSprite, startPos);
             Vector3 slotPos = _trayView.GetSlotWorldPosition(landingIndex);
-            var flightRoutine = StartCoroutine(CardAnimator.MoveTransformSmooth(
-                flight.transform, startPos, slotPos, Quaternion.identity, CardAnimator.TrayFlightDuration));
+            Vector3 apexPos = _trayView.GetFlightApexWorldPosition();
+            var flightRoutine = StartCoroutine(CardAnimator.MoveTransformViaApex(
+                flight.transform, startPos, apexPos, slotPos, Quaternion.identity, CardAnimator.TrayFlightDuration));
             yield return new WaitForSeconds(CardAnimator.TrayFlightDuration * CardAnimator.TrayArrivalOverlapFraction);
             _trayView.PlayArrivalPopIn(landingIndex, tileSprite);
             yield return flightRoutine;

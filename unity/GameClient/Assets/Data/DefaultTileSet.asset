@@ -56,4 +56,4 @@ MonoBehaviour:
   - {fileID: 6594973072850277318, guid: 414e8f309977041b79e591561b0f509b, type: 3}
   - {fileID: 2832143484896412935, guid: 4f42c28a4b982496ea1b01b63b8b65ce, type: 3}
   SimilarityClusterId: 
-  CardBack: {fileID: 21300000, guid: db1059057117b4802b0f4317bf40133c, type: 3}
+  CardBack: {fileID: 0}

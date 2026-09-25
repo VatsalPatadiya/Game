@@ -284,5 +284,35 @@ namespace GameClient.Presentation.Board
             target.position = toWorldPos;
             target.rotation = targetRot;
         }
+
+        // Same easing/hover as MoveTransformSmooth, but bent through an apex
+        // point via a quadratic Bezier instead of a straight lerp - a board
+        // tile flying to a tray slot needs to visibly drop DOWN into place,
+        // not arrive along whatever diagonal happens to connect its board
+        // position to the slot (which, for slots below the tray's top edge,
+        // reads as entering from underneath the tray).
+        public static IEnumerator MoveTransformViaApex(
+            Transform target, Vector3 fromWorldPos, Vector3 apexWorldPos, Vector3 toWorldPos,
+            Quaternion targetRot, float duration)
+        {
+            target.position = fromWorldPos;
+            Quaternion fromRot = target.rotation;
+            float elapsed = 0f;
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                float raw = Mathf.Clamp01(elapsed / duration);
+                float t = raw * raw * (3f - 2f * raw);
+                Vector3 a = Vector3.Lerp(fromWorldPos, apexWorldPos, t);
+                Vector3 b = Vector3.Lerp(apexWorldPos, toWorldPos, t);
+                Vector3 pos = Vector3.Lerp(a, b, t);
+                pos.z -= Mathf.Sin(raw * Mathf.PI) * 0.75f;
+                target.position = pos;
+                target.rotation = Quaternion.Slerp(fromRot, targetRot, t);
+                yield return null;
+            }
+            target.position = toWorldPos;
+            target.rotation = targetRot;
+        }
     }
 }

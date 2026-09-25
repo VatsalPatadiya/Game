@@ -1097,87 +1097,85 @@ public static class GameSceneBuilder3D
     // background, matching the mockup's felt screen. LevelStartScreen3D hides
     // the passed-in hudObjects until Play is tapped, then reveals them and
     // calls GameController.BeginLevel.
-    // Branded splash: the jade felt backdrop (same material every other
-    // screen uses, for consistency), the circular Logo_Mark seal centered,
-    // and the "CELESTIAL TILES MAHJONG" wordmark in Cinzel/gold beneath it.
+    // Branded splash: a single pre-composited artwork (Textures/Branding/
+    // SplashScreen.png - seal + wordmark + tagline + starfield baked into
+    // one image by the designer) CONTAIN-fit to the screen, so the full
+    // width (the wordmark spans nearly edge-to-edge) is never cropped.
     // AppSplashScreen3D (attached here) hides the whole root after a fixed
     // delay - see that component for why no fade animation yet.
     private static void BuildAppSplashScreen(Camera camera)
     {
-        const float D = 4.5f; // closer than LevelStartScreen3D's ~5.72, so this renders in front of it
-        const float BgD = 4.9f; // backdrop sits just behind the logo/text but still well in front of LevelStartScreen3D
+        const float BgD = 4.9f; // near the camera, well in front of the already-built LevelStartScreen3D
+        const float ArtD = 4.85f; // slightly nearer than the fill, so the artwork draws on top of it
 
         var root = new GameObject("AppSplashScreen", typeof(AppSplashScreen3D));
-        PositionInFrontOfCamera(root.transform, camera, new Vector2(0.5f, 0.5f), D);
+        PositionInFrontOfCamera(root.transform, camera, new Vector2(0.5f, 0.5f), BgD);
+
+        var splashTexture = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/Branding/SplashScreen.png");
+        RequireNotNull(splashTexture, "Assets/Textures/Branding/SplashScreen.png");
 
         // NOT BuildScreenFillingBackdrop/BackgroundRadial3D - that component
         // always forces orthographic backdrops to a fixed, very-far Z (75),
         // for the deep background layer every OTHER screen shares. A splash
         // needs to be an OPAQUE COVER in front of the already-built
         // LevelStartScreen3D, so this is a manually-sized full-screen quad
-        // at a near distance instead (same math BuildDoorPanel already uses:
-        // orthographic apparent size is distance-independent, so the same
-        // frustumHeight/frustumWidth figures work at any Z).
+        // at a near distance instead (orthographic apparent size is
+        // distance-independent, so the same frustumHeight/frustumWidth
+        // figures work at any Z).
         float frustumHeightBg = 2f * camera.orthographicSize;
         float frustumWidthBg = frustumHeightBg * camera.aspect;
-        var backdropGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
-        backdropGO.name = "Backdrop";
-        Object.DestroyImmediate(backdropGO.GetComponent<Collider>());
-        backdropGO.transform.position = camera.ViewportToWorldPoint(new Vector3(0.5f, 0.5f, BgD));
-        backdropGO.transform.rotation = camera.transform.rotation;
-        backdropGO.transform.SetParent(root.transform, true);
-        backdropGO.transform.localScale = new Vector3(frustumWidthBg * 1.4f, frustumHeightBg * 1.4f, 1f); // generous over-cover so no edge gap at any aspect ratio
-        const string backdropMatPath = "Assets/Materials/SplashBackdrop.mat";
-        var backdropMat = AssetDatabase.LoadAssetAtPath<Material>(backdropMatPath);
-        bool backdropMatIsNew = backdropMat == null;
-        if (backdropMatIsNew) backdropMat = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
-        backdropMat.SetColor("_BaseColor", new Color(0.141f, 0.200f, 0.259f)); // TileMaterialGenerator.Jade - same value, cross-class literal
-        if (backdropMatIsNew) AssetDatabase.CreateAsset(backdropMat, backdropMatPath);
-        else EditorUtility.SetDirty(backdropMat);
-        var backdropRenderer = backdropGO.GetComponent<MeshRenderer>();
-        backdropRenderer.sharedMaterial = backdropMat;
-        backdropRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-        backdropRenderer.receiveShadows = false;
 
-        var logoTexture = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/Branding/Logo_Mark.png");
-        RequireNotNull(logoTexture, "Assets/Textures/Branding/Logo_Mark.png (run Tools/Branding/Generate Celestial Tiles Mahjong Logo first)");
+        // Solid fill quad behind, covering the whole frustum, tinted to the
+        // artwork's own pale background tone (sampled from its corners) -
+        // this is what shows in the letterbox gap above/below the art.
+        var fillGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        fillGO.name = "Fill";
+        Object.DestroyImmediate(fillGO.GetComponent<Collider>());
+        fillGO.transform.position = camera.ViewportToWorldPoint(new Vector3(0.5f, 0.5f, BgD));
+        fillGO.transform.rotation = camera.transform.rotation;
+        fillGO.transform.SetParent(root.transform, true);
+        fillGO.transform.localScale = new Vector3(frustumWidthBg * 1.4f, frustumHeightBg * 1.4f, 1f); // generous over-cover so no edge gap at any aspect ratio
+        const string fillMatPath = "Assets/Materials/SplashBackdrop.mat";
+        var fillMat = AssetDatabase.LoadAssetAtPath<Material>(fillMatPath);
+        bool fillMatIsNew = fillMat == null;
+        if (fillMatIsNew) fillMat = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
+        fillMat.SetTexture("_BaseMap", null); // clear any stale texture from a prior regen (e.g. this asset previously held the splash artwork itself) - this quad is a flat color only
+        fillMat.SetColor("_BaseColor", new Color(0.902f, 0.906f, 0.886f)); // sampled from SplashScreen.png's own corner background
+        if (fillMatIsNew) AssetDatabase.CreateAsset(fillMat, fillMatPath);
+        else EditorUtility.SetDirty(fillMat);
+        var fillRenderer = fillGO.GetComponent<MeshRenderer>();
+        fillRenderer.sharedMaterial = fillMat;
+        fillRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        fillRenderer.receiveShadows = false;
 
-        var logoGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
-        logoGO.name = "LogoMark";
-        Object.DestroyImmediate(logoGO.GetComponent<Collider>());
-        logoGO.transform.position = camera.ViewportToWorldPoint(new Vector3(0.5f, 0.58f, D)) - camera.transform.forward * 0.1f;
-        logoGO.transform.rotation = camera.transform.rotation;
-        logoGO.transform.SetParent(root.transform, true);
-        float frustumHeight = 2f * camera.orthographicSize;
-        float logoSize = frustumHeight * 0.32f;
-        logoGO.transform.localScale = new Vector3(logoSize, logoSize, 1f);
+        // Contain-fit (opposite of BuildDoorPanel's cover-fit below): the
+        // artwork's own aspect (~0.81, near-square) is much wider than a
+        // narrow phone portrait frustum, so it's scaled DOWN to the
+        // frustum's width and centered - the full wordmark stays visible,
+        // leaving a fill-colored gap above/below instead of cropping sides.
+        float imgAspect = (float)splashTexture.width / splashTexture.height;
+        float imgWidth = Mathf.Min(frustumWidthBg, frustumHeightBg * imgAspect);
+        float imgHeight = imgWidth / imgAspect;
 
-        const string logoMatPath = "Assets/Materials/SplashLogoMark.mat";
-        var logoMat = AssetDatabase.LoadAssetAtPath<Material>(logoMatPath);
-        bool logoMatIsNew = logoMat == null;
-        if (logoMatIsNew) logoMat = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
-        URPMaterialUtil.SetTransparent(logoMat);
-        logoMat.SetTexture("_BaseMap", logoTexture);
-        logoMat.SetColor("_BaseColor", Color.white);
-        if (logoMatIsNew) AssetDatabase.CreateAsset(logoMat, logoMatPath);
-        else EditorUtility.SetDirty(logoMat);
-        var logoRenderer = logoGO.GetComponent<MeshRenderer>();
-        logoRenderer.sharedMaterial = logoMat;
-        logoRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-        logoRenderer.receiveShadows = false;
-
-        var wordmarkGO = new GameObject("Wordmark", typeof(TextMeshPro));
-        wordmarkGO.transform.position = camera.ViewportToWorldPoint(new Vector3(0.5f, 0.34f, D)) - camera.transform.forward * 0.1f;
-        wordmarkGO.transform.rotation = camera.transform.rotation;
-        wordmarkGO.transform.SetParent(root.transform, true);
-        var wordmark = wordmarkGO.GetComponent<TextMeshPro>();
-        wordmark.text = "CELESTIAL TILES MAHJONG";
-        wordmark.fontSize = (0.024f * frustumHeight) / 0.11f;
-        wordmark.color = GoldChrome;
-        wordmark.fontStyle = FontStyles.Bold;
-        wordmark.alignment = TextAlignmentOptions.Center;
-        wordmark.characterSpacing = 6f;
-        if (DisplayFont != null) wordmark.font = DisplayFont;
+        var artGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        artGO.name = "Artwork";
+        Object.DestroyImmediate(artGO.GetComponent<Collider>());
+        artGO.transform.position = camera.ViewportToWorldPoint(new Vector3(0.5f, 0.5f, ArtD));
+        artGO.transform.rotation = camera.transform.rotation;
+        artGO.transform.SetParent(root.transform, true);
+        artGO.transform.localScale = new Vector3(imgWidth, imgHeight, 1f);
+        const string artMatPath = "Assets/Materials/SplashLogoMark.mat";
+        var artMat = AssetDatabase.LoadAssetAtPath<Material>(artMatPath);
+        bool artMatIsNew = artMat == null;
+        if (artMatIsNew) artMat = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
+        artMat.SetTexture("_BaseMap", splashTexture);
+        artMat.SetColor("_BaseColor", Color.white);
+        if (artMatIsNew) AssetDatabase.CreateAsset(artMat, artMatPath);
+        else EditorUtility.SetDirty(artMat);
+        var artRenderer = artGO.GetComponent<MeshRenderer>();
+        artRenderer.sharedMaterial = artMat;
+        artRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        artRenderer.receiveShadows = false;
     }
 
     private static GameObject BuildLevelStartScreen(
