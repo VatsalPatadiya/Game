@@ -103,7 +103,10 @@ public static class TileMaterialGenerator
             float d = Mathf.Sqrt(qx * qx + qy * qy) - 0.16f; // rounded-rect SDF, <0 inside
             float t = Mathf.Clamp01((d + 0.14f) / 0.20f);    // 0 well inside -> 1 outside, soft band
             t = t * t * (3f - 2f * t);
-            float a = 0.62f * (1f - t); // soft dark contact shadow for depth separation
+            // 0.62 -> 0.78: the ivory backdrop (was steel blue) reads lighter, so
+            // tiles need a stronger contact shadow to keep the same grounded,
+            // "sitting on the table" depth separation.
+            float a = 0.78f * (1f - t);
             // Dark GREEN-black tint (not pure black) so overlaps cast the
             // reference's deep-jade shadow onto the tile below.
             shTex.SetPixel(x, y, new Color(0.015f, 0.055f, 0.035f, Mathf.Clamp01(a)));

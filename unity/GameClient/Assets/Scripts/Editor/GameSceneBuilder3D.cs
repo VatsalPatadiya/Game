@@ -971,10 +971,11 @@ public static class GameSceneBuilder3D
     }
 
     // Soft drop shadow (reuses the board tiles' TileShadow.mat) behind a
-    // button, sized relative to its own Face scale - shared by
-    // CreateHudButton3D and CreateVisualIconButton3D so every button in the
-    // HUD reads as raised off the felt instead of painted flat onto it.
-    private static void AddButtonDropShadow(Transform buttonRoot, float faceScale)
+    // button/badge, sized to its own width/height - lets it read as raised
+    // off whatever it's sitting on (felt, door art, a card) instead of
+    // painted flat onto it. width/height independent (not one faceScale) so
+    // it also fits wide pill buttons, not just square/round ones.
+    private static void AddButtonDropShadow(Transform buttonRoot, float width, float height)
     {
         var shadowMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/TileShadow.mat");
         RequireNotNull(shadowMaterial, "Assets/Materials/TileShadow.mat (run TileMaterialGenerator first)");
@@ -982,8 +983,8 @@ public static class GameSceneBuilder3D
         shadowGO.name = "Shadow";
         Object.DestroyImmediate(shadowGO.GetComponent<Collider>());
         shadowGO.transform.SetParent(buttonRoot, false);
-        shadowGO.transform.localPosition = new Vector3(0.05f * faceScale, -0.07f * faceScale, 0.06f);
-        shadowGO.transform.localScale = new Vector3(faceScale * 1.35f, faceScale * 1.35f, 1f);
+        shadowGO.transform.localPosition = new Vector3(0.05f * height, -0.07f * height, 0.06f);
+        shadowGO.transform.localScale = new Vector3(width * 1.25f, height * 1.55f, 1f);
         shadowGO.GetComponent<MeshRenderer>().sharedMaterial = shadowMaterial;
         shadowGO.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
     }
@@ -1250,13 +1251,23 @@ public static class GameSceneBuilder3D
         RequireNotNull(doorLeftSprite, "Assets/Sprites/Decor/DoorPanelLeft.png");
         RequireNotNull(doorRightSprite, "Assets/Sprites/Decor/DoorPanelRight.png");
 
-        // "Cover" scaling: the door art's own aspect ratio doesn't match the
-        // portrait screen, so each half is sized to guarantee it covers its
-        // half of the screen width AND the full height, even if that
-        // overflows the opposite edge (harmless - it ends up off-screen).
+        // Door anchored to the BOTTOM of the screen, occupying the bottom
+        // ~60% - the level badge/difficulty/PLAY cluster (below) now lives
+        // entirely on the plain ivory backdrop above it instead of stamped
+        // onto the door art, so it reads as one highlighted group with the
+        // door as decoration underneath (user-directed redesign, approved
+        // via scratchpad/layout_mockup.png before landing this).
+        // "Cover" scaling (width still driven off the FULL frustumWidth, not
+        // scaled down) so each half still reaches past the half-screen mark
+        // with no centre/edge gap even though it's now shorter - same idea
+        // as the old full-height cover logic, just height-capped.
+        const float DoorHeightFrac = 0.60f;
         float doorAspect = (float)doorLeftSprite.rect.width / doorLeftSprite.rect.height;
-        float doorPanelHeight = Mathf.Max(frustumHeight, (frustumWidth * 0.5f) / doorAspect);
+        float doorPanelHeight = Mathf.Max(frustumHeight * DoorHeightFrac, (frustumWidth * 0.5f) / doorAspect);
         float doorPanelWidth = doorPanelHeight * doorAspect;
+        // Bottom-flush, with a small bleed past the screen's bottom edge so
+        // no sliver of backdrop shows below the door on any aspect ratio.
+        float doorCenterY = -frustumHeight * 0.5f + doorPanelHeight * 0.5f - frustumHeight * 0.02f;
 
         GameObject BuildDoorPanel(string name, Sprite sprite, float centerX)
         {
@@ -1269,7 +1280,7 @@ public static class GameSceneBuilder3D
             // so the badge/Play button below - placed via the usual
             // PlaceContent(-0.15)/stage(z=0) conventions - sit clearly in
             // front of the door art instead of z-fighting with it.
-            go.transform.localPosition = new Vector3(centerX, 0f, 0.15f);
+            go.transform.localPosition = new Vector3(centerX, doorCenterY, 0.15f);
             go.transform.localScale = new Vector3(doorPanelWidth, doorPanelHeight, 1f);
 
             string matPath = "Assets/Materials/" + name + ".mat";
@@ -1294,31 +1305,35 @@ public static class GameSceneBuilder3D
         var doorLeftGO = BuildDoorPanel("DoorPanelLeft", doorLeftSprite, -doorPanelWidth * 0.5f);
         var doorRightGO = BuildDoorPanel("DoorPanelRight", doorRightSprite, doorPanelWidth * 0.5f);
 
-        // Level badge and PLAY button sit directly on the door art (no
-        // separate card). Positions chosen against the door's own
-        // composition: the badge sits in the upper arched panel, the button
-        // in the lower panel where the reference "Level N" pill sits.
+        // Level badge, difficulty, and PLAY button grouped as one highlighted
+        // cluster in the TOP portion of the screen, on the plain ivory
+        // backdrop above the (now bottom-anchored) door - not stamped onto
+        // the door art itself. User-directed redesign: "door keep as bottom
+        // side and these 3 keeps at the top side", approved via
+        // scratchpad/layout_mockup.png before landing this.
         var badgeGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
         badgeGO.name = "LevelBadge";
         Object.DestroyImmediate(badgeGO.GetComponent<Collider>());
-        PlaceContent(badgeGO, new Vector2(0.5f, 0.68f));
+        PlaceContent(badgeGO, new Vector2(0.5f, 0.82f));
         badgeGO.transform.localScale = new Vector3(0.58f, 0.58f, 1f);
         badgeGO.GetComponent<MeshRenderer>().sharedMaterial = discFaceMaterial;
-        var badgeNum = Label("BadgeNum", new Vector2(0.5f, 0.68f), "6", 2.33f, CreamHudText, FontStyles.Bold);
+        AddButtonDropShadow(badgeGO.transform, 0.58f, 0.58f);
+        var badgeNum = Label("BadgeNum", new Vector2(0.5f, 0.82f), "6", 2.33f, CreamHudText, FontStyles.Bold);
         badgeNum.transform.localPosition += new Vector3(0f, 0f, -0.05f); // toward camera, in front of the disc face
 
         // EASY/MEDIUM/HARD relabeling of the level's Difficulty (see
-        // DifficultyTier) - small eyebrow-style caption below the badge,
-        // same tint/sizing convention as the pause menu's "SETTINGS" label
-        // (SettingsLabelTint / FontSizeForScreenFrac(0.016f)), default font
-        // (not Cinzel) since small-caps eyebrow text reads better in body font.
-        var difficultyLabel = Label("DifficultyLabel", new Vector2(0.5f, 0.585f), "EASY",
-            FontSizeForScreenFrac(0.016f), SettingsLabelTint, FontStyles.Bold, display: false);
+        // DifficultyTier) - small eyebrow-style caption below the badge. Dark
+        // navy (matching the door art's own outline strokes elsewhere on
+        // this screen) reads clearly against the ivory backdrop this cluster
+        // now sits on.
+        var doorInkNavy = new Color(40f / 255f, 54f / 255f, 70f / 255f, 1f);
+        var difficultyLabel = Label("DifficultyLabel", new Vector2(0.5f, 0.755f), "EASY",
+            FontSizeForScreenFrac(0.016f), doorInkNavy, FontStyles.Bold, display: false);
 
         // Same CreateSolidButton3D helper (same corner radius, same gold
         // gradient) as the pause menu's RESUME button. Width/height are
         // fractions of the full screen now (no card to size against).
-        var play = CreateSolidButton3D(stage, "Play", new Vector2(0.5f, 0.30f), "PLAY", 0.55f * frustumWidth, 0.06f * frustumHeight, (0.014f * frustumHeight) / 0.11f, GoldInkText);
+        var play = CreateSolidButton3D(stage, "Play", new Vector2(0.5f, 0.685f), "PLAY", 0.55f * frustumWidth, 0.06f * frustumHeight, (0.014f * frustumHeight) / 0.11f, GoldInkText);
 
         // Grouped under one toggle so LevelStartScreen3D can hide all four
         // pieces (badge disc, badge number, button pill, button label) in a
@@ -1435,6 +1450,7 @@ public static class GameSceneBuilder3D
         pill.GetComponent<MeshFilter>().sharedMesh =
             SaveRoundedTrayMesh("Assets/Meshes/Btn_" + name + ".asset", width, height, 0.1f, height * cornerRadiusFrac);
         pill.GetComponent<MeshRenderer>().sharedMaterial = GetOrCreateNonEmissiveGoldMaterial();
+        AddButtonDropShadow(pill.transform, width, height);
         var col = pill.AddComponent<BoxCollider>();
         col.size = new Vector3(width, height, 0.1f);
         var b = pill.AddComponent<PressScaleButton3D>();
