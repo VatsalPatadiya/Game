@@ -2,27 +2,34 @@ using System.IO;
 using UnityEditor;
 using UnityEngine;
 
-// Deep-jade backdrop (premium re-theme Pass A, see
-// docs/superpowers/specs/2026-09-08-premium-jade-visual-retheme-design.md):
-// a deep-jade radial gradient with an intentional overhead bloom in the upper
-// third, deliberately dark corners, and a very faint diagonal lattice motif
-// ("felt, not seen"). Baked to a texture + material; GameSceneBuilder3D puts a
-// screen-filling quad behind the board with this so the ivory tiles sit on a
-// jade table instead of floating in a flat colour void. Palette/curve values
-// were approved as candidate "A1 + faint lattice" (prototyped in
-// scratchpad/jade_bg.py, which this bake mirrors).
+// Ivory backdrop: a soft cream radial gradient with a gentle overhead bloom
+// in the upper third and a cool steel-blue vignette toward the corners (the
+// palette approved as splash Candidate A). Baked to a texture + material;
+// GameSceneBuilder3D puts a screen-filling quad behind the board with this
+// so the ivory tiles sit on a soft, airy backdrop instead of floating in a
+// flat colour void. Baked at the app's native portrait resolution (not a
+// square texture stretched onto a portrait screen) so every texel maps
+// close to 1:1 with an on-screen pixel - crisp at any zoom, no stretch softening.
 public static class FeltBackgroundGenerator
 {
-    // Two-stage falloff (bloom core -> deep jade -> near-black edge) instead of
-    // one flat lerp - a single-stage gradient reads as a tinted flat colour with
-    // no depth. The bloom simulates an overhead spotlight pool on the table.
-    private static readonly Color FeltHighlight = new Color(0.18f, 0.38f, 0.22f); // warmer green bloom core
-    private static readonly Color FeltCentre = new Color(0.09f, 0.24f, 0.14f); // rich dark green
-    private static readonly Color FeltEdge   = new Color(0.03f, 0.10f, 0.05f); // near-black green edge
+    // Two-stage falloff (bloom core -> dominant cream -> steel-blue vignette
+    // edge) instead of one flat lerp - a single-stage gradient reads as a
+    // tinted flat colour with no depth. The bloom simulates a soft overhead
+    // light pool on the table; the edge stays a cool blue-grey rather than
+    // going toward black, keeping the theme light and airy.
+    private static readonly Color FeltHighlight = new Color(0.969f, 0.965f, 0.949f); // bright cream bloom core
+    private static readonly Color FeltCentre = new Color(0.941f, 0.945f, 0.925f); // dominant ivory
+    private static readonly Color FeltEdge   = new Color(0.274f, 0.353f, 0.431f); // cool steel-blue vignette
 
-    // Faint diagonal lattice tint (traditional motif) - kept low enough to read
-    // as material texture, never as a visible pattern.
-    private static readonly Color LatticeTint = new Color(0.18f, 0.42f, 0.24f);
+    // Faint diagonal lattice tint, kept low enough to read as material
+    // texture, never as a visible pattern.
+    private static readonly Color LatticeTint = new Color(0.471f, 0.549f, 0.647f);
+
+    // Baked at the app's actual portrait resolution so the backdrop is a 1:1
+    // texel-to-pixel match on device instead of a square texture stretched
+    // non-uniformly onto a portrait screen.
+    private const int Width = 1080;
+    private const int Height = 2340;
 
     [MenuItem("Tools/Mahjong/Generate Felt Background")]
     public static void Generate()
@@ -30,48 +37,52 @@ public static class FeltBackgroundGenerator
         Directory.CreateDirectory("Assets/Textures");
         Directory.CreateDirectory("Assets/Materials");
 
-        const int size = 1024;
-        var tex = new Texture2D(size, size, TextureFormat.RGBA32, mipChain: true)
+        var tex = new Texture2D(Width, Height, TextureFormat.RGBA32, mipChain: true)
         {
             name = "Felt",
             wrapMode = TextureWrapMode.Clamp
         };
-        var rng = new System.Random(20260908);
+        var rng = new System.Random(20260925);
         // Lattice frequency scales with bake resolution so the on-screen cell
         // count matches the approved 480px preview (0.045 per px at 480).
-        float latticeFreq = 0.045f * 480f / size;
-        // This square texture is stretched to fill a PORTRAIT screen, which would
-        // make a circular radial read as a vertical ellipse. Amplifying the v term
-        // of the bloom/vignette distance by the screen aspect (h/w) pre-compresses
-        // it vertically so it renders as a proper CIRCLE on-screen (round-2 fix 6).
-        const float ScreenAspectVY = 2340f / 1080f; // target portrait aspect
-        for (int y = 0; y < size; y++)
-        for (int x = 0; x < size; x++)
+        float latticeFreq = 0.045f * 480f / Width;
+
+        // Two independent layers instead of one distance-chained lerp (a
+        // single shared radius blew past "edge" well inside the visible
+        // frame on a tall portrait canvas, drowning the ivory in blue-grey -
+        // caught by rendering a numpy preview before touching Unity). Each
+        // layer's distance is normalized so d=1 lands exactly at the corner
+        // FARTHEST from its own centre, so it always spans the full image
+        // regardless of aspect ratio - same technique as the approved splash
+        // background (scratchpad/splash_v2).
+        float bloomCx = Width * 0.5f;
+        // Unity texture y=0 is the BOTTOM, so the overhead bloom (upper third
+        // of the final on-screen image) sits at a HIGH y pixel coordinate.
+        float bloomCy = Height * 0.60f;
+        float bloomMaxD = Mathf.Sqrt(
+            Mathf.Max(bloomCx, Width - bloomCx) * Mathf.Max(bloomCx, Width - bloomCx) +
+            Mathf.Max(bloomCy, Height - bloomCy) * Mathf.Max(bloomCy, Height - bloomCy));
+
+        float imgCx = Width * 0.5f;
+        float imgCy = Height * 0.5f;
+        float vigMaxD = Mathf.Sqrt(imgCx * imgCx + imgCy * imgCy);
+
+        for (int y = 0; y < Height; y++)
+        for (int x = 0; x < Width; x++)
         {
-            float u = x / (float)(size - 1) * 2f - 1f;
-            float v = y / (float)(size - 1) * 2f - 1f;
-            // Unity texture y=0 is the BOTTOM, so +v is toward the top of the
-            // final image; the overhead bloom sits in the upper third at v=0.32.
-            float vy = (v - 0.32f) * ScreenAspectVY;
-            float d = Mathf.Sqrt(u * u + vy * vy);
+            // Layer 1: bloom gradient (bright core -> dominant ivory).
+            float bdx = x - bloomCx, bdy = y - bloomCy;
+            float dBloom = Mathf.Clamp01(Mathf.Sqrt(bdx * bdx + bdy * bdy) / bloomMaxD);
+            dBloom = Mathf.Pow(dBloom, 1.5f);
+            var c = Color.Lerp(FeltHighlight, FeltCentre, dBloom);
 
-            // Stage 1: bloom core fading to the dominant deep jade by d=0.62.
-            float core = Mathf.Clamp01(d / 0.9f);
-            core = core * core * (3f - 2f * core);
-            var baseCol = Color.Lerp(FeltHighlight, FeltCentre, core);
-
-            // Stage 2: deep jade fading to the near-black jade edge.
-            float t = Mathf.Clamp01(d / 1.7f); // wider so the aspect-corrected vertical vignette isn't harsh
-            t = t * t * (3f - 2f * t); // smooth vignette
-            var c = Color.Lerp(baseCol, FeltEdge, t);
-
-            // Deliberate corner darkening so corners read darkest and the eye is
-            // drawn up-centre to the content (guidelines: corners darker on purpose).
-            float cx = Mathf.Clamp01(Mathf.Sqrt(u * u + v * v) / 1.414f);
-            float cornerT = Mathf.Clamp01((cx - 0.5f) / 0.5f);
-            cornerT = cornerT * cornerT * (3f - 2f * cornerT);
-            float cornerMul = 1f - 0.60f * cornerT;
-            c.r *= cornerMul; c.g *= cornerMul; c.b *= cornerMul;
+            // Layer 2: separate steel-blue vignette overlay centred on the
+            // true image centre, alpha-composited on top so its strength is
+            // independent of the bloom and can't dominate the whole frame.
+            float vdx = x - imgCx, vdy = y - imgCy;
+            float dVig = Mathf.Clamp01(Mathf.Sqrt(vdx * vdx + vdy * vdy) / vigMaxD);
+            float vigAlpha = Mathf.Pow(dVig, 2f) * 0.42f;
+            c = Color.Lerp(c, FeltEdge, vigAlpha);
 
             // Very faint diagonal lattice (two crossed sine gratings), amplitude
             // ~3% - felt as texture, not seen as a pattern.
