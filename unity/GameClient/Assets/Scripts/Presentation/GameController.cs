@@ -36,6 +36,7 @@ namespace GameClient.Presentation
         private AudioClip _tilesSettledClip;
         private AudioClip _matchCelebrationClip;
         private AudioClip _invalidTapClip;
+        private AudioClip _hintGlowClip;
 
         // Progression (sub-project #4): loaded/saved progress, the level being
         // played, and how many aids were spent this attempt (for star scoring).
@@ -94,6 +95,10 @@ namespace GameClient.Presentation
             _invalidTapClip = Resources.Load<AudioClip>("SFX/InvalidTap");
             if (_invalidTapClip != null)
                 _invalidTapClip.LoadAudioData();
+
+            _hintGlowClip = Resources.Load<AudioClip>("SFX/HintGlow");
+            if (_hintGlowClip != null)
+                _hintGlowClip.LoadAudioData();
 
             AnalyticsService.Initialize();
 
@@ -391,6 +396,8 @@ namespace GameClient.Presentation
             _aidsUsed++;
             _boardView.GetTileView(a)?.Highlight();
             if (b != null) _boardView.GetTileView(b)?.Highlight();
+            if (_hintGlowClip != null && _audioSource != null)
+                _audioSource.PlayOneShot(_hintGlowClip);
             AnalyticsService.HintUsed(_currentLevelId, _board.HintsRemaining);
             NotifyUsesChanged();
         }
