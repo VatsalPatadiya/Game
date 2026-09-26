@@ -7,114 +7,180 @@ namespace GameClient.Presentation.Board3D
     [RequireComponent(typeof(BoxCollider))]
     public sealed class TileView3D : MonoBehaviour
     {
-        [SerializeField] private MeshRenderer _bodyRenderer;
+        [SerializeField] private SpriteRenderer _bodyRenderer;
         [SerializeField] private BoxCollider _bodyCollider;
-        [SerializeField] private Transform _foodAnchor;
-        [SerializeField] private Color _freeCardColor = new Color(0.969f, 0.957f, 0.922f, 1f);
-        // Covered tiles keep their full ivory colour (no grey-out) - depth reads
-        // from the real stacking shadows, like the reference. (Was a dark grey that
-        // made the whole board look washed out.)
-        [SerializeField] private Color _blockedCardColor = new Color(0.969f, 0.957f, 0.922f, 1f);
-        [SerializeField] private Color _highlightEmission = new Color(1f, 0.85f, 0.2f, 1f);
+        
+        [SerializeField] private Color _freeCardColor = Color.white;
+        [SerializeField] private Color _highlightColor = new Color(1f, 0.9f, 0.6f, 1f);
 
-        private const float DragLiftDistance = 1.5f; // pulled toward the camera, in front of every layer
+        private const float DragLiftDistance = 1.5f;
         private const float DragSnapBackDuration = 0.18f;
+        private const float SelectLift = 0.35f;
 
-        private MeshRendererTint _bodyTint;
-        private MeshRendererTint[] _iconTints = new MeshRendererTint[0];
-        private MeshRendererTint _emissionTint;
+        // Dynamically scale a sprite so its world width is precisely 0.626f -
+        // matches the _cellWidth logic in BoardView3D and prevents horizontal
+        // overlap. Shared by Initialize and the flip routines below so
+        // swapping between the front icon and the back sprite (which may not
+        // share exactly the same source aspect) always re-fits correctly
+        // instead of carrying over a stale scale from whichever sprite was
+        // showing before.
+        private const float TargetWidth = 0.626f;
+
+        private void ApplyFitScale(Sprite sprite)
+        {
+            if (sprite == null) return;
+            float spriteWidthUnits = sprite.bounds.size.x;
+            float scale = spriteWidthUnits > 0 ? (TargetWidth / spriteWidthUnits) : 1f;
+            _bodyRenderer.transform.localScale = new Vector3(scale, scale, 1f);
+        }
+
+        private SpriteRendererTint _bodyTint;
         private Vector3 _originalLocalPos;
+        private Transform _dropShadow;
+        private Vector3 _shadowBaseScale;
+        private Vector3 _shadowBasePos;
+
+        private bool _isSelected;
         private Coroutine _shakeCoroutine;
         private Coroutine _clearCoroutine;
         private Coroutine _fadeCoroutine;
         private Coroutine _dragSnapCoroutine;
+        private Coroutine _highlightCoroutine;
+        private Coroutine _flipCoroutine;
 
         public string SlotId { get; private set; }
         public int Layer { get; private set; }
 
-        // foodModelPrefab replaces the old flat icon+accentColor combo - each
-        // tile value gets a distinct food mesh (see TileVisual.FoodModelFor)
-        // instead of a shared quad retextured/tinted per value. A food model
-        // can have several sub-meshes/renderers (e.g. a burger's bun/patty
-        // parts), so every renderer under it gets its own MeshRendererTint -
-        // BuildRendererArray folds them all in alongside the card body for
-        // the shared fade animations in CardAnimator.
-        public void Initialize(string slotId, int layer, GameObject foodModelPrefab)
+        public void Initialize(string slotId, int layer, Sprite tileSprite)
         {
             SlotId = slotId;
             Layer = layer;
 
-            _bodyTint = new MeshRendererTint(_bodyRenderer, "_BaseColor");
-            _emissionTint = new MeshRendererTint(_bodyRenderer, "_EmissionColor");
+            _bodyTint = new SpriteRendererTint(_bodyRenderer);
+            _bodyRenderer.sprite = tileSprite;
+            // Initial order, will be correctly set by BoardView after placement
+            _bodyRenderer.sortingOrder = layer * 10000;
+
+            ApplyFitScale(tileSprite);
 
             _originalLocalPos = transform.localPosition;
             transform.localScale = Vector3.one;
+            _isSelected = false;
 
-            _iconTints = new MeshRendererTint[0];
-            if (_foodAnchor != null)
+            if (_dropShadow == null)
             {
-                for (int i = _foodAnchor.childCount - 1; i >= 0; i--)
-                    Destroy(_foodAnchor.GetChild(i).gameObject);
-
-                if (foodModelPrefab != null)
+                _dropShadow = transform.Find("DropShadow");
+                if (_dropShadow != null)
                 {
-                    var foodInstance = Instantiate(foodModelPrefab, _foodAnchor);
-                    foodInstance.transform.localPosition = Vector3.zero;
-                    foodInstance.transform.localRotation = Quaternion.identity;
-
-                    var renderers = foodInstance.GetComponentsInChildren<MeshRenderer>();
-                    _iconTints = new MeshRendererTint[renderers.Length];
-                    for (int i = 0; i < renderers.Length; i++)
-                    {
-                        _iconTints[i] = new MeshRendererTint(renderers[i], "_BaseColor");
-                        _iconTints[i].Color = Color.white;
-                    }
+                    _shadowBaseScale = _dropShadow.localScale;
+                    _shadowBasePos = _dropShadow.localPosition;
                 }
             }
 
-            var noEmission = Color.black;
-            _emissionTint.Color = noEmission;
-
-            RefreshCardColor(true);
+            RefreshCardColor();
         }
 
-        public void SetFree(bool isFree) => RefreshCardColor(isFree);
-
-        private void RefreshCardColor(bool isFree)
+        // Covered tiles remain untappable (enforced by FreedomRuleCalculator
+        // via MatchValidator/TrayManager) but no longer grey out visually -
+        // every tile renders in _freeCardColor regardless of free/covered state.
+        public void SetFree(bool isFree)
         {
-            _bodyTint.Color = isFree ? _freeCardColor : _blockedCardColor;
         }
 
+        private void RefreshCardColor()
+        {
+            if (_isSelected) return;
+            if (_bodyTint != null) _bodyTint.Color = _freeCardColor;
+        }
+
+        // Plays a single pulsing glow for ~2.5 seconds then returns to normal.
+        // Cancels any in-progress highlight before starting a new one.
         public void Highlight()
         {
-            _emissionTint.Color = _highlightEmission;
+            if (_highlightCoroutine != null) StopCoroutine(_highlightCoroutine);
+            _highlightCoroutine = StartCoroutine(HintGlowRoutine());
         }
 
-        private const float SelectLift = 0.35f; // toward the camera, so a picked tile pops forward
+        private const float HintGlowDuration = 2.5f;
 
-        // No-tray mahjong selection feedback: glow + a small forward lift.
+        private IEnumerator HintGlowRoutine()
+        {
+            Color baseColor = _freeCardColor;
+            const float rampUpTime   = 0.35f;
+            const float holdTime     = 1.6f;
+            const float rampDownTime = 0.55f;
+
+            // Ramp up to glow color
+            float elapsed = 0f;
+            while (elapsed < rampUpTime)
+            {
+                elapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(elapsed / rampUpTime);
+                if (_bodyTint != null) _bodyTint.Color = Color.Lerp(baseColor, _highlightColor, t);
+                yield return null;
+            }
+
+            if (_bodyTint != null) _bodyTint.Color = _highlightColor;
+
+            // Hold at full glow
+            yield return new WaitForSeconds(holdTime);
+
+            // Ramp back down to normal
+            elapsed = 0f;
+            while (elapsed < rampDownTime)
+            {
+                elapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(elapsed / rampDownTime);
+                if (_bodyTint != null) _bodyTint.Color = Color.Lerp(_highlightColor, baseColor, t);
+                yield return null;
+            }
+
+            _highlightCoroutine = null;
+            RefreshCardColor();
+        }
+
         public void SetSelected(bool selected)
         {
-            _emissionTint.Color = selected ? _highlightEmission : Color.black;
+            _isSelected = selected;
+            if (selected)
+            {
+                if (_bodyTint != null) _bodyTint.Color = _highlightColor;
+                if (_bodyRenderer != null) _bodyRenderer.sortingOrder = 32000; // Bring to front while selected
+            }
+            else
+            {
+                RefreshCardColor();
+                UpdateSortingOrder();
+            }
+
             transform.localPosition = selected
                 ? _originalLocalPos + new Vector3(0f, 0f, -SelectLift)
                 : _originalLocalPos;
         }
 
-        public void PlayDealIn(float delaySeconds, System.Action onComplete)
+        public void UpdateSortingOrder()
         {
-            var renderers = BuildRendererArray();
-            var targetColors = new Color[renderers.Length];
-            targetColors[0] = _bodyTint.Color;
-            for (int i = 0; i < _iconTints.Length; i++)
-                targetColors[i + 1] = _iconTints[i].Color;
-            StartCoroutine(DealInRoutine(renderers, targetColors, delaySeconds, onComplete));
+            // layer * 10000 ensures higher layers always render in front.
+            // -localPosition.y * 100 ensures tiles lower on the screen render in front of tiles higher up.
+            int order = (Layer * 10000) - Mathf.RoundToInt(_originalLocalPos.y * 100f);
+            if (_bodyRenderer != null) _bodyRenderer.sortingOrder = order;
         }
 
-        private IEnumerator DealInRoutine(ITintable[] renderers, Color[] targetColors, float delay, System.Action onComplete)
+        public void PlayDealIn(float delaySeconds, Vector3 stagingLocalPos, System.Action onComplete)
         {
-            yield return CardAnimator.ScaleAndFadeIn(transform, renderers, targetColors, delay, CardAnimator.DealInDuration);
-            onComplete?.Invoke();
+            var renderers = new ITintable[] { _bodyTint };
+            var targetColors = new Color[] { _bodyTint.Color };
+            StartCoroutine(CardAnimator.FlyAndFadeIn(
+                transform, renderers, targetColors,
+                stagingLocalPos, _originalLocalPos,
+                delaySeconds, CardAnimator.DealInFlyDuration));
+            StartCoroutine(WaitAndInvoke(delaySeconds + CardAnimator.DealInFlyDuration, onComplete));
+        }
+        
+        private IEnumerator WaitAndInvoke(float delay, System.Action action)
+        {
+            yield return new WaitForSeconds(delay);
+            action?.Invoke();
         }
 
         public void PlayTapAway(System.Action onComplete)
@@ -123,30 +189,55 @@ namespace GameClient.Presentation.Board3D
             _fadeCoroutine = StartCoroutine(TapAwayRoutine(onComplete));
         }
 
+        // No highlight-color flash here (used to snap the body tint to
+        // _highlightColor and hold for TapConfirmFlashDuration before
+        // shrinking) - that read as an abrupt yellow "blink" with a dead
+        // pause before any motion, on top of the fact that the flight card
+        // already gives instant feedback the moment the tap lands. The
+        // shrink-and-fade alone is a clear, smooth "this tile is leaving"
+        // cue with no extra step in front of it.
         private IEnumerator TapAwayRoutine(System.Action onComplete)
         {
-            _emissionTint.Color = _highlightEmission;
-            yield return new WaitForSeconds(CardAnimator.TapConfirmFlashDuration);
-            _emissionTint.Color = Color.black;
-
-            yield return CardAnimator.ScaleDownAndFadeOut(transform, BuildRendererArray(), CardAnimator.TapAwayDuration, onComplete);
+            yield return CardAnimator.ScaleDownAndFadeOut(transform, new ITintable[] { _bodyTint }, CardAnimator.TapAwayDuration, onComplete);
         }
 
         public void PlayFadeInOnly()
         {
             transform.localScale = Vector3.one;
-            var c = _bodyTint.Color; c.a = 1f; _bodyTint.Color = c;
-            foreach (var tint in _iconTints)
+            if (_bodyTint != null)
             {
-                var ic = tint.Color; ic.a = 1f; tint.Color = ic;
+                var c = _bodyTint.Color; c.a = 1f; _bodyTint.Color = c;
             }
+        }
+
+        public void PlayPopSettle()
+        {
+            PlayFadeInOnly();
+            StartCoroutine(PopSettleRoutine());
+        }
+
+        private IEnumerator PopSettleRoutine()
+        {
+            const float duration = 0.12f;
+            float elapsed = 0f;
+            transform.localScale = Vector3.one * 1.06f;
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(elapsed / duration);
+                // Soft ease out to rest
+                float ease = 1f - (1f - t) * (1f - t);
+                transform.localScale = Vector3.one * Mathf.Lerp(1.06f, 1f, ease);
+                yield return null;
+            }
+            transform.localScale = Vector3.one;
         }
 
         public void PlayClearAndDestroy()
         {
             if (_clearCoroutine != null) StopCoroutine(_clearCoroutine);
             _clearCoroutine = StartCoroutine(
-                CardAnimator.ScaleUpAndFadeOut(transform, BuildRendererArray(), () => Destroy(gameObject)));
+                CardAnimator.ScaleUpAndFadeOut(transform, new ITintable[] { _bodyTint }, () => Destroy(gameObject)));
         }
 
         public void PlayShake()
@@ -157,29 +248,70 @@ namespace GameClient.Presentation.Board3D
 
         private IEnumerator ShakeRoutine()
         {
-            const float duration = 0.2f;
+            const float duration = 0.25f;
             float elapsed = 0f;
-            _bodyTint.Color = Color.red;
+            Color softRed = new Color(1.0f, 0.6f, 0.6f, 1f);
+            
+            if (_bodyTint != null) _bodyTint.Color = softRed;
+            Quaternion originalRot = transform.localRotation;
 
             while (elapsed < duration)
             {
                 elapsed += Time.deltaTime;
-                float xOffset = Mathf.Sin(elapsed * 40f) * 0.1f;
-                transform.localPosition = _originalLocalPos + new Vector3(xOffset, 0, 0);
+                float zAngle = Mathf.Sin(elapsed * 35f) * 6f * (1f - (elapsed / duration));
+                transform.localRotation = originalRot * Quaternion.Euler(0, 0, zAngle);
                 yield return null;
             }
 
-            transform.localPosition = _originalLocalPos;
-            RefreshCardColor(false);
+            transform.localRotation = originalRot;
+            RefreshCardColor();
         }
 
-        private ITintable[] BuildRendererArray()
+        private const float FlipHalfDuration = 0.15f;
+
+        public void PlayFlipToFaceUp(Sprite frontSprite)
         {
-            var result = new ITintable[1 + _iconTints.Length];
-            result[0] = _bodyTint;
-            for (int i = 0; i < _iconTints.Length; i++)
-                result[i + 1] = _iconTints[i];
-            return result;
+            if (_flipCoroutine != null) StopCoroutine(_flipCoroutine);
+            _flipCoroutine = StartCoroutine(FlipRoutine(frontSprite));
+        }
+
+        public void PlayFlipToFaceDown(Sprite backSprite)
+        {
+            if (_flipCoroutine != null) StopCoroutine(_flipCoroutine);
+            _flipCoroutine = StartCoroutine(FlipRoutine(backSprite));
+        }
+
+        // Classic card-flip: scale X to zero (edge-on), swap the sprite at
+        // the midpoint, then scale back out. ApplyFitScale is recomputed for
+        // the NEW sprite so the front/back don't need identical source aspect.
+        private IEnumerator FlipRoutine(Sprite newSprite)
+        {
+            var t = _bodyRenderer.transform;
+            float startX = t.localScale.x;
+            float elapsed = 0f;
+            while (elapsed < FlipHalfDuration)
+            {
+                elapsed += Time.deltaTime;
+                float p = Mathf.Clamp01(elapsed / FlipHalfDuration);
+                t.localScale = new Vector3(Mathf.Lerp(startX, 0f, p), t.localScale.y, t.localScale.z);
+                yield return null;
+            }
+
+            _bodyRenderer.sprite = newSprite;
+            ApplyFitScale(newSprite);
+            float targetX = t.localScale.x;
+            t.localScale = new Vector3(0f, t.localScale.y, t.localScale.z);
+
+            elapsed = 0f;
+            while (elapsed < FlipHalfDuration)
+            {
+                elapsed += Time.deltaTime;
+                float p = Mathf.Clamp01(elapsed / FlipHalfDuration);
+                t.localScale = new Vector3(Mathf.Lerp(0f, targetX, p), t.localScale.y, t.localScale.z);
+                yield return null;
+            }
+            t.localScale = new Vector3(targetX, t.localScale.y, t.localScale.z);
+            _flipCoroutine = null;
         }
 
         public void BeginDrag()

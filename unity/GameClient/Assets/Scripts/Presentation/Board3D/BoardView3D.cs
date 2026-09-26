@@ -11,9 +11,9 @@ namespace GameClient.Presentation.Board3D
 {
     public sealed class BoardView3D : MonoBehaviour
     {
-        private const float TargetDealInSeconds = 0.45f;
-        private const float MinBatchStaggerSeconds = 0.004f;
-        private const float MaxBatchStaggerSeconds = 0.018f;
+        private const float TargetDealInSeconds = 0.5f;
+        private const float MinBatchStaggerSeconds = 0.008f;
+        private const float MaxBatchStaggerSeconds = 0.035f;
 
         [SerializeField] private TileView3D _tilePrefab;
         [SerializeField] private TileSetAsset _tileSet;
@@ -26,25 +26,90 @@ namespace GameClient.Presentation.Board3D
         [SerializeField] private float _cellHeight = 0.46f;
         [SerializeField] private float _layerHeight = 0.28f; // real Z step per layer (stacked layers read as depth via the straddle + shadow + tilt)
         [SerializeField] private float _layerStraddle = 0f;  // NO fake render offset: the half-tile straddle now lives in the slot coordinates, so rendered overlap == domain coverage (a tile that looks covered really is covered/non-free)
-        [SerializeField] private float _cameraMargin = 0.3f; // leaves felt margins top/bottom for the HUD, tiles still large (0.02 filled the whole screen and hid the HUD)
-        [SerializeField] private float _cameraTiltDegrees = 14f; // pitch so the stacked layers read as 3D depth (30 skewed the board into a parallelogram)
+        // 0.3 -> 0.15: the board's WIDTH (not height) was the binding fit
+        // constraint on this portrait screen (6-column layer 0 vs a narrow
+        // horizontal FOV), so the old 0.3 margin (0.6 total) pushed the
+        // camera back much farther than needed and left a large unused
+        // vertical gap between the tray and the bottom buttons. Paired with
+        // the wider FOV below.
+        [SerializeField] private float _cameraMargin = 0.05f; // trimmed 0.15 -> 0.05 so the board fills the width (bigger tiles) inside the enlarged board band
+        // Fraction of the SCREEN height the board is allowed to occupy (the board
+        // band). 1 = full screen (unchanged / default for tests). The scene builder
+        // sets this to the board band's height (~0.60) so a tall board's on-screen
+        // height is capped to its band and can't bleed into the top cluster or the
+        // bottom buttons.
+        [SerializeField] private float _boardBandHeightFrac = 1f;
+        // Tile-size floor: an upper clamp on orthographicSize so tiles can never
+        // scale below a comfortable size (a bigger orthographicSize = smaller tiles).
+        // 0 = disabled (default / tests). The builder sets it from the approved tile
+        // size; a board too big to fit at that size overflows rather than shrinking.
+        [SerializeField] private float _maxOrthographicSize = 0f;
+        // FIXED orthographic zoom. When > 0 the board renders at this constant
+        // orthographicSize regardless of board size, so (a) every level's tiles are
+        // the SAME comfortable size and (b) the camera-parented HUD - whose on-screen
+        // positions were baked against the camera's build-time orthographicSize - is
+        // always calibrated (a per-board zoom spread the HUD off-screen on small
+        // boards). The scene builder sets it to the same value it calibrates the HUD
+        // at, and sizes the largest board (120 tiles) to fit at this zoom. 0 = the
+        // legacy dynamic fit (kept for tests / back-compat).
+        [SerializeField] private float _fixedOrthographicSize = 0f;
+        // Viewport Y (1 = top of screen) to pin the board's TOP edge to, so the board
+        // always sits just under the tray regardless of its size (a small board no
+        // longer floats with a big gap above it, and a large board doesn't ride up
+        // into the tray). The board grows DOWNWARD from this line. 0 = disabled
+        // (fall back to _verticalBiasViewportFrac centring).
+        [SerializeField] private float _boardTopAnchorViewport = 0f;
+        [SerializeField] private float _cameraTiltDegrees = 5f; // near-front pitch: the tile's green top side-wall shrinks to a thin clean edge (matches reference's clean ivory tops); depth still reads via drop shadows + stacking straddle. Was 14 (exposed a prominent green "cap" on top-row tiles).
         [SerializeField] private float _tiltDistancePadding = 1.05f; // barely-tilted view needs almost no extra distance (was 1.35 for the 30-degree pitch)
         [SerializeField] private float _tileJitterAmount = 0f; // clean aligned grid (premium mahjong look); was 0.07 loose-pile scatter
         [SerializeField] private float _tileRotationJitterDegrees = 0f;
+        // The HUD (score bar, tray, control buttons) is parented to this camera at
+        // a fixed distance baked by GameSceneBuilder3D (its HudDistance constant,
+        // wired in here via SetField so the two can't silently drift apart). The
+        // fit below picks whatever distance the CURRENT board needs, which shrinks
+        // for a smaller board/tile size - if that ever undercuts HudDistance, the
+        // board's front tiles end up nearer the camera than the HUD and occlude it
+        // entirely. Clamping the fit distance to at least this value guarantees the
+        // HUD always clears the board, regardless of how the board's size changes.
+        [SerializeField] private float _minDistanceForHud = 0f; // 0 = no floor; GameSceneBuilder3D sets this to HudDistance
+
+        // FitCameraToBoard below aims the camera dead-centre on the board's
+        // own bounding box (viewport Y=0.5) - correct only if the usable
+        // band above and below the board is symmetric. It isn't: the
+        // topbar+progress+tray cluster eats far more of the top of the
+        // screen than the 3-button row eats at the bottom, so a
+        // screen-centred board leaves excess empty felt between its bottom
+        // edge and the buttons (measured on-device: ~12% of screen height,
+        // vs ~2% at the top). GameSceneBuilder3D computes this from the
+        // real HUD anchor positions (SetFieldFloat, alongside
+        // _minDistanceForHud) and sets it here: positive shifts the board's
+        // rendered position DOWN the screen (toward the buttons) by this
+        // many viewport-height units at the board's own distance.
+        [SerializeField] private float _verticalBiasViewportFrac = 0f;
+
+
 
         private readonly Dictionary<string, TileView3D> _tileViews = new Dictionary<string, TileView3D>();
         private Dictionary<string, TileSlot> _slotsById;
 
         public TileSetAsset TileSet => _tileSet;
 
+        // Destroy every rendered tile and forget them. Used when leaving gameplay
+        // (e.g. back to level-select) so the old board doesn't linger on screen and
+        // bleed through the next screen. Safe to call when already empty.
+        public void Clear()
+        {
+            foreach (var view in _tileViews.Values)
+                if (view != null) Destroy(view.gameObject);
+            _tileViews.Clear();
+        }
+
         public void Build(
             BoardState board, Dictionary<string, TileSlot> slotsById, bool animateDealIn, Action onDealInComplete = null)
         {
             _slotsById = slotsById;
 
-            foreach (var view in _tileViews.Values)
-                if (view != null) Destroy(view.gameObject);
-            _tileViews.Clear();
+            Clear();
 
             FitCameraToBoard(slotsById);
 
@@ -56,6 +121,22 @@ namespace GameClient.Presentation.Board3D
                 .ToList();
 
             int tileCount = orderedCells.Count;
+
+            // Tiles fly in horizontally rather than dropping from above: the
+            // board splits down its own centre column, left-half tiles enter
+            // from off the left edge of the screen and right-half tiles from
+            // off the right edge, each sliding along its own row into place
+            // (reference: competitor's cat-mahjong deal-in). The camera is
+            // always orthographic for the board (see GameSceneBuilder3D),
+            // so orthographicSize*aspect is the frustum half-width at any
+            // depth - offscreenX just needs to clear that plus a tile of
+            // margin so tiles never visibly pop in already on-screen.
+            float boardCenterX = orderedCells.Count > 0
+                ? (orderedCells.Min(kv => slotsById[kv.Key].X) + orderedCells.Max(kv => slotsById[kv.Key].X)) / 2f * _cellWidth
+                : 0f;
+            float offscreenX = _camera != null
+                ? _camera.orthographicSize * _camera.aspect + _cellWidth * 3f
+                : _cellWidth * 20f;
 
             var batchIndexByPosition = new int[orderedCells.Count];
             int batchCount = 0;
@@ -83,20 +164,25 @@ namespace GameClient.Presentation.Board3D
                 var kv = orderedCells[i];
                 var slot = slotsById[kv.Key];
                 var view = Instantiate(_tilePrefab, transform);
-                var jitter = JitterFor(slot.Id);
-                var layerOffset = LayerRenderOffset(slot.Layer);
-                view.transform.localPosition = new Vector3(
-                    slot.X * _cellWidth + jitter.x + layerOffset.x,
-                    slot.Y * _cellHeight + jitter.y + layerOffset.y,
-                    -slot.Layer * _layerHeight);
-                view.transform.localRotation = Quaternion.Euler(0f, 0f, jitter.z);
-                view.Initialize(slot.Id, slot.Layer, TileVisual.FoodModelFor(_tileSet, kv.Value.Value));
+                PlaceTileView(view, slot);
+                var cell = kv.Value;
+                Sprite startSprite = cell.Revealed
+                    ? TileVisual.IconFor(_tileSet, cell.Value)
+                    : TileVisual.BackIcon(_tileSet);
+                view.Initialize(slot.Id, slot.Layer, startSprite);
                 _tileViews[kv.Key] = view;
 
                 if (animateDealIn)
                 {
                     float delay = batchIndexByPosition[i] * stagger;
-                    view.PlayDealIn(delay, () =>
+                    // Slide in from off-screen on whichever side of the
+                    // board's centre this tile's own row-final X falls on,
+                    // staying at that row's Y/Z the whole way - a pure
+                    // horizontal entrance, not a diagonal one.
+                    var finalPos = view.transform.localPosition;
+                    bool isLeftHalf = finalPos.x <= boardCenterX;
+                    var startPos = new Vector3(isLeftHalf ? -offscreenX : offscreenX, finalPos.y, finalPos.z);
+                    view.PlayDealIn(delay, startPos, () =>
                     {
                         pendingDealIns--;
                         if (pendingDealIns == 0)
@@ -139,6 +225,58 @@ namespace GameClient.Presentation.Board3D
             float boardHeight = (maxY - minY) * _cellHeight + 2f * _cellHeight + offY + _cameraMargin * 2f;
 
             float aspect = Screen.height > 0 ? (float)Screen.width / Screen.height : 0.5f;
+
+            float centerX = (minX + maxX) / 2f * _cellWidth - offX / 2f;
+            float centerY = (minY + maxY) / 2f * _cellHeight + offY / 2f;
+            var boardCenter = new Vector3(centerX, centerY, 0f);
+
+            if (_camera.orthographic)
+            {
+                float orthoSize;
+                if (_fixedOrthographicSize > 0f)
+                {
+                    // Constant zoom: same tile size every level, and the HUD (baked
+                    // against this same value) stays put. The board is still centred
+                    // in its band via _verticalBiasViewportFrac below.
+                    orthoSize = _fixedOrthographicSize;
+                }
+                else
+                {
+                    // Legacy dynamic fit: divide the height requirement by the board
+                    // band fraction so the board's world height fills at most that
+                    // fraction of the screen; clamp to the tile-size floor.
+                    float bandFrac = _boardBandHeightFrac > 0f ? _boardBandHeightFrac : 1f;
+                    float sizeForHeight = (boardHeight / 2f) / bandFrac;
+                    float sizeForWidth = (boardWidth / 2f) / aspect;
+                    orthoSize = Mathf.Max(sizeForHeight, sizeForWidth) * _tiltDistancePadding;
+                    if (_maxOrthographicSize > 0f)
+                        orthoSize = Mathf.Min(orthoSize, _maxOrthographicSize);
+                }
+                _camera.orthographicSize = orthoSize;
+
+                // Orthographic 2.5D look: pitch up slightly to see bottom edges. 
+                // We leave yaw at 0f so the board grid remains perfectly horizontal 
+                // and un-skewed (no parallelogram effect).
+                var orthoRotation = Quaternion.Euler(_cameraTiltDegrees, 0f, 0f);
+                _camera.transform.rotation = orthoRotation;
+
+                // Vertical placement: either pin the board's TOP to a viewport line
+                // (just under the tray, so every board size sits there and grows down)
+                // or fall back to the centring bias. A positive bias shifts the board
+                // DOWN, so bias = 0.5 - desiredCentreViewport.
+                float bias = _verticalBiasViewportFrac;
+                if (_boardTopAnchorViewport > 0f)
+                {
+                    float halfHeightViewport = boardHeight / (4f * orthoSize); // (boardHeight/2)/(2*orthoSize)
+                    float boardCenterViewport = _boardTopAnchorViewport - halfHeightViewport;
+                    bias = 0.5f - boardCenterViewport;
+                }
+                float orthoWorldYOffset = bias * (orthoSize * 2f);
+                var orthoAimPoint = boardCenter + new Vector3(0f, orthoWorldYOffset, 0f);
+                _camera.transform.position = orthoAimPoint - (orthoRotation * Vector3.forward) * 50f;
+                return;
+            }
+
             float verticalFovRad = _camera.fieldOfView * Mathf.Deg2Rad;
 
             float distanceForHeight = (boardHeight / 2f) / Mathf.Tan(verticalFovRad / 2f);
@@ -146,14 +284,21 @@ namespace GameClient.Presentation.Board3D
             float distanceForWidth = (boardWidth / 2f) / Mathf.Tan(horizontalFovRad / 2f);
 
             float distance = Mathf.Max(distanceForHeight, distanceForWidth) * _tiltDistancePadding;
-
-            float centerX = (minX + maxX) / 2f * _cellWidth - offX / 2f;
-            float centerY = (minY + maxY) / 2f * _cellHeight + offY / 2f;
-            var boardCenter = new Vector3(centerX, centerY, 0f);
+            distance = Mathf.Max(distance, _minDistanceForHud);
 
             var rotation = Quaternion.Euler(_cameraTiltDegrees, 0f, 0f);
             _camera.transform.rotation = rotation;
-            _camera.transform.position = boardCenter - (rotation * Vector3.forward) * distance;
+
+            // Panning the AIM point up (positive world Y) shifts the whole
+            // rendered scene down on screen, so a positive
+            // _verticalBiasViewportFrac (defined as "shift board down") maps
+            // to a positive worldYOffset added here - the camera still faces
+            // the same direction, it just isn't centred on boardCenter
+            // itself anymore.
+            float frustumHeightAtDistance = 2f * distance * Mathf.Tan(verticalFovRad * 0.5f);
+            float worldYOffset = _verticalBiasViewportFrac * frustumHeightAtDistance;
+            var aimPoint = boardCenter + new Vector3(0f, worldYOffset, 0f);
+            _camera.transform.position = aimPoint - (rotation * Vector3.forward) * distance;
         }
 
         // Deterministic per-tile scatter (position x/y, rotation z) seeded by
@@ -167,6 +312,20 @@ namespace GameClient.Presentation.Board3D
         private Vector2 LayerRenderOffset(int layer) => new Vector2(
             -layer * _layerStraddle * _cellWidth,
              layer * _layerStraddle * _cellHeight);
+
+        // Shared tile placement (position + rotation jitter + layer straddle) so
+        // Build() and RestoreTiles() lay a tile down the exact same way.
+        private void PlaceTileView(TileView3D view, TileSlot slot)
+        {
+            var jitter = JitterFor(slot.Id);
+            var layerOffset = LayerRenderOffset(slot.Layer);
+            view.transform.localPosition = new Vector3(
+                slot.X * _cellWidth + jitter.x + layerOffset.x,
+                slot.Y * _cellHeight + jitter.y + layerOffset.y,
+                -slot.Layer * _layerHeight);
+            view.transform.localRotation = Quaternion.Euler(0f, 0f, jitter.z);
+            view.UpdateSortingOrder();
+        }
 
         private Vector3 JitterFor(string slotId)
         {
@@ -215,5 +374,47 @@ namespace GameClient.Presentation.Board3D
 
         public TileView3D GetTileView(string slotId) =>
             _tileViews.TryGetValue(slotId, out var view) ? view : null;
+
+        // Re-materialize a tile that Undo un-cleared, placing it back at its
+        // original layer/position without showing deal-in drops.
+        public TileView3D RestoreTile(string slotId, BoardState board)
+        {
+            if (_tileViews.TryGetValue(slotId, out var existing)) return existing;
+            if (!_slotsById.TryGetValue(slotId, out var slot)) return null;
+            if (!board.Cells.TryGetValue(slotId, out var cell)) return null;
+
+            var view = Instantiate(_tilePrefab, transform);
+            PlaceTileView(view, slot);
+            Sprite startSprite = cell.Revealed
+                ? TileVisual.IconFor(_tileSet, cell.Value)
+                : TileVisual.BackIcon(_tileSet);
+            view.Initialize(slot.Id, slot.Layer, startSprite);
+            _tileViews[slotId] = view;
+            return view;
+        }
+
+        public void RestoreTiles(IEnumerable<string> slotIds, BoardState board)
+        {
+            foreach (var id in slotIds)
+            {
+                var view = RestoreTile(id, board);
+                if (view != null) view.PlayFadeInOnly();
+            }
+            RefreshFreeStates(board);
+        }
+
+        // Swap the face/food-model of existing tile views to match the board's
+        // (post-shuffle) values without destroying the GameObjects.
+        public void RefreshTileValues(IEnumerable<string> slotIds, BoardState board)
+        {
+            foreach (var id in slotIds)
+            {
+                if (!_tileViews.TryGetValue(id, out var view)) continue;
+                if (!_slotsById.TryGetValue(id, out var slot)) continue;
+                if (!board.Cells.TryGetValue(id, out var cell)) continue;
+                view.Initialize(slot.Id, slot.Layer, TileVisual.IconFor(_tileSet, cell.Value));
+            }
+            RefreshFreeStates(board);
+        }
     }
 }

@@ -1,123 +1,133 @@
-using System.Collections;
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace GameClient.Presentation.HUD
 {
-    // Spawns the "you matched!" celebration seen in the reference footage: a
-    // particle burst (world-space, rendered by the board camera so it can
-    // cascade down over the board) plus tiered praise text (UI-space,
-    // screen-anchored). Purely cosmetic - no score/XP/unlocks are touched
-    // here, this only decides which label to show.
+    // Spawns a white particle burst at the tray slot when two tiles match
+    // (reference: a screen recording of a similar mahjong game's "white
+    // balls" celebration). Purely cosmetic - no score/XP/unlocks are touched
+    // here. Two particle systems layer together: a bulk of soft round glow
+    // dots (the reference's chunky burst) plus a handful of brighter 4-point
+    // sparkle twinkles for a more premium accent.
     public sealed class MatchCelebrationController : MonoBehaviour
     {
-        [SerializeField] private Camera _camera;
-        [SerializeField] private Transform _canvasRoot;
+        [SerializeField] private Material _glowMaterial;
+        [SerializeField] private Material _sparkleMaterial;
 
-        private static readonly string[] BaseTierMessages = { "Good Eye", "Nice", "Well Spotted" };
-        private static readonly string[] ComboTierMessages = { "Perfect", "Great Streak", "Excellent" };
-        private static readonly Color PraiseTextColor = new Color(0.82f, 0.68f, 0.35f, 1f); // gold/tan
+        // Tuned from the reference video's burst: chunky, clearly separate
+        // pieces rather than fine confetti dust - fewer, bigger particles read
+        // better at real gameplay speed on a phone screen than many tiny ones.
+        // Tuned for a full-screen magical firefly/fairy dust effect
+        private const float BurstDuration = 2.5f;
+        private const float MinParticleLifetime = 2.0f;
+        private const float MaxParticleLifetime = 2.5f;
+        private const float MinStartSpeed = 0.5f;
+        private const float MaxStartSpeed = 2.0f;
+        private const float MinStartSize = 0.04f;
+        private const float MaxStartSize = 0.15f;
+        private const float GravityModifier = -0.05f; // Float slightly upwards
+        private const int MinBurstCount = 300;
+        private const int MaxBurstCount = 450;
 
-        private const float ComboTextDelay = 0.18f;
-        private const float BaseTextDuration = 0.9f;
-        private const float ComboTextDuration = 1.1f;
-        private const float ParticleDuration = 1.5f;
+        // Sparkle accent
+        private const int MinSparkleCount = 150;
+        private const int MaxSparkleCount = 240;
+        private const float MinSparkleSize = 0.08f;
+        private const float MaxSparkleSize = 0.2f;
+        private const float MinSparkleSpeed = 1.0f;
+        private const float MaxSparkleSpeed = 3.0f;
 
-        public void PlayMatchCelebration(Vector3 trayScreenPosition, bool isCombo)
+        public void PlayMatchCelebration(Vector3 worldPosition, bool isCombo)
         {
-            SpawnParticleBurst(trayScreenPosition);
-            SpawnPraiseText(BaseTierMessages, trayScreenPosition, 24, BaseTextDuration, 40f);
+            // Spawn the particles in front of the camera so they cover the whole screen
+            Vector3 spawnPosition = Camera.main != null ? 
+                Camera.main.transform.position + Camera.main.transform.forward * 10f : 
+                worldPosition;
 
-            if (isCombo)
-                StartCoroutine(SpawnComboTextDelayed());
+            SpawnBurst(spawnPosition, _glowMaterial, MinBurstCount, MaxBurstCount,
+                MinStartSize, MaxStartSize, MinStartSpeed, MaxStartSpeed);
+            SpawnBurst(spawnPosition, _glowMaterial, MinSparkleCount, MaxSparkleCount,
+                MinSparkleSize, MaxSparkleSize, MinSparkleSpeed, MaxSparkleSpeed);
         }
 
-        private IEnumerator SpawnComboTextDelayed()
+        private void SpawnBurst(
+            Vector3 worldPosition, Material material, int minCount, int maxCount,
+            float minSize, float maxSize, float minSpeed, float maxSpeed)
         {
-            yield return new WaitForSeconds(ComboTextDelay);
-            var centerScreen = new Vector3(Screen.width / 2f, Screen.height * 0.6f, 0f);
-            SpawnPraiseText(ComboTierMessages, centerScreen, 40, ComboTextDuration, 60f);
-        }
-
-        private void SpawnParticleBurst(Vector3 screenPosition)
-        {
-            if (_camera == null) return;
-
-            float depth = -_camera.transform.position.z;
-            Vector3 worldPos = _camera.ScreenToWorldPoint(new Vector3(screenPosition.x, screenPosition.y, depth));
+            if (material == null) return;
 
             var go = new GameObject("MatchParticleBurst");
-            go.transform.position = worldPos;
+            go.transform.position = worldPosition;
             var ps = go.AddComponent<ParticleSystem>();
 
             var main = ps.main;
-            main.duration = ParticleDuration;
+            main.duration = BurstDuration;
             main.loop = false;
-            main.startLifetime = new ParticleSystem.MinMaxCurve(1.0f, 1.4f);
-            main.startSpeed = new ParticleSystem.MinMaxCurve(2.5f, 4.5f);
-            main.startSize = new ParticleSystem.MinMaxCurve(0.08f, 0.16f);
-            main.startColor = new Color(1f, 1f, 0.98f, 1f);
-            main.gravityModifier = 1.4f;
-            main.maxParticles = 70;
+            main.startLifetime = new ParticleSystem.MinMaxCurve(MinParticleLifetime, MaxParticleLifetime);
+            main.startSpeed = new ParticleSystem.MinMaxCurve(minSpeed, maxSpeed);
+            main.startSize = new ParticleSystem.MinMaxCurve(minSize, maxSize);
+            
+            // Plain White Glow
+            var colorGradient = new Gradient();
+            colorGradient.SetKeys(
+                new[] { 
+                    new GradientColorKey(Color.white, 0f),
+                    new GradientColorKey(Color.white, 1f)
+                },
+                new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(1f, 1f) }
+            );
+            main.startColor = new ParticleSystem.MinMaxGradient(colorGradient) { mode = ParticleSystemGradientMode.RandomColor };
+            main.gravityModifier = GravityModifier;
+            main.maxParticles = maxCount;
 
             var emission = ps.emission;
             emission.rateOverTime = 0f;
-            emission.SetBursts(new[] { new ParticleSystem.Burst(0f, 40, 70, 1, 0f) });
+            emission.SetBursts(new[] { new ParticleSystem.Burst(0f, (short)minCount, (short)maxCount, 1, 0f) });
 
+            // Full screen box shape
             var shape = ps.shape;
-            shape.shapeType = ParticleSystemShapeType.Cone;
-            shape.angle = 35f;
-            shape.radius = 0.1f;
+            shape.shapeType = ParticleSystemShapeType.Box;
+            shape.scale = new Vector3(15f, 25f, 5f); // Large enough to cover most phone screens at z=10
 
+            // Noise for firefly floating effect
+            var noise = ps.noise;
+            noise.enabled = true;
+            noise.strength = 0.5f;
+            noise.frequency = 0.5f;
+            noise.scrollSpeed = 0.2f;
+
+            // Premium Easing: Fade in and out softly
             var sizeOverLifetime = ps.sizeOverLifetime;
             sizeOverLifetime.enabled = true;
-            sizeOverLifetime.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.EaseInOut(0f, 1f, 1f, 0.3f));
+            sizeOverLifetime.size = new ParticleSystem.MinMaxCurve(1f, new AnimationCurve(
+                new Keyframe(0f, 0f, 0f, 2f),
+                new Keyframe(0.2f, 1f, 0f, 0f),
+                new Keyframe(0.8f, 1f, 0f, 0f),
+                new Keyframe(1f, 0f, -2f, 0f)
+            ));
+
+            var colorOverLifetime = ps.colorOverLifetime;
+            colorOverLifetime.enabled = true;
+            var alphaKeys = new[]
+            {
+                new GradientAlphaKey(0f, 0f),
+                new GradientAlphaKey(1f, 0.2f),
+                new GradientAlphaKey(1f, 0.8f),
+                new GradientAlphaKey(0f, 1f)
+            };
+            var colorKeys = new[]
+            {
+                new GradientColorKey(Color.white, 0f),
+                new GradientColorKey(Color.white, 1f)
+            };
+            var gradient = new Gradient();
+            gradient.SetKeys(colorKeys, alphaKeys);
+            colorOverLifetime.color = gradient;
 
             var psRenderer = go.GetComponent<ParticleSystemRenderer>();
-            psRenderer.material = new Material(Shader.Find("Sprites/Default"));
+            psRenderer.material = material;
 
             ps.Play();
-            Destroy(go, ParticleDuration + 0.5f);
-        }
-
-        private void SpawnPraiseText(string[] pool, Vector3 screenPosition, int fontSize, float duration, float riseDistance)
-        {
-            string message = pool[Random.Range(0, pool.Length)];
-
-            var go = new GameObject("PraiseText", typeof(Text));
-            go.transform.SetParent(_canvasRoot, false);
-            var text = go.GetComponent<Text>();
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            text.fontSize = fontSize;
-            text.fontStyle = FontStyle.Bold;
-            text.color = PraiseTextColor;
-            text.alignment = TextAnchor.MiddleCenter;
-            text.text = message;
-            var rect = go.GetComponent<RectTransform>();
-            rect.sizeDelta = new Vector2(400f, 80f);
-            rect.position = screenPosition;
-
-            StartCoroutine(RiseAndFade(rect, text, duration, riseDistance));
-        }
-
-        private IEnumerator RiseAndFade(RectTransform rect, Text text, float duration, float riseDistance)
-        {
-            Vector3 start = rect.position;
-            Vector3 end = start + new Vector3(0f, riseDistance, 0f);
-            float elapsed = 0f;
-
-            while (elapsed < duration)
-            {
-                elapsed += Time.deltaTime;
-                float t = Mathf.Clamp01(elapsed / duration);
-                rect.position = Vector3.Lerp(start, end, t);
-                var c = text.color;
-                c.a = 1f - t;
-                text.color = c;
-                yield return null;
-            }
-
-            Destroy(rect.gameObject);
+            Destroy(go, MaxParticleLifetime + 0.5f);
         }
     }
 }

@@ -34,5 +34,20 @@ namespace GameDomain.Tests.Model
             Assert.That(slot.CoveredByIds, Is.Not.Null);
             Assert.That(slot.CoveredByIds, Is.Empty);
         }
+
+        [Test]
+        public void NewBoardState_PeekedTileIdStartsNull()
+        {
+            var board = new BoardState();
+            Assert.That(board.PeekedTileId, Is.Null);
+        }
+
+        [Test]
+        public void NewTileCell_DefaultsToRevealedAndNotHidden()
+        {
+            var cell = new TileCell();
+            Assert.That(cell.Revealed, Is.True);
+            Assert.That(cell.IsHiddenTile, Is.False);
+        }
     }
 }

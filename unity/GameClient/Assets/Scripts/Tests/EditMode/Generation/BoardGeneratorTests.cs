@@ -38,5 +38,16 @@ namespace GameDomain.Tests.Generation
 
             Assert.DoesNotThrow(() => BoardGenerator.Generate(level, new Random(123)));
         }
+
+        [Test]
+        public void Generate_CopiesMovesBudgetOntoBoardMovesRemaining()
+        {
+            var shape = TestLayoutShapes.BuildLayeredRowShape(new[] { 4 });
+            var level = new LevelDefinition { LevelId = 1, Shape = shape, TileSetId = "default", MovesBudget = 42 };
+
+            var board = BoardGenerator.Generate(level, new Random(1));
+
+            Assert.That(board.MovesRemaining, Is.EqualTo(42));
+        }
     }
 }

@@ -1,2 +1,23 @@
 .superpowers/
 .DS_Store
+.claude/
+.agents/
+.utmp/
+
+# EDM4U-generated local Maven repo (rebuilt automatically from resolved
+# Android dependencies; not hand-authored source)
+unity/GameClient/Assets/GeneratedLocalRepo/
+unity/GameClient/Assets/GeneratedLocalRepo.meta
+
+# Vendored Firebase/EDM4U SDK tarballs referenced by Packages/manifest.json's
+# file: paths. Not committed (60MB of binaries trivially re-fetched from
+# Google's own CDN) - see unity/GameClient/GooglePackages/README.md to
+# regenerate before opening the project fresh.
+unity/GameClient/GooglePackages/*.tgz
+
+# EDM4U-generated from the committed Assets/google-services.json - regenerated
+# automatically on asset import, not hand-authored source.
+unity/GameClient/Assets/Plugins/Android/FirebaseApp.androidlib/
+unity/GameClient/Assets/Plugins/Android/FirebaseApp.androidlib.meta
+unity/GameClient/Assets/StreamingAssets/
+unity/GameClient/Assets/StreamingAssets.meta

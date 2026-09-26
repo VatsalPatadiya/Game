@@ -6,28 +6,14 @@ namespace GameClient.Presentation.HUD3D
     {
         [SerializeField] private PressScaleButton3D _button;
         [SerializeField] private MeshRenderer _faceRenderer;
-        [SerializeField] private MeshRenderer _iconRenderer;
+        [SerializeField] private SpriteRenderer _iconSpriteRenderer;
+        [SerializeField] private Renderer _badgeRenderer;
         [SerializeField] private TMPro.TextMeshPro _badgeText;
-        [SerializeField] private float _disabledAlpha = 0.4f;
+        [SerializeField] private Material _enabledFaceMaterial;
+        [SerializeField] private Material _disabledFaceMaterial;
 
-        // Must match GameSceneBuilder3D's DarkHudText - the icon material there
-        // is tinted this color because its source PNGs are opaque-white glyphs
-        // shaped by alpha, invisible untinted against the white face. Tint
-        // defaults to white otherwise (see MeshRendererTint), which is correct
-        // for TileView3D/TraySlotView3D's pre-colored icon textures but would
-        // silently overwrite this tint back to white the first time
-        // SetRemaining runs, since SetAlpha only ever adjusts the alpha of
-        // whatever color the tint was constructed with.
-        private static readonly Color IconTintColor = new Color(40f / 255f, 46f / 255f, 36f / 255f, 1f);
-
-        private GameClient.Presentation.Board.MeshRendererTint _faceTint;
-        private GameClient.Presentation.Board.MeshRendererTint _iconTint;
-
-        private void Awake()
-        {
-            if (_faceRenderer != null) _faceTint = new GameClient.Presentation.Board.MeshRendererTint(_faceRenderer);
-            if (_iconRenderer != null) _iconTint = new GameClient.Presentation.Board.MeshRendererTint(_iconRenderer, initialColor: IconTintColor);
-        }
+        [SerializeField] private Color _enabledIconColor = Color.white;
+        [SerializeField] private Color _disabledIconColor = new Color(0.50f, 0.55f, 0.62f, 0.5f);
 
         public void SetRemaining(int remaining)
         {
@@ -38,23 +24,31 @@ namespace GameClient.Presentation.HUD3D
             if (_button != null)
                 _button.Interactable = available;
 
-            float alpha = available ? 1f : _disabledAlpha;
-            SetAlpha(_faceTint, alpha);
-            SetAlpha(_iconTint, alpha);
+            if (_faceRenderer != null)
+            {
+                if (available)
+                {
+                    if (_enabledFaceMaterial != null) _faceRenderer.sharedMaterial = _enabledFaceMaterial;
+                }
+                else
+                {
+                    if (_disabledFaceMaterial != null) _faceRenderer.sharedMaterial = _disabledFaceMaterial;
+                }
+            }
+
+            if (_iconSpriteRenderer != null)
+            {
+                _iconSpriteRenderer.color = available ? _enabledIconColor : _disabledIconColor;
+            }
+
+            if (_badgeRenderer != null)
+            {
+                _badgeRenderer.gameObject.SetActive(available);
+            }
             if (_badgeText != null)
             {
-                var c = _badgeText.color;
-                c.a = alpha;
-                _badgeText.color = c;
+                _badgeText.gameObject.SetActive(available);
             }
-        }
-
-        private static void SetAlpha(GameClient.Presentation.Board.MeshRendererTint tint, float alpha)
-        {
-            if (tint == null) return;
-            var c = tint.Color;
-            c.a = alpha;
-            tint.Color = c;
         }
     }
 }

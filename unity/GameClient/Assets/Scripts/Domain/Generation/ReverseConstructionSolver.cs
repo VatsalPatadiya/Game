@@ -76,7 +76,7 @@ namespace GameDomain.Generation
             int groupCount = removalOrder.Count;
             var pool = new List<string>(groupCount);
             for (int i = 0; i < groupCount; i++)
-                pool.Add((i % 26).ToString());
+                pool.Add((i % 9).ToString());
 
             for (int i = pool.Count - 1; i > 0; i--)
             {
@@ -107,7 +107,10 @@ namespace GameDomain.Generation
             int attempts = 0;
             while (pool.Count < pairCount && attempts < 1000)
             {
-                string value = (candidate % 26).ToString(); // Modulo 26 to keep it within A-Z if we have many pairs
+                // Modulo 9 because we only have 9 unique PNG tiles. This ensures that
+                // any two tiles that look identical visually also share the same
+                // string value, preventing the "identical tiles not matching" bug.
+                string value = (candidate % 9).ToString(); 
                 candidate++;
                 attempts++;
                 if (excludedValues != null && excludedValues.Contains(value))

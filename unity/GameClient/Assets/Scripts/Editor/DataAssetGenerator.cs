@@ -5,10 +5,17 @@ using UnityEngine;
 
 public static class DataAssetGenerator
 {
+    // The shipped tile art (full card faces, not bare symbol glyphs) - see
+    // Tile3D.prefab's Body sprite and TileVisual.IconFor, which reads this
+    // list directly. Do not point this back at Assets/Textures/Icons/icon_*.png
+    // (an older, superseded generation pass) - that set has no card backing
+    // and makes board tiles render as floating bare symbols.
     private static readonly string[] IconNames =
     {
-        "icon_dots", "icon_flower", "icon_star", "icon_diamond", "icon_ring", "icon_cross", "icon_leaf"
+        "Tile_1", "Tile_2", "Tile_3", "Tile_4", "Tile_5", "Tile_6", "Tile_7", "Tile_8", "Tile_9"
     };
+
+    private const string IconFolder = "Assets/Sprites/Tiles/";
 
     private static readonly Color[] AccentColors =
     {
@@ -30,10 +37,10 @@ public static class DataAssetGenerator
         tileSet.Icons = new Sprite[IconNames.Length];
         for (int i = 0; i < IconNames.Length; i++)
         {
-            var sprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Textures/Icons/" + IconNames[i] + ".png");
+            var sprite = AssetDatabase.LoadAssetAtPath<Sprite>(IconFolder + IconNames[i] + ".png");
             if (sprite == null)
                 throw new System.Exception(
-                    "DATA_ASSET_GENERATOR_MISSING_ICON: " + IconNames[i] + " - run TileIconGenerator.Generate() first");
+                    "DATA_ASSET_GENERATOR_MISSING_ICON: " + IconNames[i] + " - expected hand-authored tile art at " + IconFolder);
             tileSet.Icons[i] = sprite;
         }
         tileSet.AccentColors = AccentColors;

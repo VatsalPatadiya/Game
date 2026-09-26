@@ -7,6 +7,7 @@ public static class RegenerateAll
         URPSetup.Configure();
         TileIconGenerator.Generate();
         HudIconGenerator.Generate();
+        DecorIconGenerator.Generate();
         CardSpriteGenerator.Generate();
         CardNormalMapGenerator.Generate();
         CardMaterialGenerator.Generate();
@@ -17,6 +18,8 @@ public static class RegenerateAll
         DataAssetGenerator.Generate();
         FeltBackgroundGenerator.Generate();
         WoodUiGenerator.Generate();
+        PremiumFontGenerator.Generate();
+        MatchParticleGenerator.Generate();
         GameSceneBuilder3D.Build();
         Debug.Log("REGENERATE_ALL_DONE");
     }

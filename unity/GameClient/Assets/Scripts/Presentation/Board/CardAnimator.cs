@@ -13,6 +13,11 @@ namespace GameClient.Presentation.Board
         public const float ClearDuration = 0.2f;
         // 120-150ms per spec (measured from actual gameplay footage); 130ms picked as the midpoint.
         public const float DealInDuration = 0.13f;
+        // Was 0.15s with ease-out-cubic - felt like a snap even after slowing
+        // the door the same way. 0.22s + smoothstep (see FlyAndFadeIn) was
+        // still too fast for a near-full-screen-width horizontal glide;
+        // 0.35s reads as an unhurried slide instead of a dart across.
+        public const float DealInFlyDuration = 0.35f;
         public const float FastFadeDuration = 0.1f;
         public const float HighlightHoldDuration = 0.13f;
 
@@ -20,12 +25,32 @@ namespace GameClient.Presentation.Board
         // catchable even at 10fps sampling, so the whole thing (flash + away)
         // must resolve in well under 150ms; the tray's own pop-in runs
         // concurrently on a separate, slightly longer/overshooting curve.
-        public const float TapConfirmFlashDuration = 0.07f;
         public const float TapAwayDuration = 0.1f;
-        public const float TrayPopInDuration = 0.11f;
-        public const float TrayPopInOvershoot = 1.08f;
+        public const float TrayFlightDuration = 0.22f;
+        // Was 0.11s/1.08x on a plain two-segment lerp (0->overshoot, overshoot->1)
+        // joined at a hard corner - a velocity discontinuity right at the peak
+        // that reads as a mechanical snap instead of a spring settling. Now
+        // driven by EaseOutBack (continuous velocity, zero at both ends) with a
+        // slightly longer hold so the "give" is actually perceptible.
+        public const float TrayPopInDuration = 0.16f;
+        public const float TrayPopInOvershoot = 1.7f; // EaseOutBack strength (Penner's standard back constant); peaks around ~1.10x scale
+        public const float UndoFlightDuration = 0.38f;
+        // The tray's pop-in starts this fraction into the flight (not after it
+        // lands), so the tail of the flight and the pop-in's overshoot read as
+        // one continuous motion instead of two separate snaps.
+        public const float TrayArrivalOverlapFraction = 0.7f;
 
         public static float EaseOut(float t) => 1f - (1f - t) * (1f - t);
+
+        // Robert Penner's "back" ease: overshoots past 1 then settles, with
+        // continuous velocity throughout (zero at t=0 and t=1) - unlike a
+        // two-segment lerp-to-peak-then-back, there's no corner at the peak.
+        public static float EaseOutBack(float t, float overshoot)
+        {
+            float c3 = overshoot + 1f;
+            float x = t - 1f;
+            return 1f + c3 * x * x * x + overshoot * x * x;
+        }
 
         public static IEnumerator ScaleAndFadeIn(
             Transform target, ITintable[] renderers, Color[] targetColors, float delay, float duration)
@@ -57,6 +82,54 @@ namespace GameClient.Presentation.Board
                 yield return null;
             }
 
+            target.localScale = Vector3.one;
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                if (renderers[i] == null) continue;
+                renderers[i].Color = targetColors[i];
+            }
+        }
+
+        public static IEnumerator FlyAndFadeIn(
+            Transform target, ITintable[] renderers, Color[] targetColors,
+            Vector3 startLocalPos, Vector3 endLocalPos, float delay, float duration)
+        {
+            if (delay > 0f) yield return new WaitForSeconds(delay);
+
+            target.localPosition = startLocalPos;
+            target.localScale = Vector3.one;
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                if (renderers[i] == null) continue;
+                var c = targetColors[i];
+                c.a = 0f;
+                renderers[i].Color = c;
+            }
+
+            float elapsed = 0f;
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                float raw = Mathf.Clamp01(elapsed / duration);
+                // Cubic smoothstep: gentle launch AND gentle settle, unlike
+                // ease-out-cubic (peak velocity at raw=0) which read as an
+                // abrupt snap off the edge even with the deceleration at the
+                // other end - same fix as the level-start door slide.
+                float t = raw * raw * (3f - 2f * raw);
+                target.localPosition = Vector3.Lerp(startLocalPos, endLocalPos, t);
+                // Fade-in over the first half of the animation
+                float alphaT = Mathf.Clamp01(raw / 0.5f);
+                for (int i = 0; i < renderers.Length; i++)
+                {
+                    if (renderers[i] == null) continue;
+                    var c = targetColors[i];
+                    c.a = targetColors[i].a * alphaT;
+                    renderers[i].Color = c;
+                }
+                yield return null;
+            }
+
+            target.localPosition = endLocalPos;
             target.localScale = Vector3.one;
             for (int i = 0; i < renderers.Length; i++)
             {
@@ -187,6 +260,59 @@ namespace GameClient.Presentation.Board
                 yield return null;
             }
             target.position = toWorldPos;
+        }
+
+        public static IEnumerator MoveTransformSmooth(
+            Transform target, Vector3 fromWorldPos, Vector3 toWorldPos, Quaternion targetRot, float duration)
+        {
+            target.position = fromWorldPos;
+            Quaternion fromRot = target.rotation;
+            float elapsed = 0f;
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                float raw = Mathf.Clamp01(elapsed / duration);
+                // Cubic smoothstep for organic acceleration and gentle deceleration
+                float t = raw * raw * (3f - 2f * raw);
+                Vector3 pos = Vector3.Lerp(fromWorldPos, toWorldPos, t);
+                // Parabolic arc in Z (towards camera) so the tile cleanly hovers over board tiles
+                pos.z -= Mathf.Sin(raw * Mathf.PI) * 0.75f;
+                target.position = pos;
+                target.rotation = Quaternion.Slerp(fromRot, targetRot, t);
+                yield return null;
+            }
+            target.position = toWorldPos;
+            target.rotation = targetRot;
+        }
+
+        // Same easing/hover as MoveTransformSmooth, but bent through an apex
+        // point via a quadratic Bezier instead of a straight lerp - a board
+        // tile flying to a tray slot needs to visibly drop DOWN into place,
+        // not arrive along whatever diagonal happens to connect its board
+        // position to the slot (which, for slots below the tray's top edge,
+        // reads as entering from underneath the tray).
+        public static IEnumerator MoveTransformViaApex(
+            Transform target, Vector3 fromWorldPos, Vector3 apexWorldPos, Vector3 toWorldPos,
+            Quaternion targetRot, float duration)
+        {
+            target.position = fromWorldPos;
+            Quaternion fromRot = target.rotation;
+            float elapsed = 0f;
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                float raw = Mathf.Clamp01(elapsed / duration);
+                float t = raw * raw * (3f - 2f * raw);
+                Vector3 a = Vector3.Lerp(fromWorldPos, apexWorldPos, t);
+                Vector3 b = Vector3.Lerp(apexWorldPos, toWorldPos, t);
+                Vector3 pos = Vector3.Lerp(a, b, t);
+                pos.z -= Mathf.Sin(raw * Mathf.PI) * 0.75f;
+                target.position = pos;
+                target.rotation = Quaternion.Slerp(fromRot, targetRot, t);
+                yield return null;
+            }
+            target.position = toWorldPos;
+            target.rotation = targetRot;
         }
     }
 }

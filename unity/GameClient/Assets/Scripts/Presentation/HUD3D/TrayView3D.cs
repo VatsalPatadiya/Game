@@ -14,9 +14,10 @@ namespace GameClient.Presentation.HUD3D
 
         public GameObject traySlotPrefab;
         public TileSetAsset tileSet;
-        public Transform[] slotAnchors; // fixed world positions, set by GameSceneBuilder3D (Task 10)
+        public Transform[] slotAnchors; 
 
         private List<TraySlotView3D> _slots = new List<TraySlotView3D>();
+        private readonly Stack<TraySlotView3D> _flightCardPool = new Stack<TraySlotView3D>();
 
         public int SlotCount => _slots.Count;
 
@@ -28,7 +29,10 @@ namespace GameClient.Presentation.HUD3D
 
             for (int i = 0; i < maxTraySize; i++)
             {
-                var slotGO = Instantiate(traySlotPrefab, slotAnchors[i].position, Quaternion.identity, transform);
+                var slotGO = Instantiate(traySlotPrefab, transform);
+                slotGO.transform.position = slotAnchors[i].position;
+                slotGO.transform.rotation = Quaternion.identity;
+                slotGO.transform.localScale = Vector3.one;
                 var slotView = slotGO.GetComponent<TraySlotView3D>();
                 _slots.Add(slotView);
                 slotView.SetEmpty();
@@ -37,18 +41,70 @@ namespace GameClient.Presentation.HUD3D
 
         public Vector3 GetSlotWorldPosition(int index) => _slots[index].transform.position;
 
-        public void PlayArrivalPopIn(int index, GameObject foodModelPrefab)
+        // How far above the tray's top slot the incoming-tile flight should
+        // apex, in units of the tray's own slot-to-slot spacing (derived from
+        // the actual slot 0/1 world positions so it stays correct regardless
+        // of camera tilt) - anchored to slot 0 (not the landing slot) so every
+        // tile clears the whole tray box before descending, even one landing
+        // in the bottom slot.
+        private const float FlightApexAboveTopFactor = 1.0f;
+
+        public Vector3 GetFlightApexWorldPosition()
         {
-            if (index < 0 || index >= _slots.Count) return;
-            _slots[index].PlayPopIn(foodModelPrefab);
+            Vector3 topSlotPos = _slots[0].transform.position;
+            Vector3 traySlotUp = _slots[0].transform.position - _slots[1].transform.position;
+            return topSlotPos + traySlotUp * FlightApexAboveTopFactor;
         }
 
-        public GameObject SpawnFlightCard(GameObject foodModelPrefab, Vector3 startWorldPosition)
+        public void RenderTray(List<string> trayTileIds, BoardState board)
         {
-            var flightCard = Instantiate(traySlotPrefab, startWorldPosition, Quaternion.identity);
-            var flightSlotView = flightCard.GetComponent<TraySlotView3D>();
-            flightSlotView.SetFilled(foodModelPrefab);
-            return flightCard;
+            for (int i = 0; i < _slots.Count; i++)
+            {
+                if (i < trayTileIds.Count)
+                {
+                    var value = board.Cells[trayTileIds[i]].Value;
+                    _slots[i].SetFilled(TileVisual.IconFor(tileSet, value));
+                }
+                else
+                {
+                    _slots[i].SetEmpty();
+                }
+            }
+        }
+
+        public void PlayArrivalPopIn(int index, Sprite tileSprite)
+        {
+            if (index < 0 || index >= _slots.Count) return;
+            _slots[index].PlayPopIn(tileSprite);
+        }
+
+        public GameObject SpawnFlightCard(Sprite tileSprite, Vector3 startWorldPosition)
+        {
+            TraySlotView3D flightSlotView;
+            if (_flightCardPool.Count > 0)
+            {
+                flightSlotView = _flightCardPool.Pop();
+                flightSlotView.transform.SetPositionAndRotation(startWorldPosition, Quaternion.identity);
+                flightSlotView.transform.localScale = Vector3.one;
+                flightSlotView.gameObject.SetActive(true);
+            }
+            else
+            {
+                var flightCardGO = Instantiate(traySlotPrefab, startWorldPosition, Quaternion.identity);
+                flightCardGO.transform.localScale = Vector3.one;
+                flightSlotView = flightCardGO.GetComponent<TraySlotView3D>();
+            }
+            flightSlotView.SetFilled(tileSprite);
+            flightSlotView.SetFlightTrailEnabled(true);
+            return flightSlotView.gameObject;
+        }
+
+        public void ReleaseFlightCard(GameObject flightCard)
+        {
+            if (flightCard == null) return;
+            flightCard.GetComponent<TraySlotView3D>()?.SetFlightTrailEnabled(false);
+            flightCard.SetActive(false);
+            _flightCardPool.Push(flightCard.GetComponent<TraySlotView3D>());
         }
 
         public IEnumerator ResolveAfterPush(
@@ -59,7 +115,6 @@ namespace GameClient.Presentation.HUD3D
             if (newTrayIds.Count == beforePush.Count)
                 yield break;
 
-            // Any number of matched tiles clear together (3 for a triple match).
             var matchedIds = beforePush.Except(newTrayIds).ToList();
             int clearedCount = 0;
             foreach (var id in matchedIds)
@@ -89,17 +144,17 @@ namespace GameClient.Presentation.HUD3D
 
         private IEnumerator ReflowSlot(int fromIndex, int toIndex, string value)
         {
-            var foodModel = TileVisual.FoodModelFor(tileSet, value);
+            var tileSprite = TileVisual.IconFor(tileSet, value);
             var fromPos = _slots[fromIndex].transform.position;
             var toPos = _slots[toIndex].transform.position;
 
             _slots[fromIndex].SetEmpty();
 
-            var flightCard = SpawnFlightCard(foodModel, fromPos);
+            var flightCard = SpawnFlightCard(tileSprite, fromPos);
             yield return CardAnimator.MoveTransform(flightCard.transform, fromPos, toPos, ReflowDuration);
-            Destroy(flightCard);
+            ReleaseFlightCard(flightCard);
 
-            _slots[toIndex].SetFilled(foodModel);
+            _slots[toIndex].SetFilled(tileSprite);
         }
     }
 }

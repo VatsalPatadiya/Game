@@ -51,6 +51,84 @@ namespace GameDomain.Tests.Regression
             AssertAllGeneratedBoardsAreSolvable(TestLayoutShapes.TurtleShape(), seedOffset: 5000);
         }
 
+        [Test]
+        public void GenerateShaped_AllDifficulties_BothModes_AreSolvable()
+        {
+            foreach (var mode in new[] { MatchMode.Pair, MatchMode.Triple })
+            {
+                int tiles = mode == MatchMode.Triple ? 18 : 20;
+                var shape = TestLayoutShapes.BuildLayeredRowShape(new[] { tiles });
+
+                for (int difficulty = 1; difficulty <= 5; difficulty++)
+                {
+                    var profile = DifficultyProfile.For(difficulty, mode);
+
+                    for (int seed = 0; seed < 20; seed++)
+                    {
+                        var level = new LevelDefinition { LevelId = difficulty, Shape = shape, TileSetId = "test" };
+                        var board = BoardGenerator.GenerateShaped(level, new Random(seed), profile, null, 26);
+
+                        var values = board.Cells.ToDictionary(kv => kv.Key, kv => kv.Value.Value);
+                        bool solvable = BacktrackingSolver.IsSolvable(shape, values, profile.GroupSize);
+
+                        Assert.That(solvable, Is.True,
+                            $"unsolvable: difficulty={difficulty} mode={mode} seed={seed}");
+                    }
+                }
+            }
+        }
+
+        [Test]
+        public void GenerateShaped_TurtleTopology_AllDifficulties_PairMode_AreSolvable()
+        {
+            for (int difficulty = 1; difficulty <= 5; difficulty++)
+            {
+                var shape = TurtleShapeBuilder.BuildForDifficulty(difficulty);
+                var profile = DifficultyProfile.For(difficulty, MatchMode.Pair);
+
+                for (int seed = 0; seed < 10; seed++)
+                {
+                    var level = new LevelDefinition { LevelId = difficulty, Shape = shape, TileSetId = "test" };
+                    BoardState board = null;
+                    Assert.DoesNotThrow(() =>
+                        board = BoardGenerator.GenerateShaped(level, new Random(seed), profile, null, 26),
+                        $"threw: turtle pair difficulty={difficulty} seed={seed}");
+
+                    var values = board.Cells.ToDictionary(kv => kv.Key, kv => kv.Value.Value);
+                    bool solvable = BacktrackingSolver.IsSolvable(shape, values, profile.GroupSize);
+                    Assert.That(solvable, Is.True, $"unsolvable: turtle pair difficulty={difficulty} seed={seed}");
+                }
+            }
+        }
+
+        [Test]
+        public void GenerateShaped_TurtleTopology_TripleMode_AreSolvable()
+        {
+            // TurtleShapeBuilder.Build() is the classic 48-tile turtle, divisible by 3
+            // (proven triple-solvable by the pre-existing TripleGenerationTests). Used across
+            // all 5 difficulty profiles because BuildForDifficulty's per-tier tile counts
+            // (12/20/26/30/40) aren't all divisible by 3.
+            var shape = TurtleShapeBuilder.Build();
+
+            for (int difficulty = 1; difficulty <= 5; difficulty++)
+            {
+                var profile = DifficultyProfile.For(difficulty, MatchMode.Triple);
+
+                for (int seed = 0; seed < 10; seed++)
+                {
+                    var level = new LevelDefinition { LevelId = difficulty, Shape = shape, TileSetId = "test" };
+                    BoardState board = null;
+                    Assert.DoesNotThrow(() =>
+                        board = BoardGenerator.GenerateShaped(level, new Random(seed), profile, null, 26),
+                        $"threw: turtle triple difficulty={difficulty} seed={seed}");
+
+                    var values = board.Cells.ToDictionary(kv => kv.Key, kv => kv.Value.Value);
+                    bool solvable = BacktrackingSolver.IsSolvable(shape, values, profile.GroupSize);
+                    Assert.That(solvable, Is.True, $"unsolvable: turtle triple difficulty={difficulty} seed={seed}");
+                }
+            }
+        }
+
         private static void AssertAllGeneratedBoardsAreSolvable(List<TileSlot> shape, int seedOffset)
         {
             for (int i = 0; i < IterationsPerShape; i++)
