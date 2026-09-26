@@ -60,11 +60,48 @@ namespace GameClient.Presentation.HUD3D
         private Vector3 _doorLeftClosedLocalPos;
         private Vector3 _doorRightClosedLocalPos;
 
+        // Rest-state snapshot of _overlayContent's direct children, captured
+        // once in Awake (same pattern as the door's closed local positions
+        // above) so OnEnable can restore exactly what HandlePlay's
+        // FadeOverlayContentOut shrank/faded away. Populated by
+        // CacheOverlayRestState.
+        private readonly List<Transform> _overlayQuadTransforms = new List<Transform>();
+        private readonly List<Vector3> _overlayQuadRestScales = new List<Vector3>();
+        private readonly List<TMP_Text> _overlayTexts = new List<TMP_Text>();
+        private readonly List<Color> _overlayTextRestColors = new List<Color>();
+
         private void Awake()
         {
             SetHudActive(false);
             if (_doorLeft != null) _doorLeftClosedLocalPos = _doorLeft.localPosition;
             if (_doorRight != null) _doorRightClosedLocalPos = _doorRight.localPosition;
+            CacheOverlayRestState();
+        }
+
+        // Walks _overlayContent's direct children ONCE (badge disc, badge
+        // number, difficulty label, PLAY pill, PLAY label) and records each
+        // one's rest scale/color, so both FadeOverlayContentOut (fade out)
+        // and OnEnable (restore) work off the same source of truth instead
+        // of each re-deriving or assuming a hardcoded Vector3.one/Color.
+        private void CacheOverlayRestState()
+        {
+            if (_overlayContent == null) return;
+            var overlayTransform = _overlayContent.transform;
+            for (int i = 0; i < overlayTransform.childCount; i++)
+            {
+                var child = overlayTransform.GetChild(i);
+                var text = child.GetComponent<TMP_Text>();
+                if (text != null)
+                {
+                    _overlayTexts.Add(text);
+                    _overlayTextRestColors.Add(text.color);
+                }
+                else if (child.GetComponent<MeshRenderer>() != null)
+                {
+                    _overlayQuadTransforms.Add(child);
+                    _overlayQuadRestScales.Add(child.localScale);
+                }
+            }
         }
 
         private void OnEnable()
@@ -79,6 +116,16 @@ namespace GameClient.Presentation.HUD3D
             if (_doorLeft != null) { _doorLeft.localPosition = _doorLeftClosedLocalPos; _doorLeft.gameObject.SetActive(true); }
             if (_doorRight != null) { _doorRight.localPosition = _doorRightClosedLocalPos; _doorRight.gameObject.SetActive(true); }
             if (_overlayContent != null) _overlayContent.SetActive(true);
+            // Undo FadeOverlayContentOut's end state - without this, coming
+            // back to this screen (e.g. hardware back from gameplay) showed
+            // the door reopened/closed correctly but the badge/difficulty/
+            // PLAY cluster stayed invisible (scale zero / alpha zero),
+            // confirmed via a user-supplied screen recording of exactly this
+            // back-navigation path.
+            for (int i = 0; i < _overlayQuadTransforms.Count; i++)
+                _overlayQuadTransforms[i].localScale = _overlayQuadRestScales[i];
+            for (int i = 0; i < _overlayTexts.Count; i++)
+                _overlayTexts[i].color = _overlayTextRestColors[i];
         }
 
         private void RefreshLevel()
@@ -206,40 +253,18 @@ namespace GameClient.Presentation.HUD3D
         // clip/distort at small sizes).
         private IEnumerator FadeOverlayContentOut(float duration)
         {
-            var quadTransforms = new List<Transform>();
-            var quadStartScales = new List<Vector3>();
-            var texts = new List<TMP_Text>();
-            var textStartColors = new List<Color>();
-
-            var overlayTransform = _overlayContent.transform;
-            for (int i = 0; i < overlayTransform.childCount; i++)
-            {
-                var child = overlayTransform.GetChild(i);
-                var text = child.GetComponent<TMP_Text>();
-                if (text != null)
-                {
-                    texts.Add(text);
-                    textStartColors.Add(text.color);
-                }
-                else if (child.GetComponent<MeshRenderer>() != null)
-                {
-                    quadTransforms.Add(child);
-                    quadStartScales.Add(child.localScale);
-                }
-            }
-
             float elapsed = 0f;
             while (elapsed < duration)
             {
                 elapsed += Time.deltaTime;
                 float t = Mathf.Clamp01(elapsed / duration);
-                for (int i = 0; i < quadTransforms.Count; i++)
-                    quadTransforms[i].localScale = Vector3.Lerp(quadStartScales[i], Vector3.zero, t);
-                for (int i = 0; i < texts.Count; i++)
+                for (int i = 0; i < _overlayQuadTransforms.Count; i++)
+                    _overlayQuadTransforms[i].localScale = Vector3.Lerp(_overlayQuadRestScales[i], Vector3.zero, t);
+                for (int i = 0; i < _overlayTexts.Count; i++)
                 {
-                    var c = textStartColors[i];
-                    c.a = Mathf.Lerp(textStartColors[i].a, 0f, t);
-                    texts[i].color = c;
+                    var c = _overlayTextRestColors[i];
+                    c.a = Mathf.Lerp(_overlayTextRestColors[i].a, 0f, t);
+                    _overlayTexts[i].color = c;
                 }
                 yield return null;
             }
