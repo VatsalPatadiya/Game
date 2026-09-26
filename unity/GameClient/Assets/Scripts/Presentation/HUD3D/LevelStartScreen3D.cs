@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using GameClient.Presentation.Board;
 using GameDomain.Progression;
 using TMPro;
@@ -101,7 +102,16 @@ namespace GameClient.Presentation.HUD3D
         private void HandlePlay()
         {
             if (_playButton != null) _playButton.Interactable = false; // guard a second tap mid-transition
-            if (_overlayContent != null) _overlayContent.SetActive(false); // badge/Play button vanish immediately, don't linger over the reveal
+            // Fade the badge/difficulty/PLAY cluster out over the SAME
+            // duration as the door slide (was an instant SetActive(false) -
+            // confirmed via a screen recording that this made the whole
+            // transition look broken: the top cluster vanished the instant
+            // you tapped, a full 1.1s before the door below it finished
+            // opening, since the two are no longer stamped on the same door
+            // art after the layout redesign). Interactable=false above
+            // already guards a second tap regardless of the object staying
+            // active during the fade.
+            if (_overlayContent != null) StartCoroutine(FadeOverlayContentOut(DoorSlideDuration));
             // Board generation (shape + solvability search) is the expensive
             // synchronous part - run it now, right at the tap, while the door
             // is still static and closed, so its cost is absorbed here rather
@@ -173,6 +183,67 @@ namespace GameClient.Presentation.HUD3D
                 yield return null;
             }
             target.position = toWorldPos;
+        }
+
+        // Shrinks/fades every DIRECT child of _overlayContent (badge disc,
+        // badge number, difficulty label, PLAY pill, PLAY label - each
+        // added via SetParent in GameSceneBuilder3D.BuildLevelStartScreen)
+        // out over `duration`, then deactivates the group.
+        //
+        // Two different techniques per child, not one alpha fade for
+        // everything: the badge disc/PLAY pill use PlayGold.mat/
+        // HudButtonFace.mat, both OPAQUE URP/Lit materials (see
+        // GetOrCreateNonEmissiveGoldMaterial's alwaysOnTop=false branch) -
+        // an Opaque surface ignores the alpha channel entirely, so a
+        // property-block alpha fade on those quads would silently do
+        // nothing and they'd just vanish on the final SetActive(false)
+        // exactly like before. Scaling each quad's own transform to zero
+        // works regardless of blend mode and also carries its drop-shadow
+        // child down with it (in place, around its own centre - not
+        // drifting toward some other pivot). TMP_Text, in contrast, always
+        // alpha-blends correctly, so labels get a plain fade instead of a
+        // shrink (shrinking text glyphs to zero via transform scale can
+        // clip/distort at small sizes).
+        private IEnumerator FadeOverlayContentOut(float duration)
+        {
+            var quadTransforms = new List<Transform>();
+            var quadStartScales = new List<Vector3>();
+            var texts = new List<TMP_Text>();
+            var textStartColors = new List<Color>();
+
+            var overlayTransform = _overlayContent.transform;
+            for (int i = 0; i < overlayTransform.childCount; i++)
+            {
+                var child = overlayTransform.GetChild(i);
+                var text = child.GetComponent<TMP_Text>();
+                if (text != null)
+                {
+                    texts.Add(text);
+                    textStartColors.Add(text.color);
+                }
+                else if (child.GetComponent<MeshRenderer>() != null)
+                {
+                    quadTransforms.Add(child);
+                    quadStartScales.Add(child.localScale);
+                }
+            }
+
+            float elapsed = 0f;
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(elapsed / duration);
+                for (int i = 0; i < quadTransforms.Count; i++)
+                    quadTransforms[i].localScale = Vector3.Lerp(quadStartScales[i], Vector3.zero, t);
+                for (int i = 0; i < texts.Count; i++)
+                {
+                    var c = textStartColors[i];
+                    c.a = Mathf.Lerp(textStartColors[i].a, 0f, t);
+                    texts[i].color = c;
+                }
+                yield return null;
+            }
+            _overlayContent.SetActive(false);
         }
 
         private void SetHudActive(bool active)

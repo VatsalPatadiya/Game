@@ -985,8 +985,21 @@ public static class GameSceneBuilder3D
         shadowGO.transform.SetParent(buttonRoot, false);
         shadowGO.transform.localPosition = new Vector3(0.05f * height, -0.07f * height, 0.06f);
         shadowGO.transform.localScale = new Vector3(width * 1.25f, height * 1.55f, 1f);
-        shadowGO.GetComponent<MeshRenderer>().sharedMaterial = shadowMaterial;
-        shadowGO.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        var shadowRenderer = shadowGO.GetComponent<MeshRenderer>();
+        shadowRenderer.sharedMaterial = shadowMaterial;
+        shadowRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        // Per-instance property block (not a shared-material edit) dims this
+        // shadow to ~45% of TileShadow.mat's own baked alpha, WITHOUT
+        // touching the board tiles that share the same material/texture -
+        // their contact shadow was deliberately deepened to 0.78 alpha
+        // against the lighter ivory backdrop and must stay untouched. A
+        // button/badge floating on plain backdrop reads as "raised" with a
+        // much softer shadow than a tile needs for contact-point separation
+        // in a dense board.
+        var block = new MaterialPropertyBlock();
+        shadowRenderer.GetPropertyBlock(block);
+        block.SetColor("_BaseColor", new Color(1f, 1f, 1f, 0.45f));
+        shadowRenderer.SetPropertyBlock(block);
     }
 
     private static GameObject CreateHudButton3D(
@@ -1333,7 +1346,13 @@ public static class GameSceneBuilder3D
         // Same CreateSolidButton3D helper (same corner radius, same gold
         // gradient) as the pause menu's RESUME button. Width/height are
         // fractions of the full screen now (no card to size against).
-        var play = CreateSolidButton3D(stage, "Play", new Vector2(0.5f, 0.685f), "PLAY", 0.55f * frustumWidth, 0.06f * frustumHeight, (0.014f * frustumHeight) / 0.11f, GoldInkText);
+        // cornerRadiusFrac 0.5 (not the shared 0.32 default) - a true pill
+        // with fully semicircular ends, matching the approved mockup; the
+        // default's shallower corners were reading as "not perfectly round".
+        // Font size bumped from the shared 0.014 baseline to 0.019 per
+        // request - this is the screen's single primary CTA so it can carry
+        // more visual weight than the smaller RESUME/RESTART pills.
+        var play = CreateSolidButton3D(stage, "Play", new Vector2(0.5f, 0.685f), "PLAY", 0.55f * frustumWidth, 0.06f * frustumHeight, (0.019f * frustumHeight) / 0.11f, GoldInkText, cornerRadiusFrac: 0.5f, addDropShadow: false);
 
         // Grouped under one toggle so LevelStartScreen3D can hide all four
         // pieces (badge disc, badge number, button pill, button label) in a
@@ -1443,14 +1462,14 @@ public static class GameSceneBuilder3D
     }
 
     // Solid gold pill button + centered label.
-    private static (PressScaleButton3D btn, TextMeshPro lbl) CreateSolidButton3D(UIStage3D stage, string name, Vector2 vp, string text, float width, float height, float fontSize, Color textColor, float cornerRadiusFrac = 0.32f)
+    private static (PressScaleButton3D btn, TextMeshPro lbl) CreateSolidButton3D(UIStage3D stage, string name, Vector2 vp, string text, float width, float height, float fontSize, Color textColor, float cornerRadiusFrac = 0.32f, bool addDropShadow = true)
     {
         var pill = new GameObject(name, typeof(MeshFilter), typeof(MeshRenderer));
         stage.Place(pill, vp);
         pill.GetComponent<MeshFilter>().sharedMesh =
             SaveRoundedTrayMesh("Assets/Meshes/Btn_" + name + ".asset", width, height, 0.1f, height * cornerRadiusFrac);
         pill.GetComponent<MeshRenderer>().sharedMaterial = GetOrCreateNonEmissiveGoldMaterial();
-        AddButtonDropShadow(pill.transform, width, height);
+        if (addDropShadow) AddButtonDropShadow(pill.transform, width, height);
         var col = pill.AddComponent<BoxCollider>();
         col.size = new Vector3(width, height, 0.1f);
         var b = pill.AddComponent<PressScaleButton3D>();
